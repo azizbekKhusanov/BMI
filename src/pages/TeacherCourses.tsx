@@ -1,258 +1,288 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Link, useSearchParams } from "react-router-dom";
 import Layout from "@/components/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { 
-  Plus, BookOpen, Users, Trash2, Edit, GraduationCap, ArrowRight, 
-  Video, FileText, CheckCircle2, MoreVertical, LayoutGrid, Globe,
-  Clock, Activity, Sparkles, FolderOpen, MoreHorizontal, Settings2
-} from "lucide-react";
+import { Plus, BookOpen, Search, Filter, MoreVertical, Edit, Trash2, Sparkles, Wand2, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const TeacherCourses = () => {
   const { user } = useAuth();
-  const [myCourses, setMyCourses] = useState<any[]>([]);
-  const [selectedCourse, setSelectedCourse] = useState<any | null>(null);
-  const [lessons, setLessons] = useState<any[]>([]);
-  const [newCourse, setNewCourse] = useState({ title: "", description: "", image_url: "" });
-  const [newLesson, setNewLesson] = useState({ title: "", content_type: "text", content_text: "", content_url: "" });
-  const [newTest, setNewTest] = useState({ question: "", options: ["", "", "", ""], correct_answer: "" });
-  const [selectedLesson, setSelectedLesson] = useState<string | null>(null);
-  
-  const [courseStats, setCourseStats] = useState<Record<string, { students: number, progress: number }>>({});
-  const [lessonStats, setLessonStats] = useState<Record<string, { completionRate: number, duration: string }>>({});
-  
-  const [searchParams] = useSearchParams();
-  const [courseDialogOpen, setCourseDialogOpen] = useState(false);
-  const [lessonDialogOpen, setLessonDialogOpen] = useState(false);
-  const [testDialogOpen, setTestDialogOpen] = useState(false);
+  const navigate = useNavigate();
+  const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  // New course state
+  const [newCourse, setNewCourse] = useState({
+    title: "",
+    description: "",
+    image_url: ""
+  });
 
   useEffect(() => {
-    if (user) {
-      fetchMyCourses();
-    }
+    if (user) fetchTeacherCourses();
   }, [user]);
 
-  // Handle Quick Actions from Dashboard
-  useEffect(() => {
-    if (myCourses.length > 0) {
-      const courseId = searchParams.get("id");
-      const action = searchParams.get("action");
-      
-      if (courseId) {
-        const foundCourse = myCourses.find(c => c.id === courseId);
-        if (foundCourse) {
-          fetchLessons(foundCourse);
-          if (action === "lesson") setLessonDialogOpen(true);
-          if (action === "test") setTestDialogOpen(true);
-        }
-      }
-    }
-  }, [myCourses, searchParams]);
+  const fetchTeacherCourses = async () => {
+    const { data, error } = await supabase
+      .from("courses")
+      .select("*")
+      .eq("teacher_id", user?.id)
+      .order("created_at", { ascending: false });
 
-  const fetchMyCourses = async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data, error } = await supabase.from("courses").select("*").eq("teacher_id", user.id).order("created_at", { ascending: false });
-    
     if (error) {
-      toast.error("Ma'lumotlarni yuklashda xatolik yuz berdi");
-      setLoading(false);
-      return;
-    }
-
-    setMyCourses(data || []);
-    
-    // Har bir kurs uchun statistika
-    for (const c of data || []) {
-      const { data: enrolls } = await supabase.from("enrollments").select("progress").eq("course_id", c.id);
-      const count = enrolls?.length || 0;
-      const avgProg = count > 0 ? enrolls.reduce((sum, e) => sum + (e.progress || 0), 0) / count : 0;
-      setCourseStats(prev => ({ ...prev, [c.id]: { students: count, progress: Math.round(avgProg) } }));
+      toast.error("Kurslarni yuklashda xatolik");
+    } else {
+      setCourses(data || []);
     }
     setLoading(false);
   };
 
-  const fetchLessons = async (course: any) => {
-    const { data: lessonsData } = await supabase.from("lessons").select("*").eq("course_id", course.id).order("order_index");
-    setLessons(lessonsData || []);
-    setSelectedCourse(course);
-
-    // Darslar uchun Mock statistika (Professional look uchun)
-    const lStats: Record<string, any> = {};
-    lessonsData?.forEach((lesson: any) => {
-      lStats[lesson.id] = {
-        completionRate: Math.floor(Math.random() * 40) + 60, // 60-100% oralig'ida
-        duration: lesson.content_type === "video" ? "15-20 min" : "10 min"
-      };
-    });
-    setLessonStats(lStats);
-  };
-
-  const togglePublish = async (courseId: string, current: boolean) => {
-    const { error } = await supabase.from("courses").update({ is_published: !current }).eq("id", courseId);
-    if (error) {
-      toast.error("Holatni o'zgartirishda xatolik");
-    } else {
-      fetchMyCourses();
-      if (selectedCourse?.id === courseId) {
-        setSelectedCourse({ ...selectedCourse, is_published: !current });
-      }
-      toast.success(!current ? "Kurs nashr qilindi!" : "Kurs yashirildi!");
+  const handleCreateCourse = async () => {
+    if (!newCourse.title) {
+      toast.error("Kurs nomini kiriting");
+      return;
     }
-  };
 
-  const deleteCourse = async (courseId: string) => {
-    const { error } = await supabase.from("courses").delete().eq("id", courseId);
+    const { data, error } = await supabase
+      .from("courses")
+      .insert({
+        title: newCourse.title,
+        description: newCourse.description,
+        image_url: newCourse.image_url || "https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?w=800&auto=format&fit=crop&q=60",
+        teacher_id: user?.id,
+        is_published: false
+      })
+      .select()
+      .single();
+
     if (error) {
-      toast.error("O'chirishda xatolik yuz berdi");
+      toast.error("Kurs yaratishda xatolik");
     } else {
-      fetchMyCourses();
-      if (selectedCourse?.id === courseId) {
-        setSelectedCourse(null);
-        setLessons([]);
-      }
-      toast.success("Kurs o'chirib tashlandi");
+      toast.success("Kurs muvaffaqiyatli yaratildi!");
+      setCourses([data, ...courses]);
+      setIsDialogOpen(false);
+      setIsDialogOpen(false);
+      setNewCourse({ title: "", description: "", image_url: "" });
+      navigate(`/teacher/courses/${data.id}`);
     }
   };
 
   return (
     <Layout>
-      <div className="container py-10 space-y-12 animate-in fade-in duration-700">
-        
-        {/* Yuqori Sarlavha - Modernizatsiya qilingan */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 border-b pb-10">
-          <div className="space-y-3">
-             <div className="flex items-center gap-3 text-primary bg-primary/5 w-fit px-4 py-1.5 rounded-full border border-primary/10">
-                <Sparkles className="h-4 w-4" />
-                <span className="text-xs font-black uppercase tracking-widest">Kurslar Boshqaruvi</span>
-             </div>
-            <h1 className="text-5xl font-black font-serif">
-              Mening Kurslarim
-            </h1>
-            <p className="text-muted-foreground text-xl max-w-2xl leading-relaxed">
-              O'quv dasturlaringizni yarating, tahrirlang va talabalar muvaffaqiyatini ushbu markazdan nazorat qiling.
-            </p>
+      <div className="space-y-10 animate-in fade-in duration-700">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100/50">
+              <Sparkles className="h-8 w-8" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-indigo-50 text-indigo-600 border-none font-bold text-[9px] uppercase tracking-widest px-2 py-0.5">
+                  Kurslar Boshqaruvi
+                </Badge>
+              </div>
+              <h1 className="text-4xl font-bold text-[#1e293b] font-serif tracking-tight flex items-center gap-3 uppercase mt-1">
+                Mening Kurslarim
+              </h1>
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.2em] mt-1">
+                O'quv dasturlaringizni yarating, tahrirlang va talabalar faoliyatini nazorat qiling
+              </p>
+            </div>
           </div>
-          <Dialog open={courseDialogOpen} onOpenChange={setCourseDialogOpen}>
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="rounded-3xl h-16 px-8 shadow-2xl shadow-indigo-200 bg-indigo-600 hover:bg-indigo-700 text-lg font-bold transition-all hover:scale-105">
-                <Plus className="mr-3 h-6 w-6" /> Yangi kurs yaratish
+              <Button className="rounded-2xl h-14 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs tracking-widest uppercase shadow-lg shadow-indigo-100 transition-all gap-2">
+                <Plus className="h-5 w-5" /> Yangi kurs yaratish
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px] rounded-[3rem] p-8 border-none shadow-2xl">
-              <DialogHeader>
-                <DialogTitle className="font-serif text-3xl font-bold">Yangi kurs</DialogTitle>
-                <CardDescription className="text-base">O'quvchilarga yangi bilim berishni boshlang.</CardDescription>
+            <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-8 max-w-lg">
+              <DialogHeader className="space-y-3">
+                <div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 mb-2">
+                  <Wand2 className="h-6 w-6" />
+                </div>
+                <DialogTitle className="text-2xl font-serif font-bold text-slate-800 uppercase tracking-tight">Yangi Kurs Yaratish</DialogTitle>
+                <DialogDescription className="text-slate-400 font-medium text-sm">
+                  Kurs nomini va qisqacha tavsifini kiriting. Keyingi qadamda darslarni qo'shishingiz mumkin bo'ladi.
+                </DialogDescription>
               </DialogHeader>
-              <div className="space-y-6 py-6">
-                <div className="space-y-2">
-                  <Label className="font-bold text-xs uppercase opacity-70 tracking-widest px-1">Kurs nomi</Label>
-                  <Input value={newCourse.title} onChange={(e) => setNewCourse({ ...newCourse, title: e.target.value })} placeholder="Masalan: UI/UX Masterclass" className="rounded-2xl h-14 bg-muted/20 border-none shadow-inner" />
+              <div className="space-y-5 py-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Kurs Nomi</label>
+                  <Input 
+                    placeholder="Masalan: Metakognitsiya asoslari" 
+                    value={newCourse.title}
+                    onChange={(e) => setNewCourse({...newCourse, title: e.target.value})}
+                    className="h-12 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white transition-all font-medium"
+                  />
                 </div>
-                <div className="space-y-2">
-                  <Label className="font-bold text-xs uppercase opacity-70 tracking-widest px-1">Tavsif</Label>
-                  <Textarea value={newCourse.description} onChange={(e) => setNewCourse({ ...newCourse, description: e.target.value })} placeholder="Kurs haqida qisqacha..." rows={4} className="rounded-2xl bg-muted/20 border-none shadow-inner p-4" />
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Muqova rasmi</label>
+                  <div 
+                    onClick={() => document.getElementById('course-image-upload')?.click()}
+                    className="group relative h-48 w-full rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-all overflow-hidden"
+                  >
+                    {newCourse.image_url ? (
+                      <img src={newCourse.image_url} className="h-full w-full object-cover" alt="Preview" />
+                    ) : (
+                      <div className="flex flex-col items-center text-slate-400 group-hover:text-indigo-600 transition-colors">
+                        <Plus className="h-10 w-10 mb-2" />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Rasm yuklash</span>
+                        <span className="text-[8px] mt-1 opacity-60">PNG, JPG (Maks. 2MB)</span>
+                      </div>
+                    )}
+                    <input 
+                      id="course-image-upload"
+                      type="file" 
+                      accept="image/*"
+                      className="hidden" 
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+
+                        if (file.size > 2 * 1024 * 1024) {
+                          toast.error("Rasm hajmi 2MB dan oshmasligi kerak");
+                          return;
+                        }
+
+                        const fileExt = file.name.split('.').pop();
+                        const fileName = `${Math.random()}.${fileExt}`;
+                        const filePath = `${fileName}`;
+
+                        toast.promise(
+                          async () => {
+                            const { error: uploadError } = await supabase.storage
+                              .from('course_images')
+                              .upload(filePath, file);
+
+                            if (uploadError) {
+                              console.error("Supabase Storage Error:", uploadError);
+                              throw uploadError;
+                            }
+
+                            const { data } = supabase.storage
+                              .from('course_images')
+                              .getPublicUrl(filePath);
+
+                            setNewCourse({ ...newCourse, image_url: data.publicUrl });
+                            return data.publicUrl;
+                          },
+                          {
+                            loading: 'Rasm yuklanmoqda...',
+                            success: 'Rasm muvaffaqiyatli yuklandi!',
+                            error: (err) => `Xatolik: ${err.message || "Yuklashda muammo bo'ldi"}`,
+                          }
+                        );
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="font-bold text-xs uppercase opacity-70 tracking-widest px-1">Muqova URL</Label>
-                  <Input placeholder="Rasm havolasi..." value={newCourse.image_url} onChange={(e) => setNewCourse({ ...newCourse, image_url: e.target.value })} className="rounded-2xl h-14 bg-muted/20 border-none shadow-inner" />
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tavsif</label>
+                  <Textarea 
+                    placeholder="Kurs haqida qisqacha ma'lumot..." 
+                    value={newCourse.description}
+                    onChange={(e) => setNewCourse({...newCourse, description: e.target.value})}
+                    className="min-h-[120px] rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white transition-all font-medium py-3"
+                  />
                 </div>
               </div>
-              <Button onClick={() => {}} className="w-full h-14 rounded-2xl text-lg font-bold bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-100">KURS YARATISH</Button>
+              <DialogFooter>
+                <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="rounded-2xl h-12 px-6 font-bold text-xs uppercase tracking-widest text-slate-400">Bekor qilish</Button>
+                <Button onClick={handleCreateCourse} className="rounded-2xl h-12 px-10 bg-indigo-600 hover:bg-indigo-700 font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-100">Kursni yaratish</Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
 
-        {/* Kurslar Gridi - Yana ham ixchamroq */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {loading ? (
-            Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-[350px] w-full rounded-[2.5rem]" />)
-          ) : myCourses.length > 0 ? (
-            myCourses.map((c) => (
-              <Card 
-                key={c.id} 
-                className="group relative border-none shadow-lg hover:shadow-2xl transition-all rounded-[2.5rem] bg-white overflow-hidden border flex flex-col h-full hover:-translate-y-1.5 duration-500"
-              >
-                {/* Kurs Muqovasi - Ixchamroq */}
-                <div className="h-32 relative overflow-hidden">
-                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                   {c.image_url ? (
-                     <img src={c.image_url} alt={c.title} className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                   ) : (
-                     <div className="h-full w-full bg-slate-50 flex items-center justify-center text-slate-200">
-                        <BookOpen className="h-12 w-12" />
-                     </div>
-                   )}
-                   <Badge className={`absolute top-4 right-4 z-20 rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-tighter border-none shadow-md ${c.is_published ? "bg-emerald-500 text-white" : "bg-orange-500 text-white"}`}>
-                      {c.is_published ? "FAOL" : "DRAFT"}
-                   </Badge>
+        {/* Filters and Search */}
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="relative flex-1 group">
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
+            <Input 
+              placeholder="Kurslaringiz orasidan qidiring..." 
+              className="w-full h-16 pl-16 pr-6 rounded-[2rem] border-none bg-white shadow-[0_8px_30px_rgb(0,0,0,0.03)] focus-visible:ring-2 focus-visible:ring-indigo-500 transition-all text-sm font-medium"
+            />
+          </div>
+          <Button variant="outline" className="h-16 px-8 rounded-[2rem] border-none bg-white shadow-[0_8px_30px_rgb(0,0,0,0.03)] font-bold text-[10px] uppercase tracking-widest text-slate-500 gap-2">
+            <Filter className="h-4 w-4" /> Barcha holatlar
+          </Button>
+        </div>
+
+        {/* Course List */}
+        {loading ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-64 rounded-[2.5rem] bg-white animate-pulse shadow-sm" />
+            ))}
+          </div>
+        ) : courses.length === 0 ? (
+          <Card className="border-dashed border-2 py-32 text-center bg-slate-50/50 rounded-[3rem] border-slate-200">
+            <CardContent className="space-y-6">
+              <div className="h-24 w-24 rounded-full bg-white shadow-xl flex items-center justify-center mx-auto">
+                <BookOpen className="h-10 w-10 text-slate-200" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-2xl font-serif font-bold text-[#1e293b] uppercase">Kurslaringiz yo'q</h3>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Hozircha birorta kurs yaratmagansiz. Birinchi kursingizni hoziroq ishga tushiring!</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {courses.map((course) => (
+              <Card key={course.id} className="border-none shadow-md rounded-[2.5rem] overflow-hidden group hover:shadow-2xl transition-all duration-500 bg-white flex flex-col h-full cursor-pointer relative">
+                <Link to={`/teacher/courses/${course.id}`} className="absolute inset-0 z-0" />
+                <div className="h-48 overflow-hidden relative">
+                  <img 
+                    src={course.image_url || "https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?w=800&auto=format&fit=crop&q=60"} 
+                    className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    alt={course.title} 
+                  />
+                  <div className="absolute top-4 left-4">
+                    <Badge className={`${course.is_published ? "bg-emerald-500" : "bg-amber-500"} text-white border-none px-3 py-1 font-bold text-[9px] uppercase shadow-md`}>
+                      {course.is_published ? "E'lon qilingan" : "Qoralama"}
+                    </Badge>
+                  </div>
                 </div>
-
-                <CardContent className="p-4 flex flex-col flex-1 space-y-3">
-                   <div className="space-y-1">
-                      <h3 className="text-xl font-black tracking-tight leading-snug group-hover:text-indigo-600 transition-colors uppercase line-clamp-2">{c.title}</h3>
-                      <p className="text-muted-foreground text-[13px] line-clamp-2 leading-tight font-medium">{c.description || "Tavsif mavjud emas."}</p>
-                   </div>
-                   
-                   <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                         <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest">Talabalar</span>
-                         <div className="flex items-center gap-2">
-                            <Users className="h-4 w-4 text-indigo-500" />
-                            <span className="text-lg font-black text-slate-700">{courseStats[c.id]?.students || 0}</span>
-                         </div>
-                      </div>
-                      <div className="space-y-1">
-                         <span className="text-[10px] font-black text-muted-foreground/60 uppercase tracking-widest">Progress</span>
-                         <div className="flex items-center gap-2">
-                            <Activity className="h-4 w-4 text-emerald-500" />
-                            <span className="text-lg font-black text-emerald-600">{courseStats[c.id]?.progress || 0}%</span>
-                         </div>
-                      </div>
-                   </div>
-
-                   <div className="pt-2 mt-auto">
-                      <Link to={`/teacher/courses/${c.id}`}>
-                        <Button className="w-full h-12 rounded-[1.2rem] bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white font-black text-[11px] uppercase tracking-widest shadow-none hover:shadow-lg hover:shadow-indigo-100 transition-all duration-300">
-                           Boshqarish <ArrowRight className="ml-1.5 h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
-                        </Button>
-                      </Link>
-                   </div>
+                <CardContent className="p-8 flex flex-col flex-1 gap-4 relative z-10 pointer-events-none">
+                  <h3 className="text-xl font-bold font-serif text-[#1e293b] group-hover:text-indigo-600 transition-colors leading-tight line-clamp-2">
+                    {course.title}
+                  </h3>
+                  <p className="text-slate-400 text-xs leading-relaxed line-clamp-3">
+                    {course.description || "Ushbu kurs uchun tavsif berilmagan."}
+                  </p>
                 </CardContent>
               </Card>
-            ))
-         ) : (
-            <div className="col-span-full py-32 text-center bg-white/50 border-4 border-dashed rounded-[4rem] flex flex-col items-center animate-in zoom-in-95 duration-700">
-               <div className="h-24 w-24 rounded-full bg-indigo-50 flex items-center justify-center mb-8 border border-indigo-100 shadow-inner">
-                  <Sparkles className="h-10 w-10 text-indigo-400" />
-               </div>
-               <h3 className="text-4xl font-serif font-black text-slate-800">Kurslaringiz yo'q</h3>
-               <p className="text-muted-foreground mt-4 max-w-sm text-lg leading-relaxed">
-                  Hozircha kurslar yaratmagansiz. Birinchi o'quv dasturingizni hoziroq ishga tushiring!
-               </p>
-               <Button onClick={() => setCourseDialogOpen(true)} className="mt-10 rounded-2xl h-14 px-8 bg-indigo-600">
-                  <Plus className="mr-2 h-5 w-5" /> Birinchi kursni yaratish
-               </Button>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </Layout>
   );

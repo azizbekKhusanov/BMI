@@ -35,6 +35,8 @@ import AdminCourses from "./pages/AdminCourses";
 import AdminModeration from "./pages/AdminModeration";
 import AdminSettings from "./pages/AdminSettings";
 
+import Dashboard from "./pages/Dashboard";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -48,6 +50,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            
+            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             
             {/* Umumiy */}
             <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
@@ -78,7 +82,6 @@ const App = () => (
             <Route path="/admin/moderation" element={<ProtectedRoute requiredRole="admin"><AdminModeration /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute requiredRole="admin"><AdminSettings /></ProtectedRoute>} />
 
-            <Route path="/dashboard" element={<Navigate to="/teacher" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
