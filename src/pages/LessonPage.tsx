@@ -12,7 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { 
   ArrowLeft, CheckCircle, Star, Video, FileText, Lock, Unlock, 
   PlayCircle, Loader2, Play, Settings2, Gauge, MonitorPlay, ChevronRight,
-  Maximize, Volume2, Pause, FastForward, Trash2, Plus, HelpCircle, Edit
+  Maximize, Volume2, Pause, FastForward, Trash2, Plus, HelpCircle, Edit,
+  Sparkles, ArrowRight, BookOpen
 } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
