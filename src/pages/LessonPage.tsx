@@ -300,14 +300,50 @@ const LessonPage = () => {
 
   return (
     <Layout>
-      <div className="max-w-5xl mx-auto space-y-10 py-10 pb-32">
-        <div className="flex items-center justify-between">
-           <div className="flex items-center gap-5">
-              <Button variant="outline" onClick={() => navigate(`/courses/${lesson.courses?.id}`)} className="rounded-2xl h-14 w-14 p-0"><ArrowLeft className="h-6 w-6 text-slate-600" /></Button>
-              <div>
-                 <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1">{lesson.courses?.title}</p>
-                 <h1 className="text-3xl font-bold text-slate-800 font-serif uppercase tracking-tight">{lesson.title}</h1>
+      <div className="max-w-7xl mx-auto space-y-10 py-10 px-4 lg:px-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        {/* Lesson Header Banner */}
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-r from-blue-600 to-indigo-600 p-8 lg:p-10 shadow-xl shadow-blue-100">
+           <div className="absolute top-0 right-0 w-1/3 h-full opacity-10 pointer-events-none">
+              <Sparkles className="w-full h-full text-white" />
+           </div>
+           
+           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex items-center gap-6">
+                 <Button 
+                   variant="outline" 
+                   size="icon" 
+                   onClick={() => navigate(`/courses/${lesson.courses?.id}`)} 
+                   className="h-12 w-12 rounded-2xl bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-md shrink-0 transition-all active:scale-90"
+                 >
+                   <ArrowLeft className="h-5 w-5" />
+                 </Button>
+                 <div className="space-y-1.5">
+                    <div className="flex items-center gap-3">
+                       <Badge className="bg-white/20 text-blue-100 border-none px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-[0.2em]">
+                          {lesson.courses?.title || "Kurs nomi"}
+                       </Badge>
+                       <div className="h-1 w-1 rounded-full bg-white/30" />
+                       <span className="text-[9px] font-bold text-white/60 uppercase tracking-widest">
+                          {lesson.content_type === 'video' ? 'Video dars' : 'Matnli dars'}
+                       </span>
+                    </div>
+                    <h1 className="text-2xl lg:text-3xl font-bold font-serif text-white uppercase tracking-tight leading-none">
+                       {lesson.title}
+                    </h1>
+                 </div>
               </div>
+
+              {isTeacher && (
+                <div className="flex items-center gap-3">
+                   <Button 
+                     variant="outline" 
+                     className="rounded-xl h-12 bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-md px-5 font-black text-[9px] uppercase tracking-widest transition-all"
+                     onClick={() => setAddQuestionOpen(true)}
+                   >
+                     <Plus className="h-4 w-4 mr-2" /> Savol qo'shish
+                   </Button>
+                </div>
+              )}
            </div>
         </div>
 
