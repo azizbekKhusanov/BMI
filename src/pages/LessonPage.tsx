@@ -343,17 +343,7 @@ const LessonPage = () => {
                  </div>
               </div>
 
-              {isTeacher && (
-                <div className="flex items-center gap-3">
-                   <Button 
-                     variant="outline" 
-                     className="rounded-xl h-12 bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-md px-5 font-black text-[9px] uppercase tracking-widest transition-all"
-                     onClick={() => setAddQuestionOpen(true)}
-                   >
-                     <Plus className="h-4 w-4 mr-2" /> Savol qo'shish
-                   </Button>
-                </div>
-              )}
+              {/* Action buttons removed as per request */}
            </div>
         </div>
 
