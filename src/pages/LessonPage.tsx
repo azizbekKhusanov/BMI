@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { 
   ArrowLeft, CheckCircle, Star, Video, FileText, Lock, Unlock, 
   PlayCircle, Loader2, Play, Settings2, Gauge, MonitorPlay, ChevronRight,
-  Maximize, Volume2, Pause, FastForward, Trash2, Plus, HelpCircle
+  Maximize, Volume2, Pause, FastForward, Trash2, Plus, HelpCircle, Edit
 } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,6 +30,21 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuPortal,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 declare global {
   interface Window {
@@ -40,14 +55,20 @@ declare global {
 
 const LessonPage = () => {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, roles } = useAuth();
   const navigate = useNavigate();
   const [lesson, setLesson] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [tests, setTests] = useState<any[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [submitted, setSubmitted] = useState(false);
   const [results, setResults] = useState<Record<string, boolean>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [questionToDelete, setQuestionToDelete] = useState<string | null>(null);
+  const [addQuestionOpen, setAddQuestionOpen] = useState(false);
+  const [editQuestionOpen, setEditQuestionOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<any>(null);
+  const [newQuestion, setNewQuestion] = useState({ question: "", options: ["", "", "", ""], correct_answer: "" });
   const [selfRating, setSelfRating] = useState(3);
   const [reflection, setReflection] = useState("");
   const [loading, setLoading] = useState(true);
@@ -61,7 +82,7 @@ const LessonPage = () => {
   const [availableQualities, setAvailableQualities] = useState<string[]>([]);
   const playerRef = useRef<any>(null);
 
-  const isTeacher = profile?.role === 'teacher';
+  const isTeacher = roles.includes('teacher') || roles.includes('admin');
   const speedOptions = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
   const standardQualities = ['hd1080', 'hd720', 'large', 'medium', 'small', 'tiny', 'auto'];
 
@@ -75,9 +96,24 @@ const LessonPage = () => {
     try {
       const { data: pData } = await supabase.from("profiles").select("*").eq("id", user?.id).single();
       setProfile(pData);
-      const { data, error } = await supabase.from("lessons").select("*, courses(title, id, image_url)").eq("id", id).single();
-      if (error) throw error;
-      setLesson(data);
+      const { data: lessonData, error: lessonError } = await supabase
+        .from("lessons")
+        .select("*")
+        .eq("id", id)
+        .single();
+      
+      if (lessonError) throw lessonError;
+
+      if (lessonData) {
+        const { data: courseData } = await supabase
+          .from("courses")
+          .select("title")
+          .eq("id", lessonData.course_id)
+          .single();
+        
+        setLesson({ ...lessonData, courses: courseData });
+      }
+      
       const { data: testsData } = await supabase.from("tests").select("*").eq("lesson_id", id);
       setTests(testsData || []);
     } catch (error) {
@@ -150,7 +186,10 @@ const LessonPage = () => {
     if (event.data === 0) { // Ended
       setVideoFinished(true);
       setIsPlaying(false);
-      if (!isTeacher) toast.success("Dars yakunlandi!");
+      if (!isTeacher) {
+        toast.success("Dars yakunlandi!");
+        updateProgress();
+      }
     }
   };
 
@@ -182,17 +221,57 @@ const LessonPage = () => {
     if (!error) {
       toast.success("Savol qo'shildi");
       setNewQuestion({ question: "", options: ["", "", "", ""], correct_answer: "" });
+      setAddQuestionOpen(false);
       const { data: testsData } = await supabase.from("tests").select("*").eq("lesson_id", id);
       setTests(testsData || []);
     }
   };
 
-  const handleDeleteQuestion = async (testId: string) => {
-    const { error } = await supabase.from("tests").delete().eq("id", testId);
+  const handleDeleteQuestion = async () => {
+    if (!questionToDelete) return;
+    const { error } = await supabase.from("tests").delete().eq("id", questionToDelete);
     if (!error) {
       toast.success("Savol o'chirildi");
+      setDeleteConfirmOpen(false);
+      setQuestionToDelete(null);
       const { data: testsData } = await supabase.from("tests").select("*").eq("lesson_id", id);
       setTests(testsData || []);
+    }
+  };
+
+  const handleUpdateQuestion = async () => {
+    if (!editingQuestion.question || !editingQuestion.correct_answer) return toast.error("Barcha maydonlarni to'ldiring");
+    const { error } = await supabase.from("tests").update({
+      question: editingQuestion.question, options: editingQuestion.options, correct_answer: editingQuestion.correct_answer
+    }).eq("id", editingQuestion.id);
+    if (!error) {
+      toast.success("Savol yangilandi");
+      setEditQuestionOpen(false);
+      setEditingQuestion(null);
+      const { data: testsData } = await supabase.from("tests").select("*").eq("lesson_id", id);
+      setTests(testsData || []);
+    }
+  };
+  const updateProgress = async () => {
+    if (!user || !id || !lesson) return;
+    try {
+      const { data: allLessons } = await supabase.from("lessons").select("id").eq("course_id", lesson.course_id);
+      if (!allLessons?.length) return;
+
+      const progressStep = 100 / allLessons.length;
+      const { data: currentEnroll } = await supabase.from("enrollments").select("progress").eq("user_id", user.id).eq("course_id", lesson.course_id).maybeSingle();
+      
+      const newProgress = Math.min(100, (currentEnroll?.progress || 0) + progressStep);
+
+      await supabase
+        .from("enrollments")
+        .update({ progress: newProgress })
+        .eq("user_id", user.id)
+        .eq("course_id", lesson.course_id);
+      
+      setEnrollment(prev => prev ? { ...prev, progress: newProgress } : null);
+    } catch (err) {
+      console.error("Error updating progress:", err);
     }
   };
 
@@ -208,6 +287,7 @@ const LessonPage = () => {
     setSubmitted(true);
     await supabase.from("test_results").insert(inserts);
     toast.success("Testlar topshirildi!");
+    updateProgress();
   };
 
   if (loading) return (
@@ -303,47 +383,237 @@ const LessonPage = () => {
           </div>
         )}
 
-        {/* Content & Tests */}
-        {(videoFinished || lesson?.content_type === 'text' || (profile && isTeacher)) && (
-          <div className="space-y-10 animate-in slide-in-from-bottom-10 duration-700">
-             <Card className="rounded-[3rem] border-none shadow-xl bg-white p-10 space-y-10">
-                <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-4"><div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600"><FileText className="h-6 w-6" /></div><h2 className="text-2xl font-bold text-slate-800 font-serif uppercase tracking-tight">BILIMNI TEKSHIRISH</h2></div>
-                   {isTeacher && <Badge className="bg-amber-50 text-amber-600 border-none font-black text-[10px] uppercase px-4 py-1.5 rounded-full">O'qituvchi Boshqaruvi</Badge>}
-                </div>
-                {tests.length === 0 ? (
-                   <div className="py-20 text-center space-y-4"><HelpCircle className="h-12 w-12 text-slate-100 mx-auto" /><p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Hozircha savollar yo'q</p></div>
-                ) : (
-                   <div className="space-y-12">
-                      {tests.map((test, idx) => (
-                        <div key={test.id} className="space-y-6 relative group">
-                           {isTeacher && <Button onClick={() => handleDeleteQuestion(test.id)} variant="ghost" className="absolute -right-4 -top-4 h-10 w-10 p-0 rounded-full text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all"><Trash2 className="h-5 w-5" /></Button>}
-                           <p className="text-lg font-bold text-slate-700">{idx + 1}. {test.question}</p>
-                           <RadioGroup value={answers[test.id] || ""} onValueChange={(v) => setAnswers({ ...answers, [test.id]: v })} disabled={submitted || isTeacher} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {(test.options as string[]).map((opt: string) => (
-                                <div key={opt}><RadioGroupItem value={opt} id={`${test.id}-${opt}`} className="peer sr-only" /><Label htmlFor={`${test.id}-${opt}`} className={`flex items-center justify-between p-5 rounded-2xl border-2 cursor-pointer font-bold text-xs uppercase ${isTeacher ? (opt === test.correct_answer ? "bg-emerald-50 border-emerald-500 text-emerald-700" : "bg-slate-50 border-slate-100") : submitted ? (opt === test.correct_answer ? "bg-emerald-50 border-emerald-500 text-emerald-700" : answers[test.id] === opt ? "bg-red-50 border-red-500 text-red-700" : "bg-slate-50 opacity-50") : "border-slate-100 bg-slate-50/50 hover:border-indigo-400 peer-checked:border-indigo-600 peer-checked:bg-indigo-50 peer-checked:text-indigo-700"}`}>{opt}</Label></div>
-                              ))}
-                           </RadioGroup>
-                        </div>
-                      ))}
-                   </div>
-                )}
-                {!submitted && !isTeacher && tests.length > 0 && <Button onClick={handleSubmitTests} disabled={Object.keys(answers).length < tests.length} className="w-full h-14 rounded-2xl bg-indigo-600 font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-100">Javoblarni topshirish</Button>}
-             </Card>
-             {isTeacher && (
-                <Card className="rounded-[3rem] border-2 border-dashed border-slate-200 bg-slate-50/50 p-10 space-y-8">
-                   <div className="flex items-center gap-4"><div className="h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-indigo-600"><Plus className="h-6 w-6" /></div><h2 className="text-xl font-bold text-slate-800 font-serif uppercase tracking-tight">YANGI SAVOL QO'SHISH</h2></div>
-                   <div className="grid grid-cols-1 gap-6">
-                      <div className="space-y-2"><Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Savol matni</Label><Input value={newQuestion.question} onChange={e => setNewQuestion({...newQuestion, question: e.target.value})} placeholder="Savolni kiriting..." className="h-14 rounded-2xl border-white bg-white shadow-sm" /></div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">{newQuestion.options.map((opt, idx) => (<div key={idx} className="space-y-2"><Label className="text-[8px] font-black text-slate-400 uppercase tracking-widest ml-1">{idx + 1}-variant</Label><Input value={opt} onChange={e => { const newOpts = [...newQuestion.options]; newOpts[idx] = e.target.value; setNewQuestion({...newQuestion, options: newOpts}); }} placeholder="Variantni yozing..." className="h-12 rounded-xl border-white bg-white shadow-sm" /></div>))}</div>
-                      <div className="space-y-2"><Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">To'g'ri javob</Label><select value={newQuestion.correct_answer} onChange={e => setNewQuestion({...newQuestion, correct_answer: e.target.value})} className="w-full h-14 rounded-2xl border border-white bg-white shadow-sm px-4 text-sm font-bold"><option value="">To'g'ri javobni tanlang...</option>{newQuestion.options.filter(o => o !== "").map((opt, idx) => (<option key={idx} value={opt}>{opt}</option>))}</select></div>
-                      <Button onClick={handleAddQuestion} className="h-14 rounded-2xl bg-indigo-600 font-bold text-xs uppercase tracking-widest gap-2"><Plus className="h-4 w-4" /> Savolni darsga qo'shish</Button>
-                   </div>
-                </Card>
-             )}
-          </div>
-        )}
+        {/* Quiz Section (Yagona Quiz Obyekti sifatida) */}
+        <div className="space-y-8 animate-in slide-in-from-bottom-10 duration-700">
+           <Card className="rounded-[3.5rem] border-none shadow-2xl bg-white overflow-hidden">
+              <div className="bg-indigo-600 p-8 text-white flex items-center justify-between">
+                 <div className="flex items-center gap-5">
+                    <div className="h-14 w-14 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                       <FileText className="h-7 w-7 text-white" />
+                    </div>
+                    <div>
+                       <h2 className="text-2xl font-bold font-serif uppercase tracking-tight">Dars Testi</h2>
+                       <p className="text-[10px] font-black text-indigo-200 uppercase tracking-widest mt-1">Bilimingizni sinovdan o'tkazing {tests.length > 0 && `(${tests.length} ta savol)`}</p>
+                    </div>
+                 </div>
+                 {isTeacher && (
+                    <Button 
+                       onClick={() => setAddQuestionOpen(true)}
+                       className="bg-white/10 hover:bg-white/20 text-white border-white/20 font-black text-[10px] uppercase px-6 py-4 h-auto rounded-2xl backdrop-blur-md transition-all active:scale-95 gap-3 border"
+                    >
+                       <Plus className="h-4 w-4" /> Savol qo'shish
+                    </Button>
+                 )}
+              </div>
+
+              <CardContent className="p-10 space-y-12">
+                 {/* Student logic: faqat video tugasa yoki o'qituvchi bo'lsa ko'rinadi */}
+                 {(!isTeacher && !videoFinished && lesson?.content_type === 'video') ? (
+                    <div className="py-20 text-center space-y-6">
+                       <div className="h-20 w-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto border-4 border-dashed border-slate-200 animate-pulse">
+                          <Lock className="h-8 w-8 text-slate-300" />
+                       </div>
+                       <div className="space-y-2">
+                          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Test bloklangan</p>
+                          <p className="text-[11px] text-slate-300 font-medium">Testni yechish uchun videdarsni oxirigacha ko'ring</p>
+                       </div>
+                    </div>
+                 ) : (
+                    <>
+                       {tests.length === 0 ? (
+                          <div className="py-20 text-center space-y-4">
+                             <HelpCircle className="h-14 w-14 text-slate-100 mx-auto" />
+                             <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Hozircha test savollari qo'shilmagan</p>
+                          </div>
+                       ) : (
+                          <div className="space-y-6">
+                             {isTeacher ? (
+                                <Accordion type="single" collapsible className="space-y-4">
+                                   {tests.map((test, idx) => (
+                                      <AccordionItem key={test.id} value={test.id} className="border-none">
+                                         <div className="group relative">
+                                            <AccordionTrigger className="p-5 rounded-2xl bg-slate-50/50 border border-slate-100 hover:bg-white hover:shadow-lg transition-all hover:no-underline data-[state=open]:rounded-b-none data-[state=open]:bg-white data-[state=open]:shadow-lg data-[state=open]:border-transparent">
+                                               <div className="flex items-center gap-4 text-left">
+                                                  <div className="h-8 w-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-xs shrink-0 shadow-md shadow-indigo-100">{idx + 1}</div>
+                                                  <p className="text-sm font-bold text-slate-700 leading-tight pr-20">{test.question}</p>
+                                               </div>
+                                            </AccordionTrigger>
+                                            <div className="absolute right-12 top-1/2 -translate-y-1/2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                               <Button 
+                                                  variant="ghost" 
+                                                  size="icon" 
+                                                  onClick={(e) => { e.stopPropagation(); setEditingQuestion({...test}); setEditQuestionOpen(true); }}
+                                                  className="h-8 w-8 rounded-lg text-slate-300 hover:text-indigo-600 hover:bg-indigo-50"
+                                               >
+                                                  <Edit className="h-3.5 w-3.5" />
+                                               </Button>
+                                               <Button 
+                                                  variant="ghost" 
+                                                  size="icon" 
+                                                  onClick={(e) => { e.stopPropagation(); setQuestionToDelete(test.id); setDeleteConfirmOpen(true); }}
+                                                  className="h-8 w-8 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50"
+                                               >
+                                                  <Trash2 className="h-3.5 w-3.5" />
+                                               </Button>
+                                            </div>
+                                         </div>
+                                         <AccordionContent className="p-6 pt-0 bg-white border-x border-b border-slate-100 rounded-b-2xl shadow-lg">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                                               {(test.options as string[]).map((option: string, i: number) => (
+                                                  <div key={i} className={`flex items-center space-x-3 p-4 rounded-xl border transition-all ${option === test.correct_answer ? 'border-emerald-500 bg-emerald-50/50' : 'border-slate-100 bg-white'}`}>
+                                                     <div className={`h-3 w-3 rounded-full border ${option === test.correct_answer ? 'border-emerald-500 bg-emerald-500' : 'border-slate-300'}`} />
+                                                     <Label className={`text-[11px] font-bold flex-1 ${option === test.correct_answer ? 'text-emerald-700' : 'text-slate-600'}`}>{option}</Label>
+                                                     {option === test.correct_answer && <CheckCircle className="h-4 w-4 text-emerald-500" />}
+                                                  </div>
+                                               ))}
+                                            </div>
+                                         </AccordionContent>
+                                      </AccordionItem>
+                                   ))}
+                                </Accordion>
+                             ) : (
+                                <div className="space-y-12">
+                                   {tests.map((test, idx) => (
+                                      <div key={test.id} className="p-8 rounded-[2rem] bg-slate-50/50 border border-slate-100 relative group transition-all hover:bg-white hover:shadow-xl hover:border-transparent">
+                                         <div className="flex gap-6">
+                                            <div className="h-10 w-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-black text-sm shrink-0 shadow-lg shadow-indigo-100">{idx + 1}</div>
+                                            <div className="space-y-8 flex-1">
+                                               <p className="text-xl font-bold text-slate-800 leading-snug">{test.question}</p>
+                                               <RadioGroup value={answers[test.id] || ""} onValueChange={(val) => setAnswers(prev => ({ ...prev, [test.id]: val }))} disabled={submitted} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                  {(test.options as string[]).map((option: string, i: number) => (
+                                                     <div key={i} className={`flex items-center space-x-4 p-5 rounded-2xl border-2 transition-all cursor-pointer ${answers[test.id] === option ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-100 bg-white hover:border-indigo-200'}`}>
+                                                        <RadioGroupItem value={option} id={`q-${test.id}-${i}`} className="text-indigo-600 border-2" />
+                                                        <Label htmlFor={`q-${test.id}-${i}`} className="text-sm font-bold text-slate-600 cursor-pointer flex-1">{option}</Label>
+                                                        {submitted && option === test.correct_answer && <CheckCircle className="h-5 w-5 text-emerald-500" />}
+                                                     </div>
+                                                  ))}
+                                               </RadioGroup>
+                                            </div>
+                                         </div>
+                                      </div>
+                                   ))}
+                                   
+                                   {!submitted && tests.length > 0 && (
+                                      <Button onClick={handleSubmitTests} className="h-16 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-xs tracking-widest shadow-2xl shadow-indigo-100 transition-all active:scale-95">Testlarni Tekshirish</Button>
+                                   )}
+                                </div>
+                             )}
+                          </div>
+                       )}
+                    </>
+                 )}
+              </CardContent>
+           </Card>
+        </div>
       </div>
+
+      {/* Add/Edit Question Dialog */}
+      <Dialog open={addQuestionOpen || editQuestionOpen} onOpenChange={(open) => {
+         if (!open) {
+            setAddQuestionOpen(false);
+            setEditQuestionOpen(false);
+            setEditingQuestion(null);
+            setNewQuestion({ question: "", options: ["", "", "", ""], correct_answer: "" });
+         }
+      }}>
+        <DialogContent className="rounded-[2.5rem] p-10 max-w-2xl border-none shadow-2xl bg-white">
+          <DialogHeader className="space-y-4">
+            <DialogTitle className="text-2xl font-bold text-slate-800 font-serif uppercase tracking-tight">
+               {editQuestionOpen ? "Savolni tahrirlash" : "Yangi savol qo'shish"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-6 py-6">
+            <div className="space-y-2">
+              <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Savol matni</Label>
+              <Input 
+                value={editQuestionOpen ? editingQuestion?.question : newQuestion.question}
+                onChange={(e) => editQuestionOpen 
+                  ? setEditingQuestion({ ...editingQuestion, question: e.target.value })
+                  : setNewQuestion({ ...newQuestion, question: e.target.value })
+                }
+                placeholder="Misol: 2+2 nechiga teng?"
+                className="h-16 rounded-2xl border-slate-100 bg-slate-50/50 px-6 font-bold text-lg" 
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-6">
+              {(editQuestionOpen ? editingQuestion?.options : newQuestion.options).map((opt: string, i: number) => {
+                const isCorrect = (editQuestionOpen ? editingQuestion.correct_answer : newQuestion.correct_answer) === opt && opt !== "";
+                return (
+                  <div key={i} className="space-y-2 relative">
+                    <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{i+1}-variant</Label>
+                    <div className="relative">
+                      <Input 
+                        value={opt}
+                        onChange={(e) => {
+                          const newOpts = [...(editQuestionOpen ? editingQuestion.options : newQuestion.options)];
+                          newOpts[i] = e.target.value;
+                          editQuestionOpen 
+                            ? setEditingQuestion({ ...editingQuestion, options: newOpts })
+                            : setNewQuestion({ ...newQuestion, options: newOpts });
+                        }}
+                        placeholder={`Variant-${i+1}`}
+                        className={`h-14 rounded-2xl border-2 transition-all px-6 pr-14 font-bold ${isCorrect ? 'border-emerald-500 bg-emerald-50/30' : 'border-slate-100 bg-slate-50/50'}`} 
+                      />
+                      <button
+                        onClick={() => {
+                          if (!opt) return toast.error("Oldin variant matnini kiriting");
+                          editQuestionOpen
+                            ? setEditingQuestion({ ...editingQuestion, correct_answer: opt })
+                            : setNewQuestion({ ...newQuestion, correct_answer: opt });
+                        }}
+                        className={`absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full flex items-center justify-center transition-all ${isCorrect ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400 hover:bg-slate-300'}`}
+                      >
+                        <CheckCircle className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+               onClick={editQuestionOpen ? handleUpdateQuestion : handleAddQuestion} 
+               disabled={
+                 (editQuestionOpen ? !editingQuestion?.question || !editingQuestion?.correct_answer : !newQuestion.question || !newQuestion.correct_answer)
+               }
+               className="h-16 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-100 disabled:opacity-30 transition-all"
+            >
+               {editQuestionOpen ? "O'zgarishlarni saqlash" : "Savolni qo'shish"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Question Confirmation */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="rounded-[2.5rem] p-10 max-w-md border-none shadow-2xl bg-white text-center">
+          <DialogHeader className="space-y-4">
+            <div className="h-20 w-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-2">
+               <Trash2 className="h-10 w-10" />
+            </div>
+            <DialogTitle className="text-2xl font-bold text-slate-800 font-serif uppercase">Savolni o'chirish</DialogTitle>
+            <DialogDescription className="text-sm font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+               Rostan ham ushbu savolni o'chirmoqchimisiz? <br />Bu amalni ortga qaytarib bo'lmaydi.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-3 mt-6">
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteConfirmOpen(false)} 
+              className="h-14 flex-1 rounded-2xl font-black uppercase text-[10px] tracking-widest border-slate-200"
+            >
+               Bekor qilish
+            </Button>
+            <Button 
+              onClick={handleDeleteQuestion} 
+              className="h-14 flex-1 rounded-2xl bg-red-500 hover:bg-red-600 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-red-100 text-white"
+            >
+               O'chirish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

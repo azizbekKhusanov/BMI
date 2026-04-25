@@ -17,27 +17,47 @@ const StudentMyCourses = () => {
   useEffect(() => {
     if (!user) return;
     const fetchMyCourses = async () => {
-      const { data, error } = await supabase
-        .from("enrollments")
-        .select(`
-          *,
-          courses (
-            id,
-            title,
-            description,
-            image_url,
-            is_published,
-            teacher:profiles (full_name)
-          )
-        `)
-        .eq("user_id", user.id);
-      
-      if (error) console.error(error);
-      
-      // Only show courses that are published
-      const publishedEnrollments = (data || []).filter(e => e.courses?.is_published);
-      setEnrollments(publishedEnrollments);
-      setLoading(false);
+      setLoading(true);
+      try {
+        const { data: enrollData, error: enrollError } = await supabase
+          .from("enrollments")
+          .select("*")
+          .eq("user_id", user.id);
+        
+        if (enrollError) throw enrollError;
+
+        if (enrollData && enrollData.length > 0) {
+          const courseIds = enrollData.map(e => e.course_id);
+          const { data: coursesData } = await supabase
+            .from("courses")
+            .select("*, teacher:profiles!teacher_id (full_name)")
+            .in("id", courseIds);
+          
+          // Fallback for courses without profile join
+          let finalCourses = coursesData;
+          if (!coursesData || coursesData.length === 0) {
+            const { data: simpleCourses } = await supabase.from("courses").select("*").in("id", courseIds);
+            finalCourses = simpleCourses;
+          }
+
+          const mappedEnrollments = enrollData.map(enroll => {
+            const course = finalCourses?.find(c => c.id === enroll.course_id);
+            return {
+              ...enroll,
+              courses: course
+            };
+          });
+
+          // Only show courses that are published
+          setEnrollments(mappedEnrollments.filter(e => e.courses?.is_published));
+        } else {
+          setEnrollments([]);
+        }
+      } catch (err) {
+        console.error("MyCourses fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchMyCourses();

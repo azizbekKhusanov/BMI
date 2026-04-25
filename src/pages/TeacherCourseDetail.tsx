@@ -49,6 +49,8 @@ const TeacherCourseDetail = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [addLessonOpen, setAddLessonOpen] = useState(false);
   const [addTestOpen, setAddTestOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [lessonToDelete, setLessonToDelete] = useState<string | null>(null);
   
   const [newLesson, setNewLesson] = useState({
     title: "",
@@ -133,12 +135,14 @@ const TeacherCourseDetail = () => {
     }
   };
 
-  const handleDeleteLesson = async (lessonId: string) => {
-    if (!confirm("Ishonchingiz komilmi?")) return;
+  const handleDeleteLesson = async () => {
+    if (!lessonToDelete) return;
     try {
-      const { error } = await supabase.from("lessons").delete().eq("id", lessonId);
+      const { error } = await supabase.from("lessons").delete().eq("id", lessonToDelete);
       if (error) throw error;
       toast.success("Dars o'chirildi");
+      setDeleteConfirmOpen(false);
+      setLessonToDelete(null);
       fetchCourseData();
     } catch (error) {
       toast.error("O'chirishda xatolik");
@@ -301,7 +305,11 @@ const TeacherCourseDetail = () => {
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                onClick={(e) => { e.stopPropagation(); handleDeleteLesson(lesson.id); }}
+                                onClick={(e) => { 
+                                   e.stopPropagation(); 
+                                   setLessonToDelete(lesson.id);
+                                   setDeleteConfirmOpen(true);
+                                }}
                                 className="h-10 w-10 rounded-xl text-slate-200 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
                               >
                                  <Trash2 className="h-4 w-4" />
@@ -393,6 +401,36 @@ const TeacherCourseDetail = () => {
           <DialogFooter>
             <Button onClick={handleAddLesson} className="h-16 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-100">
                Darsni saqlash
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="rounded-[2.5rem] p-10 max-w-md border-none shadow-2xl">
+          <DialogHeader className="space-y-4 text-center">
+            <div className="h-20 w-20 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-2">
+               <Trash2 className="h-10 w-10" />
+            </div>
+            <DialogTitle className="text-2xl font-bold text-[#1e293b] font-serif uppercase">Darsni o'chirish</DialogTitle>
+            <DialogDescription className="text-sm font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+               Rostan ham ushbu darsni o'chirmoqchimisiz? <br />Bu amalni ortga qaytarib bo'lmaydi.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-3 mt-6">
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteConfirmOpen(false)} 
+              className="h-14 flex-1 rounded-2xl font-black uppercase text-[10px] tracking-widest border-slate-200"
+            >
+               Bekor qilish
+            </Button>
+            <Button 
+              onClick={handleDeleteLesson} 
+              className="h-14 flex-1 rounded-2xl bg-red-500 hover:bg-red-600 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-red-100"
+            >
+               O'chirish
             </Button>
           </DialogFooter>
         </DialogContent>

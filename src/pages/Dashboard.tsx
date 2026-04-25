@@ -20,19 +20,60 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from("enrollments")
-      .select("*, courses(title, description, image_url)")
-      .eq("user_id", user.id)
-      .then(({ data }) => setEnrollments(data || []));
+    
+    const fetchDashboardData = async () => {
+      try {
+        // 1. Fetch enrollments
+        const { data: enrollData, error: enrollError } = await supabase
+          .from("enrollments")
+          .select("*")
+          .eq("user_id", user.id);
+        
+        if (enrollError) throw enrollError;
 
-    supabase
-      .from("test_results")
-      .select("*, tests(question)")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(5)
-      .then(({ data }) => setRecentResults(data || []));
+        if (enrollData && enrollData.length > 0) {
+          const courseIds = enrollData.map(e => e.course_id);
+          const { data: coursesData } = await supabase
+            .from("courses")
+            .select("id, title, description, image_url")
+            .in("id", courseIds);
+          
+          const mappedEnrollments = enrollData.map(enroll => ({
+            ...enroll,
+            courses: coursesData?.find(c => c.id === enroll.course_id)
+          }));
+          setEnrollments(mappedEnrollments);
+        }
+
+        // 2. Fetch recent test results
+        const { data: resultsData, error: resultsError } = await supabase
+          .from("test_results")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(5);
+
+        if (resultsError) throw resultsError;
+
+        if (resultsData && resultsData.length > 0) {
+          const testIds = resultsData.map(r => r.test_id);
+          const { data: testsData } = await supabase
+            .from("tests")
+            .select("id, question")
+            .in("id", testIds);
+          
+          const mappedResults = resultsData.map(res => ({
+            ...res,
+            tests: testsData?.find(t => t.id === res.test_id)
+          }));
+          setRecentResults(mappedResults);
+        }
+      } catch (error) {
+        console.error("Dashboard yuklashda xatolik:", error);
+      }
+    };
+
+    fetchDashboardData();
   }, [user]);
 
   const avgProgress = enrollments.length

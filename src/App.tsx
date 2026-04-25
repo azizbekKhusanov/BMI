@@ -28,6 +28,7 @@ import TeacherCourseDetail from "./pages/TeacherCourseDetail";
 import StudentMyCourses from "./pages/StudentMyCourses";
 import StudentResults from "./pages/StudentResults";
 import StudentNotifications from "./pages/StudentNotifications";
+import StudentMetacognition from "./pages/StudentMetacognition";
 
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminUsers from "./pages/AdminUsers";
@@ -70,6 +71,7 @@ const App = () => (
             <Route path="/student/my-courses" element={<ProtectedRoute><StudentMyCourses /></ProtectedRoute>} />
             <Route path="/student/results" element={<ProtectedRoute><StudentResults /></ProtectedRoute>} />
             <Route path="/student/notifications" element={<ProtectedRoute><StudentNotifications /></ProtectedRoute>} />
+            <Route path="/student/metacognition" element={<ProtectedRoute><StudentMetacognition /></ProtectedRoute>} />
 
             {/* O'qituvchi (Teacher) maxsus */}
             <Route path="/teacher" element={<ProtectedRoute requiredRole="teacher"><TeacherDashboard /></ProtectedRoute>} />
