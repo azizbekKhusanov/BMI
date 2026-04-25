@@ -72,6 +72,7 @@ const LessonPage = () => {
   const [newQuestion, setNewQuestion] = useState({ question: "", options: ["", "", "", ""], correct_answer: "" });
   const [selfRating, setSelfRating] = useState(3);
   const [reflection, setReflection] = useState("");
+  const [enrollment, setEnrollment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
   // Video & Player states
@@ -117,6 +118,14 @@ const LessonPage = () => {
       
       const { data: testsData } = await supabase.from("tests").select("*").eq("lesson_id", id);
       setTests(testsData || []);
+
+      const { data: enrollData } = await supabase
+        .from("enrollments")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("course_id", lessonData.course_id)
+        .maybeSingle();
+      setEnrollment(enrollData);
     } catch (error) {
       console.error("Error fetching lesson:", error);
     } finally {
