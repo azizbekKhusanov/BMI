@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { BookOpen, PlayCircle, FileText, HelpCircle, CheckCircle, Clock, Users, GraduationCap, ArrowRight } from "lucide-react";
+import { BookOpen, PlayCircle, FileText, HelpCircle, CheckCircle, Clock, Users, GraduationCap, ArrowRight, Sparkles, CheckCircle2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 

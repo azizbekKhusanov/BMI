@@ -4,7 +4,7 @@ import Layout from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { GraduationCap, BookOpen, Clock, Activity, ArrowRight, Star } from "lucide-react";
+import { GraduationCap, BookOpen, Clock, Activity, ArrowRight, Star, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
