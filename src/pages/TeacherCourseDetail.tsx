@@ -8,7 +8,8 @@ import {
    BookOpen, Users, Brain, ClipboardList, Activity, ArrowLeft, 
    Plus, Video, FileText, CheckCircle2, MoreVertical, LayoutGrid, Globe,
    Clock, Sparkles, Settings2, Trash2, GraduationCap, TrendingUp,
-   MessageSquare, HelpCircle, UserCheck, Wand2, Search
+   MessageSquare, HelpCircle, UserCheck, Wand2, Search, Edit, Upload, Loader2, Youtube, ExternalLink,
+   ChevronRight, BarChart3, Target, Pencil, PlusCircle, Bookmark
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,85 +30,49 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { supabase } from "@/integrations/supabase/client";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const TeacherCourseDetail = () => {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const navigate = useNavigate();
   const [course, setCourse] = useState<any>(null);
   const [lessons, setLessons] = useState<any[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
-  const [testResults, setTestResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Modal states
+  const [activeTab, setActiveTab] = useState("curriculum");
+  
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [addLessonOpen, setAddLessonOpen] = useState(false);
   const [addTestOpen, setAddTestOpen] = useState(false);
-  const [isEditLessonOpen, setIsEditLessonOpen] = useState(false);
-  const [editCourse, setEditCourse] = useState({ title: "", description: "", image_url: "" });
-  const [newLesson, setNewLesson] = useState({ title: "", content_type: "video", video_url: "", content: "" });
-  const [editLesson, setEditLesson] = useState<any>(null);
-
-  // Student analytics states
-  const [selectedStudent, setSelectedStudent] = useState<any>(null);
-  const [studentAnalytics, setStudentAnalytics] = useState<{ 
-    tests: any[], 
-    reflections: any[] 
-  }>({ tests: [], reflections: [] });
-  const [isAnalyticLoading, setIsAnalyticLoading] = useState(false);
-
-  // Messaging states
-  const [messages, setMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState("");
-  const [isSending, setIsSending] = useState(false);
+  
+  const [newLesson, setNewLesson] = useState({
+    title: "",
+    content_type: "video",
+    video_url: "",
+    content: ""
+  });
 
   useEffect(() => {
-    if (user && id) {
-      fetchCourseData();
-    }
-  }, [user, id]);
+    if (!id) return;
+    fetchCourseData();
+  }, [id]);
 
   const fetchCourseData = async () => {
     setLoading(true);
     try {
-      const { data: courseData, error: cError } = await supabase
+      const { data: courseData, error: courseError } = await supabase
         .from("courses")
         .select("*")
         .eq("id", id)
         .single();
       
-      if (cError) throw cError;
+      if (courseError) throw courseError;
       setCourse(courseData);
-      setEditCourse({ 
-        title: courseData.title, 
-        description: courseData.description || "", 
-        image_url: courseData.image_url || "" 
-      });
 
       const { data: lessonsData } = await supabase
         .from("lessons")
@@ -118,26 +83,10 @@ const TeacherCourseDetail = () => {
 
       const { data: enrollData } = await supabase
         .from("enrollments")
-        .select("*")
+        .select("*, profiles(*)")
         .eq("course_id", id);
-
-      const safeEnrollments = enrollData || [];
-      const userIds = [...new Set(safeEnrollments.map(e => e.user_id))];
+      setEnrollments(enrollData || []);
       
-      if (userIds.length > 0) {
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("*")
-          .in("user_id", userIds);
-        
-        const enriched = safeEnrollments.map(e => ({
-          ...e,
-          profiles: (profilesData || []).find(p => p.user_id === e.user_id)
-        }));
-        setEnrollments(enriched);
-      } else {
-        setEnrollments([]);
-      }
     } catch (error) {
       console.error("Error fetching course data:", error);
       toast.error("Kurs ma'lumotlarini yuklashda xatolik");
@@ -146,35 +95,22 @@ const TeacherCourseDetail = () => {
     }
   };
 
-  const handleUpdateCourse = async () => {
-    try {
-      const { error } = await supabase
-        .from("courses")
-        .update(editCourse)
-        .eq("id", id);
-      
-      if (error) throw error;
-      toast.success("Kurs muvaffaqiyatli yangilandi");
-      setSettingsOpen(false);
-      fetchCourseData();
-    } catch (error) {
-      toast.error("O'zgarishlarni saqlashda xatolik");
-    }
+  const getYoutubeId = (url: string) => {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
   };
-
-  const handleDeleteCourse = async () => {
-    try {
-      const { error } = await supabase.from("courses").delete().eq("id", id);
-      if (error) throw error;
-      toast.success("Kurs o'chirildi");
-      navigate("/teacher/courses");
-    } catch (error) {
-      toast.error("O'chirishda xatolik");
-    }
-  }
 
   const handleAddLesson = async () => {
     if (!newLesson.title) return toast.error("Dars nomini kiriting");
+    
+    let contentUrl = newLesson.video_url;
+    if (newLesson.content_type === 'video') {
+       const ytId = getYoutubeId(newLesson.video_url);
+       if (!ytId) return toast.error("Noto'g'ri YouTube havolasi");
+       contentUrl = `https://www.youtube.com/embed/${ytId}`;
+    }
+
     try {
       const { error } = await supabase
         .from("lessons")
@@ -182,7 +118,7 @@ const TeacherCourseDetail = () => {
           course_id: id,
           title: newLesson.title,
           content_type: newLesson.content_type,
-          content_url: newLesson.content_type === 'video' ? newLesson.video_url : null,
+          content_url: contentUrl,
           content_text: newLesson.content_type === 'text' ? newLesson.content : null,
           order_index: lessons.length + 1
         });
@@ -193,26 +129,51 @@ const TeacherCourseDetail = () => {
       setNewLesson({ title: "", content_type: "video", video_url: "", content: "" });
       fetchCourseData();
     } catch (error) {
-      toast.error("Dars qo'shishda xatolik");
+      toast.error("Xatolik yuz berdi");
     }
   };
 
-  if (loading) {
-    return (
-      <Layout>
-         <div className="space-y-10">
-            <Skeleton className="h-20 w-1/3 rounded-2xl" />
-            <Skeleton className="h-[500px] w-full rounded-[3rem]" />
-         </div>
-      </Layout>
-    );
-  }
+  const handleDeleteLesson = async (lessonId: string) => {
+    if (!confirm("Ishonchingiz komilmi?")) return;
+    try {
+      const { error } = await supabase.from("lessons").delete().eq("id", lessonId);
+      if (error) throw error;
+      toast.success("Dars o'chirildi");
+      fetchCourseData();
+    } catch (error) {
+      toast.error("O'chirishda xatolik");
+    }
+  };
+
+  const togglePublish = async () => {
+    try {
+      const { error } = await supabase
+        .from("courses")
+        .update({ is_published: !course.is_published })
+        .eq("id", id);
+      
+      if (error) throw error;
+      toast.success(course.is_published ? "Kurs qoralama holatiga o'tkazildi" : "Kurs faollashtirildi");
+      fetchCourseData();
+    } catch (error) {
+      toast.error("Xatolik yuz berdi");
+    }
+  };
+
+  if (loading) return (
+    <Layout>
+      <div className="max-w-7xl mx-auto space-y-8 animate-pulse">
+        <Skeleton className="h-16 w-64 rounded-2xl" />
+        <Skeleton className="h-64 w-full rounded-[2.5rem]" />
+      </div>
+    </Layout>
+  );
 
   return (
     <Layout>
       <div className="space-y-10 animate-in fade-in duration-700">
         
-        {/* Navigation & Header */}
+        {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
            <div className="flex items-center gap-5">
               <Link to="/teacher/courses">
@@ -233,211 +194,209 @@ const TeacherCourseDetail = () => {
            <div className="flex items-center gap-3">
               <Button 
                 variant="outline" 
-                onClick={() => setSettingsOpen(true)}
-                className="rounded-2xl h-14 px-8 border-slate-200 bg-white shadow-sm hover:bg-slate-50 font-bold text-[10px] uppercase tracking-widest text-slate-500 gap-2"
+                onClick={togglePublish}
+                className={`rounded-2xl h-14 px-8 font-bold text-[10px] uppercase tracking-widest transition-all gap-2 shadow-sm ${course?.is_published ? "border-amber-200 text-amber-600 bg-amber-50/30 hover:bg-amber-50" : "border-emerald-200 text-emerald-600 bg-emerald-50/30 hover:bg-emerald-50"}`}
               >
-                <Settings2 className="h-5 w-5" /> Kurs Sozlamalari
+                {course?.is_published ? <Clock className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
+                {course?.is_published ? "Qoralama qilish" : "Faollashtirish"}
+              </Button>
+
+              <Button 
+                variant="outline" 
+                onClick={() => setSettingsOpen(true)}
+                className="rounded-2xl h-14 px-8 border-slate-200 bg-white font-bold text-[10px] uppercase tracking-widest text-slate-600 shadow-sm hover:bg-slate-50 transition-all gap-2"
+              >
+                <Settings2 className="h-4 w-4" />
+                Kurs sozlamalari
               </Button>
               
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button className="rounded-2xl h-14 px-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs tracking-widest uppercase shadow-lg shadow-indigo-100 transition-all gap-2">
-                    <Plus className="h-5 w-5" /> Yangi kontent
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="rounded-[1.5rem] p-2 border-none shadow-2xl min-w-[220px]">
-                  <DropdownMenuItem onClick={() => setAddLessonOpen(true)} className="rounded-xl p-4 font-bold cursor-pointer text-xs uppercase tracking-widest text-slate-600 hover:bg-indigo-50 hover:text-indigo-600">
-                    <Video className="mr-3 h-4 w-4 text-indigo-500" /> Yangi Dars Qo'shish
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setAddTestOpen(true)} className="rounded-xl p-4 font-bold cursor-pointer text-xs uppercase tracking-widest text-slate-600 hover:bg-indigo-50 hover:text-indigo-600">
-                    <ClipboardList className="mr-3 h-4 w-4 text-amber-500" /> Test Yaratish
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
+                 <DropdownMenuTrigger asChild>
+                    <Button 
+                       className="rounded-2xl h-14 px-8 bg-indigo-600 hover:bg-indigo-700 font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-indigo-100 transition-all gap-2"
+                    >
+                       <PlusCircle className="h-5 w-5" />
+                       Yangi Kontent
+                    </Button>
+                 </DropdownMenuTrigger>
+                 <DropdownMenuContent align="end" className="w-64 rounded-3xl p-3 border-slate-100 shadow-2xl space-y-1">
+                    <DropdownMenuItem onClick={() => setAddLessonOpen(true)} className="rounded-2xl py-4 cursor-pointer font-bold text-[10px] uppercase tracking-widest text-slate-600 gap-4 hover:bg-indigo-50 group">
+                       <div className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                          <Video className="h-5 w-5" />
+                       </div>
+                       Yangi Dars qo'shish
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setAddTestOpen(true)} className="rounded-2xl py-4 cursor-pointer font-bold text-[10px] uppercase tracking-widest text-slate-600 gap-4 hover:bg-amber-50 group">
+                       <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:bg-amber-600 group-hover:text-white transition-all">
+                          <ClipboardList className="h-5 w-5" />
+                       </div>
+                       Yangi Test yaratish
+                    </DropdownMenuItem>
+                 </DropdownMenuContent>
               </DropdownMenu>
            </div>
         </div>
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-           {[
-             { label: "Talabalar", value: enrollments.length, icon: Users, color: "bg-blue-50 text-blue-600" },
-             { label: "Darslar", value: lessons.length, icon: BookOpen, color: "bg-indigo-50 text-indigo-600" },
-             { label: "O'rt. O'zlashtirish", value: "78%", icon: Activity, color: "bg-emerald-50 text-emerald-600" },
-             { label: "Vazifalar", value: "12", icon: ClipboardList, color: "bg-amber-50 text-amber-600" },
-           ].map((stat, i) => (
-             <Card key={i} className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white rounded-[2rem] p-6 flex items-center gap-4 group hover:scale-[1.02] transition-transform">
-                <div className={`h-12 w-12 rounded-2xl ${stat.color} flex items-center justify-center shadow-sm`}>
-                   <stat.icon className="h-6 w-6" />
-                </div>
-                <div>
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</p>
-                   <p className="text-2xl font-bold text-slate-800 font-serif">{stat.value}</p>
-                </div>
-             </Card>
-           ))}
-        </div>
+        {/* Tabs System */}
+        <Tabs defaultValue="curriculum" className="w-full" onValueChange={setActiveTab}>
+          <div className="flex justify-center mb-10">
+             <TabsList className="bg-white border border-slate-100 p-1.5 rounded-[2rem] h-auto shadow-sm">
+               <TabsTrigger value="curriculum" className="rounded-full px-8 py-3 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-[#1e293b] data-[state=active]:text-white transition-all gap-2">
+                 <LayoutGrid className="h-4 w-4" /> Darslar rejasi
+               </TabsTrigger>
+               <TabsTrigger value="students" className="rounded-full px-8 py-3 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-[#1e293b] data-[state=active]:text-white transition-all gap-2">
+                 <Users className="h-4 w-4" /> Talabalar nazorati
+               </TabsTrigger>
+               <TabsTrigger value="analytics" className="rounded-full px-8 py-3 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-[#1e293b] data-[state=active]:text-white transition-all gap-2">
+                 <Brain className="h-4 w-4" /> Metakognitiv tahlil
+               </TabsTrigger>
+             </TabsList>
+          </div>
 
-        {/* Main Interface */}
-        <Tabs defaultValue="lessons" className="space-y-8">
-           <TabsList className="bg-white/50 backdrop-blur-xl p-2 rounded-[2.5rem] border border-white h-auto flex flex-wrap shadow-sm">
-              <TabsTrigger value="lessons" className="rounded-[2rem] px-8 py-4 data-[state=active]:bg-[#1e293b] data-[state=active]:text-white font-bold text-[10px] uppercase tracking-widest transition-all gap-2">
-                 <LayoutGrid className="h-4 w-4" /> Darslar Rejasi
-              </TabsTrigger>
-              <TabsTrigger value="students" className="rounded-[2rem] px-8 py-4 data-[state=active]:bg-[#1e293b] data-[state=active]:text-white font-bold text-[10px] uppercase tracking-widest transition-all gap-2">
-                 <Users className="h-4 w-4" /> Talabalar Nazorati
-              </TabsTrigger>
-              <TabsTrigger value="analytics" className="rounded-[2rem] px-8 py-4 data-[state=active]:bg-[#1e293b] data-[state=active]:text-white font-bold text-[10px] uppercase tracking-widest transition-all gap-2">
-                 <Brain className="h-4 w-4" /> Metakognitiv Tahlil
-              </TabsTrigger>
-           </TabsList>
+          <TabsContent value="curriculum" className="mt-0">
+             <div className="space-y-6">
+                <div className="flex items-center justify-between px-2">
+                   <h2 className="text-3xl font-bold text-[#1e293b] font-serif uppercase tracking-tight">Kurs mundarijasi</h2>
+                   <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      <Bookmark className="h-4 w-4" /> {lessons.length} ta dars mavjud
+                   </div>
+                </div>
 
-           <TabsContent value="lessons" className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-              <div className="flex items-center justify-between mb-2">
-                 <h2 className="text-2xl font-bold text-slate-800 font-serif uppercase tracking-tight">Kurs Mundarijasi</h2>
-                 <Button onClick={() => setAddLessonOpen(true)} variant="ghost" className="rounded-xl text-indigo-600 font-bold text-[10px] uppercase tracking-widest gap-2 hover:bg-indigo-50">
-                    <Plus className="h-4 w-4" /> Dars qo'shish
-                 </Button>
-              </div>
-              
-              {lessons.length === 0 ? (
-                <Card className="border-dashed border-2 py-32 text-center bg-slate-50/50 rounded-[3rem] border-slate-200">
-                   <CardContent className="space-y-4">
-                      <div className="h-20 w-20 rounded-full bg-white shadow-sm flex items-center justify-center mx-auto text-slate-200">
-                         <BookOpen className="h-8 w-8" />
-                      </div>
-                      <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Hali birorta ham dars qo'shilmagan</p>
-                   </CardContent>
-                </Card>
-              ) : (
-                <div className="grid gap-4">
-                   {lessons.map((lesson, idx) => (
-                     <Card key={lesson.id} className="group border-none shadow-[0_4px_20px_rgb(0,0,0,0.03)] bg-white rounded-[2rem] p-6 hover:shadow-xl transition-all duration-300">
-                        <div className="flex items-center justify-between gap-6">
-                           <div className="flex items-center gap-6 flex-1">
-                              <div className="h-12 w-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-bold text-lg shadow-lg">
-                                 {idx + 1}
+                <div className="grid grid-cols-1 gap-4">
+                   {lessons.length === 0 ? (
+                      <Card className="rounded-[2.5rem] border-2 border-dashed border-slate-200 bg-slate-50/50 p-20">
+                         <div className="flex flex-col items-center text-center space-y-4">
+                            <div className="h-20 w-20 rounded-3xl bg-white shadow-sm flex items-center justify-center text-slate-200">
+                               <Plus className="h-10 w-10" />
+                            </div>
+                            <h3 className="text-xl font-bold text-slate-400 uppercase tracking-widest font-serif">Kurs hali bo'sh</h3>
+                            <Button onClick={() => setAddLessonOpen(true)} variant="link" className="text-indigo-600 font-black uppercase text-xs tracking-widest">Birinchi darsni qo'shish</Button>
+                         </div>
+                      </Card>
+                   ) : (
+                      lessons.map((lesson) => (
+                        <div 
+                          key={lesson.id} 
+                          onClick={() => navigate(`/lessons/${lesson.id}`)}
+                          className="group relative bg-white border border-slate-100 p-4 rounded-2xl hover:shadow-xl hover:shadow-indigo-100/30 hover:border-indigo-100 transition-all cursor-pointer flex items-center justify-between"
+                        >
+                           <div className="flex items-center gap-6">
+                              <div className="h-12 w-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
+                                 {lesson.content_type === 'video' ? <Video className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
                               </div>
-                              <div>
-                                 <h3 className="text-xl font-bold text-slate-800 font-serif">{lesson.title}</h3>
-                                 <div className="flex items-center gap-4 mt-1.5">
-                                    <span className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                                       {lesson.content_type === "video" ? <Video className="h-3.5 w-3.5 text-indigo-500" /> : <FileText className="h-3.5 w-3.5 text-amber-500" />}
+                              <div className="space-y-0.5">
+                                 <div className="flex items-center gap-3">
+                                    <h3 className="text-base font-bold text-[#1e293b] uppercase tracking-tight group-hover:text-indigo-600 transition-colors">{lesson.title}</h3>
+                                    <Badge className="bg-slate-50 text-slate-400 border-none text-[7px] font-black tracking-widest uppercase px-1.5 py-0">
                                        {lesson.content_type}
-                                    </span>
-                                    <div className="h-1 w-1 rounded-full bg-slate-200" />
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">12:45 minut</span>
+                                    </Badge>
+                                 </div>
+                                 <div className="flex items-center gap-4 text-slate-400 text-[9px] font-bold uppercase tracking-widest">
+                                    <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> 4/25/2026</span>
+                                    <span className="flex items-center gap-1.5"><HelpCircle className="h-3 w-3 text-indigo-300" /> Quiz</span>
                                  </div>
                               </div>
                            </div>
-                           <div className="flex items-center gap-2">
-                              <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50">
-                                 <Edit className="h-5 w-5" />
+                           <div className="flex items-center gap-3">
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={(e) => { e.stopPropagation(); handleDeleteLesson(lesson.id); }}
+                                className="h-10 w-10 rounded-xl text-slate-200 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100"
+                              >
+                                 <Trash2 className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="rounded-full h-10 w-10 text-slate-300 hover:text-red-500 hover:bg-red-50">
-                                 <Trash2 className="h-5 w-5" />
-                              </Button>
+                              <div className="h-10 w-10 rounded-xl bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
+                                 <ChevronRight className="h-5 w-5" />
+                              </div>
                            </div>
                         </div>
-                     </Card>
-                   ))}
+                      ))
+                   )}
                 </div>
-              )}
-           </TabsContent>
+             </div>
+          </TabsContent>
 
-           {/* More tabs like students/analytics would go here with same styling */}
-           <TabsContent value="students">
-              <Card className="border-none shadow-sm bg-white rounded-[2.5rem] p-12 text-center">
-                 <Users className="h-16 w-16 text-slate-200 mx-auto mb-6" />
-                 <h3 className="text-2xl font-bold font-serif text-slate-800 uppercase mb-2">Talabalar Ro'yxati</h3>
-                 <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">Ushbu kursga {enrollments.length} ta talaba yozilgan</p>
-                 <div className="grid gap-4 max-w-2xl mx-auto">
-                    {enrollments.map((e, i) => (
-                       <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                          <div className="flex items-center gap-3">
-                             <Avatar className="h-10 w-10 border-2 border-white">
-                                <AvatarImage src={e.profiles?.avatar_url} />
-                                <AvatarFallback className="bg-indigo-500 text-white font-bold">{e.profiles?.full_name?.[0]}</AvatarFallback>
-                             </Avatar>
-                             <div className="text-left">
-                                <p className="text-sm font-bold text-slate-800">{e.profiles?.full_name}</p>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{e.progress}% TUGALLADI</p>
-                             </div>
-                          </div>
-                          <Button size="sm" variant="outline" className="rounded-xl font-bold text-[9px] uppercase tracking-widest">Tahlil</Button>
-                       </div>
-                    ))}
-                 </div>
-              </Card>
-           </TabsContent>
+          <TabsContent value="students" className="mt-0">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {enrollments.map((en) => (
+                  <Card key={en.id} className="rounded-[2.5rem] border-none shadow-xl hover:shadow-2xl transition-all p-8 bg-white overflow-hidden relative group">
+                     <div className="absolute top-0 right-0 h-32 w-32 bg-indigo-50 rounded-full -mr-16 -mt-16 group-hover:bg-indigo-600 transition-all duration-500" />
+                     <div className="relative z-10 space-y-6">
+                        <div className="h-20 w-20 rounded-[1.5rem] bg-white shadow-xl flex items-center justify-center text-3xl font-black text-[#1e293b]">
+                           {en.profiles?.full_name?.[0]}
+                        </div>
+                        <div className="space-y-1">
+                           <h3 className="text-xl font-bold text-[#1e293b] uppercase tracking-tight">{en.profiles?.full_name}</h3>
+                           <p className="text-xs font-bold text-slate-400 tracking-widest">{en.profiles?.email}</p>
+                        </div>
+                        <div className="pt-4 border-t border-slate-50">
+                           <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.2em] mb-2">
+                              <span className="text-slate-400">Progress</span>
+                              <span className="text-indigo-600">35%</span>
+                           </div>
+                           <Progress value={35} className="h-2 bg-slate-100 rounded-full" />
+                        </div>
+                     </div>
+                  </Card>
+                ))}
+             </div>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="mt-0">
+             <div className="py-20 text-center space-y-6">
+                <div className="h-24 w-24 bg-indigo-50 rounded-[2.5rem] flex items-center justify-center text-indigo-600 mx-auto shadow-sm">
+                   <Sparkles className="h-12 w-12" />
+                </div>
+                <div className="space-y-2">
+                   <h2 className="text-3xl font-bold text-[#1e293b] font-serif uppercase tracking-tight">Metakognitiv AI Analytics</h2>
+                   <p className="text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em]">Sun'iy intellekt talabalar natijalarini tahlil qilmoqda...</p>
+                </div>
+                <Button className="h-14 px-10 rounded-2xl bg-indigo-600 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-100 gap-3">
+                   <Activity className="h-5 w-5" /> Tahlilni boshlash
+                </Button>
+             </div>
+          </TabsContent>
         </Tabs>
       </div>
 
-      {/* Settings Dialog */}
-      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-10 max-w-lg">
-           <DialogHeader className="space-y-3 mb-6">
-              <DialogTitle className="text-3xl font-bold font-serif text-slate-800 uppercase tracking-tight">Kurs Sozlamalari</DialogTitle>
-              <DialogDescription className="text-slate-400 font-medium text-sm">Kurs ma'lumotlarini tahrirlang yoki ushbu kursni o'chirib tashlang.</DialogDescription>
-           </DialogHeader>
-           <div className="space-y-6 mb-8">
-              <div className="space-y-2">
-                 <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Kurs Nomi</Label>
-                 <Input value={editCourse.title} onChange={e => setEditCourse({...editCourse, title: e.target.value})} className="h-14 rounded-2xl border-slate-100 bg-slate-50/50" />
-              </div>
-              <div className="space-y-2">
-                 <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Kurs Tavsifi</Label>
-                 <Textarea value={editCourse.description} onChange={e => setEditCourse({...editCourse, description: e.target.value})} rows={4} className="rounded-2xl border-slate-100 bg-slate-50/50 py-4" />
-              </div>
-           </div>
-           <DialogFooter className="flex flex-col sm:flex-row gap-3">
-              <Button variant="ghost" onClick={() => setSettingsOpen(false)} className="rounded-2xl h-12 flex-1 font-bold text-xs uppercase tracking-widest text-slate-400">Bekor qilish</Button>
-              <Button onClick={handleUpdateCourse} className="rounded-2xl h-12 flex-1 bg-indigo-600 hover:bg-indigo-700 font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-100">O'zgarishlarni Saqlash</Button>
-           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Add Lesson Dialog */}
       <Dialog open={addLessonOpen} onOpenChange={setAddLessonOpen}>
-        <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-10 max-w-lg">
-           <DialogHeader className="space-y-3 mb-6">
-              <div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 mb-2">
-                <Wand2 className="h-6 w-6" />
+        <DialogContent className="rounded-[3rem] p-12 max-w-2xl border-none shadow-2xl">
+          <DialogHeader className="space-y-4">
+            <DialogTitle className="text-3xl font-bold text-[#1e293b] font-serif uppercase">Yangi dars qo'shish</DialogTitle>
+            <DialogDescription className="text-xs font-bold text-slate-400 uppercase tracking-widest">Kurs mundarijasini boyitish uchun dars ma'lumotlarini kiriting</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-8 py-8">
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dars nomi</Label>
+              <Input 
+                value={newLesson.title}
+                onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
+                placeholder="Masalan: JavaScript Kirish" 
+                className="h-16 rounded-2xl border-slate-100 bg-slate-50/50 shadow-inner px-6 text-sm font-bold focus:ring-2 focus:ring-indigo-600 transition-all" 
+              />
+            </div>
+            <div className="space-y-3">
+              <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Video havolasi (YouTube)</Label>
+              <div className="relative">
+                 <Youtube className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-red-500" />
+                 <Input 
+                  value={newLesson.video_url}
+                  onChange={(e) => setNewLesson({ ...newLesson, video_url: e.target.value })}
+                  placeholder="https://www.youtube.com/watch?v=..." 
+                  className="h-16 rounded-2xl border-slate-100 bg-slate-50/50 shadow-inner pl-14 pr-6 text-sm font-bold focus:ring-2 focus:ring-indigo-600 transition-all" 
+                 />
               </div>
-              <DialogTitle className="text-2xl font-bold font-serif text-slate-800 uppercase tracking-tight">Yangi Dars Qo'shish</DialogTitle>
-           </DialogHeader>
-           <div className="space-y-6 mb-8">
-              <div className="space-y-2">
-                 <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dars Nomi</Label>
-                 <Input value={newLesson.title} onChange={e => setNewLesson({...newLesson, title: e.target.value})} placeholder="Masalan: Kirish qismi" className="h-14 rounded-2xl border-slate-100 bg-slate-50/50" />
-              </div>
-              <div className="space-y-2">
-                 <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Kontent Turi</Label>
-                 <div className="flex gap-3">
-                    <Button 
-                      variant={newLesson.content_type === 'video' ? 'default' : 'outline'}
-                      onClick={() => setNewLesson({...newLesson, content_type: 'video'})}
-                      className="flex-1 h-12 rounded-xl font-bold text-[10px] uppercase tracking-widest"
-                    >Video</Button>
-                    <Button 
-                      variant={newLesson.content_type === 'text' ? 'default' : 'outline'}
-                      onClick={() => setNewLesson({...newLesson, content_type: 'text'})}
-                      className="flex-1 h-12 rounded-xl font-bold text-[10px] uppercase tracking-widest"
-                    >Matn</Button>
-                 </div>
-              </div>
-              {newLesson.content_type === 'video' && (
-                <div className="space-y-2">
-                   <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">YouTube/Vimeo URL</Label>
-                   <Input value={newLesson.video_url} onChange={e => setNewLesson({...newLesson, video_url: e.target.value})} placeholder="https://..." className="h-14 rounded-2xl border-slate-100 bg-slate-50/50" />
-                </div>
-              )}
-           </div>
-           <DialogFooter>
-              <Button onClick={handleAddLesson} className="w-full h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-bold text-xs uppercase tracking-widest shadow-lg shadow-indigo-100">Darsni Qo'shish</Button>
-           </DialogFooter>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleAddLesson} className="h-16 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-100">
+               Darsni saqlash
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
-
     </Layout>
   );
 };

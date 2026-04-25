@@ -17,9 +17,21 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const isActive = (path: string) => 
-    location.pathname === path || 
-    (path !== "/" && path !== "/dashboard" && path !== "/teacher" && path !== "/admin" && location.pathname.startsWith(path));
+  const isActive = (path: string) => {
+    // Exact match
+    if (location.pathname === path) return true;
+    
+    // Parent section match (e.g. /teacher/courses/1 -> /teacher/courses)
+    if (path !== "/" && path !== "/dashboard" && path !== "/teacher" && path !== "/admin" && location.pathname.startsWith(path)) return true;
+    
+    // Special case for Lessons: highlight "Courses" when viewing a lesson
+    if (location.pathname.startsWith("/lessons/")) {
+      if (isTeacher && path === "/teacher/courses") return true;
+      if (!isTeacher && !isAdmin && path === "/courses") return true;
+    }
+    
+    return false;
+  };
 
   const isTeacher = roles.includes("teacher");
   const isAdmin = roles.includes("admin");

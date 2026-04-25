@@ -26,13 +26,17 @@ const StudentMyCourses = () => {
             title,
             description,
             image_url,
+            is_published,
             teacher:profiles (full_name)
           )
         `)
         .eq("user_id", user.id);
       
       if (error) console.error(error);
-      setEnrollments(data || []);
+      
+      // Only show courses that are published
+      const publishedEnrollments = (data || []).filter(e => e.courses?.is_published);
+      setEnrollments(publishedEnrollments);
       setLoading(false);
     };
 
