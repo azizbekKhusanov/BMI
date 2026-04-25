@@ -98,17 +98,17 @@ const Courses = () => {
   return (
     <Layout>
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-        {/* Hero Section - Thinner and Lighter */}
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-r from-slate-50 to-indigo-50/50 p-10 lg:p-14 border border-slate-100 shadow-sm">
-           <div className="absolute top-0 right-0 w-1/3 h-full opacity-5 pointer-events-none">
-              <Sparkles className="w-full h-full text-indigo-600" />
+        {/* Hero Section - Thinner and Vibrant Blue */}
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-r from-blue-600 to-indigo-600 p-10 lg:p-14 shadow-lg shadow-blue-100">
+           <div className="absolute top-0 right-0 w-1/3 h-full opacity-10 pointer-events-none">
+              <Sparkles className="w-full h-full text-white" />
            </div>
            <div className="relative z-10 max-w-3xl space-y-4">
-              <Badge className="bg-indigo-600/10 text-indigo-600 border-none px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em]">Metakognitiv Ta'lim</Badge>
-              <h1 className="text-4xl lg:text-5xl font-bold font-serif leading-tight text-slate-800 uppercase tracking-tight">
-                Kurslar <span className="text-indigo-600">Katalogi</span>
+              <Badge className="bg-white/20 text-white border-none px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em]">Metakognitiv Ta'lim</Badge>
+              <h1 className="text-4xl lg:text-5xl font-bold font-serif leading-tight text-white uppercase tracking-tight">
+                Barcha <span className="text-blue-100">kurslar</span>
               </h1>
-              <p className="text-slate-500 text-sm lg:text-base font-medium leading-relaxed max-w-xl">
+              <p className="text-blue-50 text-sm lg:text-base font-medium leading-relaxed max-w-xl">
                 O'zlashtirish samaradorligini AI va metakognitiv yondashuv orqali oshiring.
               </p>
            </div>
