@@ -37,19 +37,23 @@ const Courses = () => {
         // 2. Fetch profiles and enrollment counts in parallel
         const teacherIds = [...new Set(coursesData.map(c => c.teacher_id))].filter(Boolean);
         
-        const [profilesRes, enrollmentsRes] = await Promise.all([
+        const [profilesRes, enrollmentsRes, lessonsRes] = await Promise.all([
           supabase.from("profiles").select("user_id, full_name").in("user_id", teacherIds),
-          supabase.from("enrollments").select("course_id")
+          supabase.from("enrollments").select("course_id"),
+          supabase.from("lessons").select("course_id")
         ]);
 
         const profiles = profilesRes.data || [];
         const allEnrollments = enrollmentsRes.data || [];
+        const allLessons = lessonsRes.data || [];
 
         const mappedCourses = coursesData.map(course => {
           const studentCount = allEnrollments.filter(e => e.course_id === course.id).length;
+          const lessonCount = allLessons.filter(l => l.course_id === course.id).length;
           return {
             ...course,
             studentCount,
+            lessonCount,
             teacher: profiles.find(p => p.user_id === course.teacher_id) || { full_name: "MetaEdu Ustoz" }
           };
         });
@@ -181,8 +185,8 @@ const Courses = () => {
                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{course.studentCount || 0} Talaba</span>
                        </div>
                        <div className="flex items-center gap-2">
-                          <Clock className="h-3.5 w-3.5 text-slate-300" />
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">O'z tezligingizda</span>
+                          <BookOpen className="h-3.5 w-3.5 text-slate-300" />
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{course.lessonCount || 0} Dars</span>
                        </div>
                     </div>
 
