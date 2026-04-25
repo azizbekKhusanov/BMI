@@ -93,122 +93,121 @@ const Courses = () => {
 
   return (
     <Layout>
-      <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-        {/* Hero Section */}
-        <div className="relative overflow-hidden rounded-[3rem] bg-[#1e293b] p-12 lg:p-20 text-white shadow-2xl">
-           <div className="absolute top-0 right-0 w-1/2 h-full opacity-10">
-              <Sparkles className="w-full h-full text-white" />
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+        {/* Hero Section - Thinner and Lighter */}
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-r from-slate-50 to-indigo-50/50 p-10 lg:p-14 border border-slate-100 shadow-sm">
+           <div className="absolute top-0 right-0 w-1/3 h-full opacity-5 pointer-events-none">
+              <Sparkles className="w-full h-full text-indigo-600" />
            </div>
-           <div className="relative z-10 max-w-3xl space-y-6">
-              <Badge className="bg-indigo-500/20 text-indigo-300 border-indigo-500/30 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em]">Metakognitiv Ta'lim</Badge>
-              <h1 className="text-5xl lg:text-7xl font-bold font-serif leading-tight uppercase tracking-tight">
-                Kurslar <span className="text-indigo-400">Katalogi</span>
+           <div className="relative z-10 max-w-3xl space-y-4">
+              <Badge className="bg-indigo-600/10 text-indigo-600 border-none px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em]">Metakognitiv Ta'lim</Badge>
+              <h1 className="text-4xl lg:text-5xl font-bold font-serif leading-tight text-slate-800 uppercase tracking-tight">
+                Kurslar <span className="text-indigo-600">Katalogi</span>
               </h1>
-              <p className="text-slate-400 text-lg lg:text-xl font-medium leading-relaxed">
-                O'zlashtirish samaradorligini AI va metakognitiv yondashuv orqali oshiring. O'zingizga mos kursni tanlang va bugunoq boshlang.
+              <p className="text-slate-500 text-sm lg:text-base font-medium leading-relaxed max-w-xl">
+                O'zlashtirish samaradorligini AI va metakognitiv yondashuv orqali oshiring.
               </p>
            </div>
         </div>
 
-        {/* Search & Filter Bar */}
-        <div className="flex flex-col lg:flex-row items-center gap-6">
+        {/* Search & Filter Bar - Compact */}
+        <div className="flex flex-col lg:flex-row items-center gap-4">
           <div className="relative group flex-1 w-full">
-            <Search className="absolute left-8 top-1/2 -translate-y-1/2 h-6 w-6 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
+            <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
             <Input 
-              placeholder="Qiziqtirgan kursingizni qidiring..." 
+              placeholder="Qidiring..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-20 pl-20 pr-8 rounded-[2.5rem] border-none bg-white shadow-xl focus-visible:ring-2 focus-visible:ring-indigo-500 transition-all text-lg font-medium"
+              className="w-full h-14 pl-14 pr-6 rounded-2xl border-slate-100 bg-white shadow-sm focus-visible:ring-2 focus-visible:ring-indigo-500 transition-all text-sm font-medium"
             />
           </div>
-          <Button variant="outline" className="h-20 px-10 rounded-[2.5rem] border-none bg-white shadow-xl gap-3 font-black text-xs uppercase tracking-widest text-slate-500 hover:bg-slate-50 transition-all active:scale-95">
-            <Filter className="h-5 w-5" /> Filtrlar
+          <Button variant="outline" className="h-14 px-8 rounded-2xl border-slate-100 bg-white shadow-sm gap-2 font-black text-[10px] uppercase tracking-widest text-slate-500 hover:bg-slate-50 transition-all active:scale-95">
+            <Filter className="h-4 w-4" /> Filtr
           </Button>
         </div>
 
         {loading ? (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-[450px] rounded-[3rem] bg-white animate-pulse shadow-sm" />
+              <div key={i} className="h-[400px] rounded-[2.5rem] bg-white animate-pulse shadow-sm" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <Card className="border-dashed border-2 py-40 text-center bg-slate-50/50 rounded-[4rem]">
+          <Card className="border-dashed border-2 py-32 text-center bg-slate-50/50 rounded-[3rem]">
             <CardContent className="space-y-6">
-              <div className="h-24 w-24 rounded-full bg-white shadow-xl flex items-center justify-center mx-auto">
-                <BookOpen className="h-10 w-10 text-slate-200" />
+              <div className="h-20 w-20 rounded-full bg-white shadow-lg flex items-center justify-center mx-auto">
+                <BookOpen className="h-8 w-8 text-slate-200" />
               </div>
               <div className="space-y-2">
-                <h3 className="text-2xl font-serif font-bold text-[#1e293b] uppercase">Kurslar Topilmadi</h3>
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Qidiruv natijasida hech narsa chiqmadi</p>
+                <h3 className="text-xl font-serif font-bold text-[#1e293b] uppercase">Kurslar Topilmadi</h3>
+                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Qidiruv natijasida hech narsa chiqmadi</p>
               </div>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((course) => (
-              <Card key={course.id} className="border-none shadow-xl rounded-[3rem] overflow-hidden group hover:shadow-2xl transition-all duration-700 bg-white flex flex-col h-full hover:-translate-y-2">
-                <div className="h-60 overflow-hidden relative">
+              <Card key={course.id} className="border-none shadow-sm rounded-[2.5rem] overflow-hidden group hover:shadow-xl transition-all duration-700 bg-white flex flex-col h-full hover:-translate-y-1">
+                <div className="h-52 overflow-hidden relative">
                   <img 
                     src={course.image_url || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=60"} 
                     className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-1000"
                     alt={course.title} 
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  <div className="absolute top-6 right-6">
-                    <Badge className="bg-white/90 backdrop-blur-md text-indigo-600 border-none px-4 py-1.5 font-black text-[10px] uppercase shadow-xl tracking-widest rounded-full">
-                      {enrolledIds.includes(course.id) ? "O'RORGANISHDA" : "BEPUL"}
+                  <div className="absolute top-5 right-5">
+                    <Badge className="bg-white/95 backdrop-blur-md text-indigo-600 border-none px-3 py-1 font-black text-[9px] uppercase shadow-lg tracking-widest rounded-full">
+                      {enrolledIds.includes(course.id) ? "O'RGANISHDA" : "BEPUL"}
                     </Badge>
                   </div>
                 </div>
-                <CardContent className="p-10 flex flex-col flex-1 gap-6">
-                  <div className="space-y-3">
+                <CardContent className="p-8 flex flex-col flex-1 gap-5">
+                  <div className="space-y-2">
                     <div className="flex items-center gap-2 text-indigo-500">
-                      <Clock className="h-4 w-4" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em]">O'z tezligingizda</span>
+                      <BookOpen className="h-3.5 w-3.5" />
+                      <span className="text-[9px] font-black uppercase tracking-[0.2em]">O'quv kursi</span>
                     </div>
-                    <h3 className="text-2xl font-bold font-serif text-[#1e293b] group-hover:text-indigo-600 transition-colors leading-tight line-clamp-2 uppercase tracking-tight">
+                    <h3 className="text-xl font-bold font-serif text-[#1e293b] group-hover:text-indigo-600 transition-colors leading-tight line-clamp-2 uppercase tracking-tight">
                       {course.title}
                     </h3>
-                    <p className="text-slate-400 text-sm leading-relaxed line-clamp-2">
+                    <p className="text-slate-400 text-xs leading-relaxed line-clamp-2">
                       {course.description}
                     </p>
                   </div>
 
-                  <div className="mt-auto space-y-6">
-                    <div className="flex items-center justify-between py-4 border-y border-slate-50">
+                  <div className="mt-auto space-y-5">
+                    <div className="flex items-center justify-between py-3 border-y border-slate-50">
                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-slate-300" />
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{course.studentCount || 0} Talaba</span>
+                          <Users className="h-3.5 w-3.5 text-slate-300" />
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{course.studentCount || 0} Talaba</span>
                        </div>
-                       <div className="flex items-center gap-1">
-                          <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
-                          <span className="text-xs font-bold text-slate-700 uppercase">5.0</span>
+                       <div className="flex items-center gap-2">
+                          <Clock className="h-3.5 w-3.5 text-slate-300" />
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">O'z tezligingizda</span>
                        </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                       <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                          <GraduationCap className="h-5 w-5 text-slate-400" />
+                    <div className="flex items-center gap-3">
+                       <div className="h-9 w-9 rounded-full bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100">
+                          <GraduationCap className="h-4.5 w-4.5 text-slate-400" />
                        </div>
                        <div className="flex flex-col min-w-0">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">O'qituvchi</span>
-                          <span className="text-xs font-bold text-slate-700 truncate">{course.teacher?.full_name || "MetaEdu Ustoz"}</span>
+                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">O'qituvchi</span>
+                          <span className="text-[11px] font-bold text-slate-700 truncate">{course.teacher?.full_name || "MetaEdu Ustoz"}</span>
                        </div>
                     </div>
 
                     {enrolledIds.includes(course.id) ? (
-                      <Button asChild className="w-full rounded-[2rem] h-16 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-xs tracking-[0.2em] uppercase shadow-none border-none transition-all group/btn">
+                      <Button asChild className="w-full rounded-2xl h-14 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-[10px] tracking-[0.1em] uppercase shadow-none border-none transition-all group/btn">
                         <Link to={`/student/courses/${course.id}`} className="flex items-center justify-center gap-2">
-                          O'rganishda Davom Etish <ArrowRight className="h-4 w-4 group-hover/btn:translate-x-1 transition-transform" />
+                          O'rganish <ArrowRight className="h-3.5 w-3.5 group-hover/btn:translate-x-1 transition-transform" />
                         </Link>
                       </Button>
                     ) : (
                       <Button 
                         onClick={() => handleEnroll(course.id)}
-                        className="w-full rounded-[2rem] h-16 bg-[#1e293b] hover:bg-[#334155] text-white font-black text-xs tracking-[0.2em] uppercase shadow-2xl shadow-indigo-200 transition-all active:scale-95 flex items-center justify-center gap-2"
+                        className="w-full rounded-2xl h-14 bg-[#1e293b] hover:bg-[#334155] text-white font-black text-[10px] tracking-[0.1em] uppercase shadow-lg shadow-indigo-100/50 transition-all active:scale-95 flex items-center justify-center gap-2"
                       >
-                        Kursga Yozilish <ArrowRight className="h-4 w-4" />
+                        Yozilish <ArrowRight className="h-3.5 w-3.5" />
                       </Button>
                     )}
                   </div>
