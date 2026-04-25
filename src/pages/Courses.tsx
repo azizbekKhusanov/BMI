@@ -150,74 +150,84 @@ const Courses = () => {
           </Card>
         ) : (
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((course) => (
-              <Card key={course.id} className="border-none shadow-sm rounded-[2.5rem] overflow-hidden group hover:shadow-xl transition-all duration-700 bg-white flex flex-col h-full hover:-translate-y-1">
-                <div className="h-52 overflow-hidden relative">
-                  <img 
-                    src={course.image_url || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=60"} 
-                    className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-1000"
-                    alt={course.title} 
-                  />
-                  <div className="absolute top-5 right-5">
-                    <Badge className="bg-white/95 backdrop-blur-md text-indigo-600 border-none px-3 py-1 font-black text-[9px] uppercase shadow-lg tracking-widest rounded-full">
-                      {enrolledIds.includes(course.id) ? "O'RGANISHDA" : "BEPUL"}
-                    </Badge>
-                  </div>
-                </div>
-                <CardContent className="p-8 flex flex-col flex-1 gap-5">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-indigo-500">
-                      <BookOpen className="h-3.5 w-3.5" />
-                      <span className="text-[9px] font-black uppercase tracking-[0.2em]">O'quv kursi</span>
-                    </div>
-                    <h3 className="text-xl font-bold font-serif text-[#1e293b] group-hover:text-indigo-600 transition-colors leading-tight line-clamp-2 uppercase tracking-tight">
-                      {course.title}
-                    </h3>
-                    <p className="text-slate-400 text-xs leading-relaxed line-clamp-2">
-                      {course.description}
-                    </p>
-                  </div>
+            {filtered.map((course) => {
+              const isEnrolled = enrolledIds.includes(course.id);
+              const CardWrapper = isEnrolled ? Link : 'div';
+              const wrapperProps = isEnrolled ? { to: `/courses/${course.id}` } : {};
 
-                  <div className="mt-auto space-y-5">
-                    <div className="flex items-center justify-between py-3 border-y border-slate-50">
-                       <div className="flex items-center gap-2">
-                          <Users className="h-3.5 w-3.5 text-slate-300" />
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{course.studentCount || 0} Talaba</span>
-                       </div>
-                       <div className="flex items-center gap-2">
-                          <BookOpen className="h-3.5 w-3.5 text-slate-300" />
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{course.lessonCount || 0} Dars</span>
-                       </div>
+              return (
+                <CardWrapper key={course.id} {...wrapperProps} className={isEnrolled ? "block group/card" : ""}>
+                  <Card className="border-none shadow-sm rounded-[2.5rem] overflow-hidden group hover:shadow-xl transition-all duration-700 bg-white flex flex-col h-full hover:-translate-y-1">
+                    <div className="h-52 overflow-hidden relative">
+                      <img 
+                        src={course.image_url || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=60"} 
+                        className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-1000"
+                        alt={course.title} 
+                      />
+                      <div className="absolute top-5 right-5">
+                        <Badge className="bg-white/95 backdrop-blur-md text-indigo-600 border-none px-3 py-1 font-black text-[9px] uppercase shadow-lg tracking-widest rounded-full">
+                          {isEnrolled ? "O'RGANISHDA" : "BEPUL"}
+                        </Badge>
+                      </div>
                     </div>
+                    <CardContent className="p-8 flex flex-col flex-1 gap-5">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-indigo-500">
+                          <BookOpen className="h-3.5 w-3.5" />
+                          <span className="text-[9px] font-black uppercase tracking-[0.2em]">O'quv kursi</span>
+                        </div>
+                        <h3 className="text-xl font-bold font-serif text-[#1e293b] group-hover:text-indigo-600 transition-colors leading-tight line-clamp-2 uppercase tracking-tight">
+                          {course.title}
+                        </h3>
+                        <p className="text-slate-400 text-xs leading-relaxed line-clamp-2">
+                          {course.description}
+                        </p>
+                      </div>
 
-                    <div className="flex items-center gap-3">
-                       <div className="h-9 w-9 rounded-full bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100">
-                          <GraduationCap className="h-4.5 w-4.5 text-slate-400" />
-                       </div>
-                       <div className="flex flex-col min-w-0">
-                          <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">O'qituvchi</span>
-                          <span className="text-[11px] font-bold text-slate-700 truncate">{course.teacher?.full_name || "MetaEdu Ustoz"}</span>
-                       </div>
-                    </div>
+                      <div className="mt-auto space-y-5">
+                        <div className="flex items-center justify-between py-3 border-y border-slate-50">
+                          <div className="flex items-center gap-2">
+                              <Users className="h-3.5 w-3.5 text-slate-300" />
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{course.studentCount || 0} Talaba</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                              <BookOpen className="h-3.5 w-3.5 text-slate-300" />
+                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{course.lessonCount || 0} Dars</span>
+                          </div>
+                        </div>
 
-                    {enrolledIds.includes(course.id) ? (
-                      <Button asChild className="w-full rounded-2xl h-14 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-[10px] tracking-[0.1em] uppercase shadow-none border-none transition-all group/btn">
-                        <Link to={`/student/courses/${course.id}`} className="flex items-center justify-center gap-2">
-                          O'rganish <ArrowRight className="h-3.5 w-3.5 group-hover/btn:translate-x-1 transition-transform" />
-                        </Link>
-                      </Button>
-                    ) : (
-                      <Button 
-                        onClick={() => handleEnroll(course.id)}
-                        className="w-full rounded-2xl h-14 bg-[#1e293b] hover:bg-[#334155] text-white font-black text-[10px] tracking-[0.1em] uppercase shadow-lg shadow-indigo-100/50 transition-all active:scale-95 flex items-center justify-center gap-2"
-                      >
-                        Yozilish <ArrowRight className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-full bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100">
+                              <GraduationCap className="h-4.5 w-4.5 text-slate-400" />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">O'qituvchi</span>
+                              <span className="text-[11px] font-bold text-slate-700 truncate">{course.teacher?.full_name || "MetaEdu Ustoz"}</span>
+                          </div>
+                        </div>
+
+                        {isEnrolled ? (
+                          <div className="w-full rounded-2xl h-14 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-[10px] tracking-[0.1em] uppercase transition-all flex items-center justify-center gap-2">
+                            O'rganish <ArrowRight className="h-3.5 w-3.5 group-hover/card:translate-x-1 transition-transform" />
+                          </div>
+                        ) : (
+                          <Button 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleEnroll(course.id);
+                            }}
+                            className="w-full rounded-2xl h-14 bg-[#1e293b] hover:bg-[#334155] text-white font-black text-[10px] tracking-[0.1em] uppercase shadow-lg shadow-indigo-100/50 transition-all active:scale-95 flex items-center justify-center gap-2"
+                          >
+                            Yozilish <ArrowRight className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </CardWrapper>
+              );
+            })}
           </div>
         )}
       </div>

@@ -19,11 +19,19 @@ const CourseDetail = () => {
   const [enrollment, setEnrollment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
+  const [studentCount, setStudentCount] = useState(0);
+  const [completedLessons, setCompletedLessons] = useState<string[]>([]);
 
   useEffect(() => {
     if (!id) return;
     fetchCourseData();
+    fetchStudentCount();
   }, [id, user]);
+
+  const fetchStudentCount = async () => {
+    const { count } = await supabase.from("enrollments").select("*", { count: 'exact', head: true }).eq("course_id", id);
+    setStudentCount(count || 0);
+  };
 
   const fetchCourseData = async () => {
     setLoading(true);
@@ -37,6 +45,16 @@ const CourseDetail = () => {
       if (user) {
         const { data: enrollData } = await supabase.from("enrollments").select("*").eq("course_id", id).eq("user_id", user.id).maybeSingle();
         setEnrollment(enrollData);
+
+        // Fetch completed lessons based on test results
+        const { data: testResults } = await supabase
+          .from("test_results")
+          .select("tests(lesson_id)")
+          .eq("user_id", user.id)
+          .eq("is_correct", true);
+        
+        const completedIds = [...new Set(testResults?.map((r: any) => r.tests?.lesson_id) || [])];
+        setCompletedLessons(completedIds);
       }
     } catch (error) {
       console.error("Error fetching course data:", error);
@@ -44,6 +62,8 @@ const CourseDetail = () => {
       setLoading(false);
     }
   };
+
+  const nextLessonId = lessons.find(l => !completedLessons.includes(l.id))?.id || lessons[0]?.id;
 
   const handleEnroll = async () => {
     if (!user) {
@@ -63,6 +83,7 @@ const CourseDetail = () => {
       if (error) throw error;
       toast.success("Kursga muvaffaqiyatli yozildingiz!");
       fetchCourseData();
+      fetchStudentCount();
     } catch (error: any) {
       toast.error(error.message || "Xatolik yuz berdi");
     } finally {
@@ -127,37 +148,46 @@ const CourseDetail = () => {
                     <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Hali darslar qo'shilmagan</p>
                   </Card>
                 ) : (
-                  lessons.map((lesson, idx) => (
-                    <div
-                      key={lesson.id}
-                      className={`group flex items-center gap-6 p-5 rounded-2xl border-2 transition-all ${
-                        enrollment 
-                          ? "bg-white border-white shadow-sm hover:shadow-xl hover:scale-[1.01] cursor-pointer" 
-                          : "bg-slate-50 border-transparent opacity-70 grayscale"
-                      }`}
-                      onClick={() => enrollment && navigate(`/lessons/${lesson.id}`)}
-                    >
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 font-black text-sm shadow-inner shrink-0 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
-                        {idx + 1}
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
-                           {contentIcon(lesson.content_type)}
-                           <p className="text-base font-bold text-slate-800 group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{lesson.title}</p>
-                        </div>
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{lesson.content_type} dars</p>
-                      </div>
-                      {enrollment ? (
-                        <div className="h-10 w-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-all">
-                           <ArrowRight className="h-5 w-5" />
-                        </div>
-                      ) : (
-                        <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                           <Lock className="h-4 w-4" />
-                        </div>
-                      )}
-                    </div>
-                  ))
+                   lessons.map((lesson, idx) => {
+                     const isCompleted = completedLessons.includes(lesson.id);
+                     return (
+                       <div
+                         key={lesson.id}
+                         className={`group flex items-center gap-6 p-5 rounded-2xl border-2 transition-all ${
+                           enrollment 
+                             ? "bg-white border-white shadow-sm hover:shadow-xl hover:scale-[1.01] cursor-pointer" 
+                             : "bg-slate-50 border-transparent opacity-70 grayscale"
+                         }`}
+                         onClick={() => enrollment && navigate(`/lessons/${lesson.id}`)}
+                       >
+                         <div className={`flex h-12 w-12 items-center justify-center rounded-xl font-black text-sm shadow-inner shrink-0 transition-colors ${
+                           isCompleted ? "bg-emerald-500 text-white" : "bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white"
+                         }`}>
+                           {isCompleted ? <CheckCircle className="h-6 w-6" /> : idx + 1}
+                         </div>
+                         <div className="flex-1 space-y-1">
+                           <div className="flex items-center gap-2">
+                              {contentIcon(lesson.content_type)}
+                              <p className={`text-base font-bold transition-colors uppercase tracking-tight ${
+                                isCompleted ? "text-emerald-600" : "text-slate-800 group-hover:text-indigo-600"
+                              }`}>{lesson.title}</p>
+                           </div>
+                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{lesson.content_type} dars</p>
+                         </div>
+                         {enrollment ? (
+                           <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-all ${
+                             isCompleted ? "bg-emerald-50 text-emerald-500" : "bg-slate-50 text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-600"
+                           }`}>
+                              {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : <ArrowRight className="h-5 w-5" />}
+                           </div>
+                         ) : (
+                           <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                              <Lock className="h-4 w-4" />
+                           </div>
+                         )}
+                       </div>
+                     );
+                   })
                 )}
               </div>
             </div>
@@ -191,10 +221,10 @@ const CourseDetail = () => {
                             <Users className="h-5 w-5" />
                             <span className="text-[10px] font-black uppercase tracking-widest">Talabalar</span>
                          </div>
-                         <span className="text-sm font-bold text-slate-700 uppercase">240+ talaba</span>
+                         <span className="text-sm font-bold text-slate-700 uppercase">{studentCount} ta talaba</span>
                       </div>
                    </div>
-
+ 
                    {enrollment ? (
                       <div className="space-y-6">
                          <div className="space-y-3">
@@ -205,7 +235,7 @@ const CourseDetail = () => {
                             <Progress value={Number(enrollment.progress)} className="h-2 bg-slate-100" />
                          </div>
                          <Button asChild className="w-full h-16 rounded-[2rem] bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-indigo-100">
-                            <Link to={`/lessons/${lessons[0]?.id}`}>O'rganishni davom ettirish</Link>
+                            <Link to={`/lessons/${nextLessonId}`}>O'rganishni davom ettirish</Link>
                          </Button>
                       </div>
                    ) : (
