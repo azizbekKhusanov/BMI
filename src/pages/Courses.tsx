@@ -25,7 +25,7 @@ const Courses = () => {
   const fetchCourses = async () => {
     setLoading(true);
     try {
-      // 1. Try a super-simple fetch first (most robust)
+      // 1. Fetch all courses
       const { data: coursesData, error: coursesError } = await supabase
         .from("courses")
         .select("*")
@@ -34,30 +34,32 @@ const Courses = () => {
       if (coursesError) throw coursesError;
 
       if (coursesData && coursesData.length > 0) {
-        // 2. Try to fetch teacher profiles in parallel if possible
+        // 2. Fetch profiles and enrollment counts in parallel
         const teacherIds = [...new Set(coursesData.map(c => c.teacher_id))].filter(Boolean);
         
-        try {
-          const { data: profiles } = await supabase
-            .from("profiles")
-            .select("id, full_name")
-            .in("id", teacherIds);
+        const [profilesRes, enrollmentsRes] = await Promise.all([
+          supabase.from("profiles").select("user_id, full_name").in("user_id", teacherIds),
+          supabase.from("enrollments").select("course_id")
+        ]);
 
-          const mappedCourses = coursesData.map(course => ({
+        const profiles = profilesRes.data || [];
+        const allEnrollments = enrollmentsRes.data || [];
+
+        const mappedCourses = coursesData.map(course => {
+          const studentCount = allEnrollments.filter(e => e.course_id === course.id).length;
+          return {
             ...course,
-            teacher: profiles?.find(p => p.id === course.teacher_id) || { full_name: "MetaEdu Ustoz" }
-          }));
-          setCourses(mappedCourses);
-        } catch (profileErr) {
-          // If profile fetch fails, just show courses with default teacher
-          setCourses(coursesData.map(c => ({ ...c, teacher: { full_name: "MetaEdu Ustoz" } })));
-        }
+            studentCount,
+            teacher: profiles.find(p => p.user_id === course.teacher_id) || { full_name: "MetaEdu Ustoz" }
+          };
+        });
+        
+        setCourses(mappedCourses);
       } else {
         setCourses([]);
       }
     } catch (error: any) {
       console.error("Kurslarni yuklashda xatolik:", error);
-      // No toast here to avoid annoying user if it's just a temporary DB sync issue
       setCourses([]); 
     } finally {
       setLoading(false);
@@ -177,11 +179,11 @@ const Courses = () => {
                     <div className="flex items-center justify-between py-4 border-y border-slate-50">
                        <div className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-slate-300" />
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">240+ Talaba</span>
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{course.studentCount || 0} Talaba</span>
                        </div>
                        <div className="flex items-center gap-1">
                           <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
-                          <span className="text-xs font-bold text-slate-700 uppercase">4.9</span>
+                          <span className="text-xs font-bold text-slate-700 uppercase">5.0</span>
                        </div>
                     </div>
 
