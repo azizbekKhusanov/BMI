@@ -6,17 +6,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { Users, BookOpen, GraduationCap, Shield } from "lucide-react";
 import { toast } from "sonner";
+import { useCallback } from "react";
+
+interface AdminUser {
+  id: string;
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  roles: string[];
+}
+
+interface AdminCourse {
+  id: string;
+  title: string;
+  is_published: boolean;
+  created_at: string;
+}
 
 const AdminDashboard = () => {
-  const [users, setUsers] = useState<any[]>([]);
-  const [courses, setCourses] = useState<any[]>([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [courses, setCourses] = useState<AdminCourse[]>([]);
   const [stats, setStats] = useState({ users: 0, courses: 0, enrollments: 0 });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     const [profilesRes, coursesRes, enrollmentsRes, rolesRes] = await Promise.all([
       supabase.from("profiles").select("*"),
       supabase.from("courses").select("*"),
@@ -27,20 +39,24 @@ const AdminDashboard = () => {
     const profilesWithRoles = (profilesRes.data || []).map((p) => ({
       ...p,
       roles: (rolesRes.data || []).filter((r) => r.user_id === p.user_id).map((r) => r.role),
-    }));
+    })) as AdminUser[];
 
     setUsers(profilesWithRoles);
-    setCourses(coursesRes.data || []);
+    setCourses((coursesRes.data as AdminCourse[]) || []);
     setStats({
       users: profilesRes.data?.length || 0,
       courses: coursesRes.data?.length || 0,
       enrollments: enrollmentsRes.count || 0,
     });
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const changeRole = async (userId: string, newRole: string) => {
     await supabase.from("user_roles").delete().eq("user_id", userId);
-    await supabase.from("user_roles").insert({ user_id: userId, role: newRole as any });
+    await supabase.from("user_roles").insert({ user_id: userId, role: newRole });
     toast.success("Rol o'zgartirildi");
     fetchData();
   };

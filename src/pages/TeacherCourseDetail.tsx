@@ -9,8 +9,14 @@ import {
    Plus, Video, FileText, CheckCircle2, MoreVertical, LayoutGrid, Globe,
    Clock, Sparkles, Settings2, Trash2, GraduationCap, TrendingUp,
    MessageSquare, HelpCircle, UserCheck, Wand2, Search, Edit, Upload, Loader2, Youtube, ExternalLink,
-   ChevronRight, BarChart3, Target, Pencil, PlusCircle, Bookmark
+   ChevronRight, BarChart3, Target, Pencil, PlusCircle, Bookmark, Info
 } from "lucide-react";
+import { 
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,14 +41,42 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCallback } from "react";
+
+interface Course {
+  id: string;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  is_published: boolean;
+}
+
+interface Lesson {
+  id: string;
+  title: string;
+  content_type: string;
+  content_url: string | null;
+  content_text: string | null;
+  order_index: number;
+}
+
+interface Enrollment {
+  id: string;
+  user_id: string;
+  course_id: string;
+  profiles: {
+    full_name: string | null;
+    avatar_url: string | null;
+  } | null;
+}
 
 const TeacherCourseDetail = () => {
   const { id } = useParams();
   const { profile } = useAuth();
   const navigate = useNavigate();
-  const [course, setCourse] = useState<any>(null);
-  const [lessons, setLessons] = useState<any[]>([]);
-  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [course, setCourse] = useState<Course | null>(null);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("curriculum");
   
@@ -50,7 +84,12 @@ const TeacherCourseDetail = () => {
   const [addLessonOpen, setAddLessonOpen] = useState(false);
   const [addTestOpen, setAddTestOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [courseDeleteConfirmOpen, setCourseDeleteConfirmOpen] = useState(false);
   const [lessonToDelete, setLessonToDelete] = useState<string | null>(null);
+  
+  const [isAddingLesson, setIsAddingLesson] = useState(false);
+  const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   
   const [newLesson, setNewLesson] = useState({
     title: "",
@@ -59,12 +98,14 @@ const TeacherCourseDetail = () => {
     content: ""
   });
 
-  useEffect(() => {
-    if (!id) return;
-    fetchCourseData();
-  }, [id]);
+  const [editCourse, setEditCourse] = useState({
+    title: "",
+    description: "",
+    image_url: ""
+  });
 
-  const fetchCourseData = async () => {
+  const fetchCourseData = useCallback(async () => {
+    if (!id) return;
     setLoading(true);
     try {
       const { data: courseData, error: courseError } = await supabase
@@ -74,20 +115,43 @@ const TeacherCourseDetail = () => {
         .single();
       
       if (courseError) throw courseError;
-      setCourse(courseData);
+      const courseDataTyped = courseData as Course;
+      setCourse(courseDataTyped);
+      setEditCourse({
+        title: courseDataTyped.title || "",
+        description: courseDataTyped.description || "",
+        image_url: courseDataTyped.image_url || ""
+      });
 
       const { data: lessonsData } = await supabase
         .from("lessons")
         .select("*")
         .eq("course_id", id)
         .order("order_index");
-      setLessons(lessonsData || []);
+      setLessons(lessonsData as Lesson[] || []);
 
-      const { data: enrollData } = await supabase
+      const { data: enrollData, error: enrollError } = await supabase
         .from("enrollments")
-        .select("*, profiles(*)")
+        .select("*")
         .eq("course_id", id);
-      setEnrollments(enrollData || []);
+      
+      if (enrollError) throw enrollError;
+
+      if (enrollData && enrollData.length > 0) {
+        const userIds = enrollData.map(e => e.user_id);
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("user_id, full_name, avatar_url")
+          .in("user_id", userIds);
+
+        const mappedEnrollments = enrollData.map(enroll => ({
+          ...enroll,
+          profiles: profilesData?.find(p => p.user_id === enroll.user_id) || null
+        }));
+        setEnrollments(mappedEnrollments as Enrollment[]);
+      } else {
+        setEnrollments([]);
+      }
       
     } catch (error) {
       console.error("Error fetching course data:", error);
@@ -95,10 +159,14 @@ const TeacherCourseDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    fetchCourseData();
+  }, [fetchCourseData]);
 
   const getYoutubeId = (url: string) => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
     return (match && match[2].length === 11) ? match[2] : null;
   };
@@ -113,6 +181,7 @@ const TeacherCourseDetail = () => {
        contentUrl = `https://www.youtube.com/embed/${ytId}`;
     }
 
+    setIsAddingLesson(true);
     try {
       const { error } = await supabase
         .from("lessons")
@@ -132,6 +201,8 @@ const TeacherCourseDetail = () => {
       fetchCourseData();
     } catch (error) {
       toast.error("Xatolik yuz berdi");
+    } finally {
+      setIsAddingLesson(false);
     }
   };
 
@@ -150,6 +221,7 @@ const TeacherCourseDetail = () => {
   };
 
   const togglePublish = async () => {
+    if (!course) return;
     try {
       const { error } = await supabase
         .from("courses")
@@ -161,6 +233,48 @@ const TeacherCourseDetail = () => {
       fetchCourseData();
     } catch (error) {
       toast.error("Xatolik yuz berdi");
+    }
+  };
+
+  const handleUpdateCourse = async () => {
+    if (!editCourse.title) return toast.error("Kurs nomini kiriting");
+    if (isUploadingImage) return toast.error("Rasm yuklanishini kuting");
+    
+    setIsUpdatingCourse(true);
+    try {
+      const { error } = await supabase
+        .from("courses")
+        .update({
+          title: editCourse.title,
+          description: editCourse.description,
+          image_url: editCourse.image_url
+        })
+        .eq("id", id);
+      
+      if (error) throw error;
+      toast.success("Kurs sozlamalari saqlandi");
+      setSettingsOpen(false);
+      fetchCourseData();
+    } catch (error) {
+      toast.error("Xatolik yuz berdi");
+    } finally {
+      setIsUpdatingCourse(false);
+    }
+  };
+
+  const handleDeleteCourse = async () => {
+    if (!id) return;
+    try {
+      const { error } = await supabase
+        .from("courses")
+        .delete()
+        .eq("id", id);
+      
+      if (error) throw error;
+      toast.success("Kurs muvaffaqiyatli o'chirildi");
+      navigate("/teacher/courses");
+    } catch (error) {
+      toast.error("Kursni o'chirishda xatolik yuz berdi");
     }
   };
 
@@ -331,13 +445,17 @@ const TeacherCourseDetail = () => {
                   <Card key={en.id} className="rounded-[2.5rem] border-none shadow-xl hover:shadow-2xl transition-all p-8 bg-white overflow-hidden relative group">
                      <div className="absolute top-0 right-0 h-32 w-32 bg-indigo-50 rounded-full -mr-16 -mt-16 group-hover:bg-indigo-600 transition-all duration-500" />
                      <div className="relative z-10 space-y-6">
-                        <div className="h-20 w-20 rounded-[1.5rem] bg-white shadow-xl flex items-center justify-center text-3xl font-black text-[#1e293b]">
-                           {en.profiles?.full_name?.[0]}
+                        <div className="h-20 w-20 rounded-[1.5rem] bg-white shadow-xl flex items-center justify-center text-3xl font-black text-[#1e293b] overflow-hidden">
+                           {en.profiles?.avatar_url ? (
+                             <img src={en.profiles.avatar_url} alt={en.profiles?.full_name} className="h-full w-full object-cover" />
+                           ) : (
+                             en.profiles?.full_name?.[0]
+                           )}
                         </div>
-                        <div className="space-y-1">
-                           <h3 className="text-xl font-bold text-[#1e293b] uppercase tracking-tight">{en.profiles?.full_name}</h3>
-                           <p className="text-xs font-bold text-slate-400 tracking-widest">{en.profiles?.email}</p>
-                        </div>
+                         <div className="space-y-1">
+                            <h3 className="text-xl font-bold text-[#1e293b] uppercase tracking-tight">{en.profiles?.full_name || "Ism kiritilmagan"}</h3>
+                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Faol Talaba</p>
+                         </div>
                         <div className="pt-4 border-t border-slate-50">
                            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-[0.2em] mb-2">
                               <span className="text-slate-400">Progress</span>
@@ -399,8 +517,8 @@ const TeacherCourseDetail = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleAddLesson} className="h-16 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-100">
-               Darsni saqlash
+            <Button onClick={handleAddLesson} disabled={isAddingLesson} className="h-16 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-100">
+               {isAddingLesson ? <Loader2 className="h-5 w-5 animate-spin" /> : "Darsni saqlash"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -429,6 +547,168 @@ const TeacherCourseDetail = () => {
             <Button 
               onClick={handleDeleteLesson} 
               className="h-14 flex-1 rounded-2xl bg-red-500 hover:bg-red-600 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-red-100"
+            >
+               O'chirish
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Course Settings Dialog */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="rounded-[2.5rem] p-8 max-w-lg border-none shadow-2xl overflow-hidden">
+          <DialogHeader className="space-y-2">
+            <DialogTitle className="text-2xl font-bold text-[#1e293b] font-serif uppercase">Kurs sozlamalari</DialogTitle>
+            <DialogDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Kurs ma'lumotlarini tahrirlang</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-6 py-6 px-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Kurs nomi</Label>
+                <div className="relative">
+                  <TooltipProvider>
+                    <Tooltip delayDuration={0}>
+                      <TooltipTrigger asChild>
+                        <div className="absolute top-0.5 right-0.5 z-10 h-4 w-4 bg-white/90 backdrop-blur-sm rounded-full shadow-sm border border-red-100 flex items-center justify-center cursor-help hover:bg-white transition-colors">
+                          <Info className="h-2.5 w-2.5 text-red-400" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="bg-[#1e293b] text-white border-none p-3 rounded-xl shadow-2xl max-w-[200px] z-50">
+                        <p className="text-[9px] font-bold uppercase tracking-widest leading-relaxed">
+                          Kursni o'chirganda undagi darslar va o'quvchilar ro'yxati avtomatik ravishda o'chib ketadi.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => setCourseDeleteConfirmOpen(true)}
+                    className="h-10 px-5 rounded-xl text-red-600 bg-red-50 hover:bg-red-500 hover:text-white border border-red-100 transition-all gap-2 font-black uppercase text-[9px] tracking-widest shadow-sm shadow-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Kursni o'chirish
+                  </Button>
+                </div>
+              </div>
+              <Input 
+                value={editCourse.title}
+                onChange={(e) => setEditCourse({ ...editCourse, title: e.target.value })}
+                placeholder="Kurs nomini kiriting" 
+                className="h-14 rounded-xl border-slate-100 bg-slate-50/50 shadow-inner px-5 text-sm font-bold focus:ring-2 focus:ring-indigo-600 transition-all" 
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Muqova rasmi</Label>
+              <div 
+                onClick={() => document.getElementById('edit-course-image-upload')?.click()}
+                className="group relative h-40 w-full rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition-all overflow-hidden shadow-inner"
+              >
+                {editCourse.image_url ? (
+                  <>
+                    <img src={editCourse.image_url} className="h-full w-full object-cover" alt="Preview" />
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Upload className="h-6 w-6 text-white" />
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center text-slate-400 group-hover:text-indigo-600 transition-colors">
+                    <Plus className="h-8 w-8 mb-1" />
+                    <span className="text-[9px] font-bold uppercase tracking-widest">Rasm yuklash</span>
+                  </div>
+                )}
+                <input 
+                  id="edit-course-image-upload"
+                  type="file" 
+                  accept="image/*"
+                  className="hidden" 
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+
+                    if (file.size > 2 * 1024 * 1024) {
+                      toast.error("Rasm hajmi 2MB dan oshmasligi kerak");
+                      return;
+                    }
+
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${Math.random()}.${fileExt}`;
+                    const filePath = `${fileName}`;
+
+                    setIsUploadingImage(true);
+                    toast.promise(
+                      async () => {
+                        const { error: uploadError } = await supabase.storage
+                          .from('course_images')
+                          .upload(filePath, file);
+
+                        if (uploadError) throw uploadError;
+
+                        const { data } = supabase.storage
+                          .from('course_images')
+                          .getPublicUrl(filePath);
+
+                        setEditCourse(prev => ({ ...prev, image_url: data.publicUrl }));
+                        setIsUploadingImage(false);
+                        return data.publicUrl;
+                      },
+                      {
+                        loading: 'Rasm yuklanmoqda...',
+                        success: 'Rasm muvaffaqiyatli yuklandi!',
+                        error: (err) => {
+                          setIsUploadingImage(false);
+                          return `Xatolik: ${err.message}`;
+                        },
+                      }
+                    );
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">Kurs tavsifi</Label>
+              <Textarea 
+                value={editCourse.description}
+                onChange={(e) => setEditCourse({ ...editCourse, description: e.target.value })}
+                placeholder="Kurs haqida batafsil ma'lumot..." 
+                className="min-h-[120px] rounded-xl border-slate-100 bg-slate-50/50 shadow-inner p-5 text-sm font-bold focus:ring-2 focus:ring-indigo-600 transition-all" 
+              />
+            </div>
+
+          </div>
+          <DialogFooter className="pt-4 border-t border-slate-50">
+            <Button onClick={handleUpdateCourse} disabled={isUpdatingCourse || isUploadingImage} className="h-14 w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase text-[10px] tracking-widest shadow-xl shadow-indigo-100">
+               {isUpdatingCourse ? <Loader2 className="h-5 w-5 animate-spin" /> : "O'zgarishlarni saqlash"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Course Delete Confirmation Dialog */}
+      <Dialog open={courseDeleteConfirmOpen} onOpenChange={setCourseDeleteConfirmOpen}>
+        <DialogContent className="rounded-[2rem] p-8 max-w-md border-none shadow-2xl">
+          <DialogHeader className="space-y-4 text-center">
+            <div className="h-16 w-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto">
+               <Trash2 className="h-8 w-8" />
+            </div>
+            <DialogTitle className="text-xl font-bold text-[#1e293b] font-serif uppercase">Kursni o'chirish</DialogTitle>
+            <DialogDescription className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+               Ushbu kursni butunlay o'chirib yubormoqchimisiz? <br />Bu amalni aslo ortga qaytarib bo'lmaydi.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-3 mt-6">
+            <Button 
+              variant="outline" 
+              onClick={() => setCourseDeleteConfirmOpen(false)} 
+              className="h-12 flex-1 rounded-xl font-black uppercase text-[9px] tracking-widest border-slate-200"
+            >
+               Bekor qilish
+            </Button>
+            <Button 
+              onClick={handleDeleteCourse} 
+              className="h-12 flex-1 rounded-xl bg-red-500 hover:bg-red-600 font-black uppercase text-[9px] tracking-widest shadow-xl shadow-red-100"
             >
                O'chirish
             </Button>

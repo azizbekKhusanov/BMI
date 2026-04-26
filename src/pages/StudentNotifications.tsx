@@ -9,6 +9,23 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { useCallback } from "react";
+
+interface NotificationMessage {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  course_id: string;
+  content: string;
+  created_at: string;
+  sender?: {
+    full_name: string | null;
+    avatar_url: string | null;
+  };
+  courses?: {
+    title: string;
+  };
+}
 
 /**
  * StudentNotifications Page
@@ -16,44 +33,12 @@ import { Badge } from "@/components/ui/badge";
  */
 const StudentNotifications = () => {
   const { user } = useAuth();
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<NotificationMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      fetchMessages();
-      
-      // Realtime subscription for incoming messages
-      const channel = supabase
-        .channel('student-messages')
-        .on('postgres_changes', { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'messages',
-          filter: `recipient_id=eq.${user.id}` 
-        }, (payload) => {
-          // Fetch sender profile to show the correct avatar/name
-          enrichAndAddMessage(payload.new);
-        })
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [user]);
-
-  const enrichAndAddMessage = async (msg: any) => {
-    const { data: profile } = await supabase.from("profiles").select("full_name, avatar_url").eq("user_id", msg.sender_id).single();
-    const { data: course } = await supabase.from("courses").select("title").eq("id", msg.course_id).single();
-    
-    const enriched = { ...msg, sender: profile, courses: course };
-    setMessages((prev) => [...prev, enriched]);
-  };
-
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
@@ -77,13 +62,45 @@ const StudentNotifications = () => {
         sender: profiles?.find(p => p.user_id === m.sender_id)
       }));
 
-      setMessages(enriched || []);
+      setMessages((enriched as NotificationMessage[]) || []);
     } catch (error) {
       console.error("Fetch error:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  const enrichAndAddMessage = useCallback(async (msg: NotificationMessage) => {
+    const { data: profile } = await supabase.from("profiles").select("full_name, avatar_url").eq("user_id", msg.sender_id).single();
+    const { data: course } = await supabase.from("courses").select("title").eq("id", msg.course_id).single();
+    
+    const enriched = { ...msg, sender: profile, courses: course };
+    setMessages((prev) => [...prev, enriched]);
+  }, []);
+
+  useEffect(() => {
+    if (user) {
+      fetchMessages();
+      
+      // Realtime subscription for incoming messages
+      const channel = supabase
+        .channel('student-messages')
+        .on('postgres_changes', { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'messages',
+          filter: `recipient_id=eq.${user.id}` 
+        }, (payload) => {
+          // Fetch sender profile to show the correct avatar/name
+          enrichAndAddMessage(payload.new);
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user, fetchMessages, enrichAndAddMessage]);
 
   const handleSendMessage = async (recipientId: string, courseId: string) => {
     if (!newMessage.trim() || !user) return;

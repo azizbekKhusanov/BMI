@@ -10,6 +10,7 @@ import {
   BarChart, Users
 } from "lucide-react";
 import { useState } from "react";
+import AICoach from "./AICoach";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const { profile, roles, signOut } = useAuth();
@@ -33,8 +34,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     return false;
   };
 
-  const isTeacher = roles.includes("teacher");
-  const isAdmin = roles.includes("admin");
+  const isTeacher = roles?.includes("teacher") || false;
+  const isAdmin = roles?.includes("admin") || false;
 
   const getNavLinks = () => {
     if (isAdmin) {
@@ -194,6 +195,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
         </main>
       </div>
+      <AICoach />
     </div>
   );
 };

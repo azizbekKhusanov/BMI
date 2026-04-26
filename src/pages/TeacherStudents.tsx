@@ -29,6 +29,63 @@ import {
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip 
 } from "recharts";
+import { useCallback } from "react";
+
+interface Profile {
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  email?: string | null;
+}
+
+interface Course {
+  id: string;
+  title: string;
+  teacher_id?: string;
+}
+
+interface Enrollment {
+  id: string;
+  user_id: string;
+  course_id: string;
+  progress: number;
+  created_at: string;
+  profiles?: Profile;
+  courses?: Course;
+}
+
+interface TestResult {
+  id: string;
+  test_id: string;
+  user_id: string;
+  is_correct: boolean;
+  answer: string;
+  created_at: string;
+  tests?: {
+    question: string;
+    lesson_id: string;
+    lessons: { title: string };
+  };
+}
+
+interface SelfAssessment {
+  id: string;
+  user_id: string;
+  lesson_id: string;
+  rating: number;
+  reflection: string | null;
+  created_at: string;
+  lessons?: { title: string };
+}
+
+interface Message {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  course_id: string;
+  content: string;
+  created_at: string;
+}
 
 const MOCK_CHART_DATA = [
   { name: 'Dushanba', value: 40 },
@@ -42,8 +99,8 @@ const MOCK_CHART_DATA = [
 
 const TeacherStudents = () => {
   const { user } = useAuth();
-  const [enrollments, setEnrollments] = useState<any[]>([]);
-  const [courses, setCourses] = useState<any[]>([]);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -54,29 +111,23 @@ const TeacherStudents = () => {
   const itemsPerPage = 10;
 
   // Student analytics & messaging states
-  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [selectedStudent, setSelectedStudent] = useState<Enrollment | null>(null);
   const [studentAnalytics, setStudentAnalytics] = useState<{ 
-    tests: any[], 
-    reflections: any[] 
+    tests: TestResult[], 
+    reflections: SelfAssessment[] 
   }>({ tests: [], reflections: [] });
   const [isAnalyticLoading, setIsAnalyticLoading] = useState(false);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      fetchCourses();
-      fetchEnrollments();
-    }
+  const fetchCourses = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from("courses").select("id, title").eq("teacher_id", user.id);
+    setCourses(data || []);
   }, [user]);
 
-  const fetchCourses = async () => {
-    const { data } = await supabase.from("courses").select("id, title").eq("teacher_id", user?.id);
-    setCourses(data || []);
-  };
-
-  const fetchEnrollments = async () => {
+  const fetchEnrollments = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     
@@ -100,7 +151,7 @@ const TeacherStudents = () => {
 
       if (enrollError) throw enrollError;
 
-      const safeEnrollments = enrollmentsData || [];
+      const safeEnrollments = (enrollmentsData as Enrollment[]) || [];
 
       // 3. Profillarni alohida olish
       const userIds = [...new Set(safeEnrollments.map(e => e.user_id))];
@@ -112,7 +163,7 @@ const TeacherStudents = () => {
         
         const enriched = safeEnrollments.map(e => ({
           ...e,
-          profiles: (profilesData || []).find(p => p.user_id === e.user_id),
+          profiles: (profilesData as Profile[] || []).find(p => p.user_id === e.user_id),
           courses: (myCourses || []).find(c => c.id === e.course_id)
         }));
         setEnrollments(enriched);
@@ -125,9 +176,26 @@ const TeacherStudents = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const fetchStudentAnalytics = async (student: any) => {
+  useEffect(() => {
+    fetchCourses();
+    fetchEnrollments();
+  }, [fetchCourses, fetchEnrollments]);
+
+  const fetchMessages = useCallback(async (student: Enrollment) => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("messages")
+      .select("*")
+      .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+      .or(`sender_id.eq.${student.user_id},recipient_id.eq.${student.user_id}`)
+      .order("created_at", { ascending: true });
+    
+    setMessages((data as Message[]) || []);
+  }, [user]);
+
+  const fetchStudentAnalytics = async (student: Enrollment) => {
     setSelectedStudent(student);
     setIsAnalyticLoading(true);
     try {
@@ -154,8 +222,8 @@ const TeacherStudents = () => {
         .eq("user_id", student.user_id);
 
       setStudentAnalytics({
-        tests: testResultsData || [],
-        reflections: reflectionData || []
+        tests: (testResultsData as unknown as TestResult[]) || [],
+        reflections: (reflectionData as unknown as SelfAssessment[]) || []
       });
 
       // 3. Xabarlarni yuklash
@@ -196,16 +264,7 @@ const TeacherStudents = () => {
   const totalPages = Math.ceil(sortedAndFiltered.length / itemsPerPage);
   const currentItems = sortedAndFiltered.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const fetchMessages = async (student: any) => {
-    const { data } = await supabase
-      .from("messages")
-      .select("*")
-      .or(`sender_id.eq.${user?.id},recipient_id.eq.${user?.id}`)
-      .or(`sender_id.eq.${student.user_id},recipient_id.eq.${student.user_id}`)
-      .order("created_at", { ascending: true });
-    
-    setMessages(data || []);
-  };
+  // fetchMessages was moved above fetchStudentAnalytics and wrapped in useCallback
 
   useEffect(() => {
     if (!user || !selectedStudent) return;
@@ -218,7 +277,7 @@ const TeacherStudents = () => {
         schema: 'public', 
         table: 'messages'
       }, (payload) => {
-        const msg = payload.new;
+        const msg = payload.new as Message;
         if ((msg.sender_id === user.id && msg.recipient_id === selectedStudent.user_id) ||
             (msg.sender_id === selectedStudent.user_id && msg.recipient_id === user.id)) {
           setMessages((prev) => [...prev, msg]);
@@ -402,7 +461,7 @@ const TeacherStudents = () => {
               </SelectContent>
             </Select>
 
-            <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+            <Select value={sortBy} onValueChange={(v: "name" | "progress" | "date") => setSortBy(v)}>
               <SelectTrigger className="rounded-xl h-12 border-none bg-slate-50 text-[10px] font-black uppercase tracking-widest shadow-inner px-5 text-slate-500 min-w-[180px]">
                 <div className="flex items-center gap-3">
                   <TrendingUp className="h-3.5 w-3.5 text-indigo-600" />
@@ -670,7 +729,7 @@ const TeacherStudents = () => {
                       <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
                         <Brain className="h-3.5 w-3.5" /> Talaba Mullohazalari
                       </h3>
-                      {studentAnalytics.reflections.length > 0 ? studentAnalytics.reflections.map((ref: any) => (
+                      {studentAnalytics.reflections.length > 0 ? studentAnalytics.reflections.map((ref) => (
                         <div key={ref.id} className="p-6 rounded-[2rem] bg-white border border-slate-100 space-y-4 relative overflow-hidden shadow-sm hover:shadow-md transition-all">
                           <div className="flex items-center justify-between relative z-10">
                             <p className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full uppercase tracking-widest">{ref.lessons?.title || 'Dars'}</p>

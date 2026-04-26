@@ -9,42 +9,60 @@ import { supabase } from "@/integrations/supabase/client";
 import { BookOpen, PlayCircle, FileText, HelpCircle, CheckCircle, Clock, Users, GraduationCap, ArrowRight, Sparkles, CheckCircle2, Lock } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { useCallback } from "react";
+
+interface Course {
+  id: string;
+  title: string;
+  description: string;
+  image_url: string;
+}
+
+interface Lesson {
+  id: string;
+  title: string;
+  content_type: string;
+  order_index: number;
+}
+
+interface Enrollment {
+  id: string;
+  user_id: string;
+  course_id: string;
+  progress: number;
+}
 
 const CourseDetail = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [course, setCourse] = useState<any>(null);
-  const [lessons, setLessons] = useState<any[]>([]);
-  const [enrollment, setEnrollment] = useState<any>(null);
+  const [course, setCourse] = useState<Course | null>(null);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [studentCount, setStudentCount] = useState(0);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
 
-  useEffect(() => {
+  const fetchStudentCount = useCallback(async () => {
     if (!id) return;
-    fetchCourseData();
-    fetchStudentCount();
-  }, [id, user]);
-
-  const fetchStudentCount = async () => {
     const { count } = await supabase.from("enrollments").select("*", { count: 'exact', head: true }).eq("course_id", id);
     setStudentCount(count || 0);
-  };
+  }, [id]);
 
-  const fetchCourseData = async () => {
+  const fetchCourseData = useCallback(async () => {
+    if (!id) return;
     setLoading(true);
     try {
       const { data: courseData } = await supabase.from("courses").select("*").eq("id", id).single();
-      setCourse(courseData);
+      setCourse(courseData as Course);
       
       const { data: lessonsData } = await supabase.from("lessons").select("*").eq("course_id", id).order("order_index");
-      setLessons(lessonsData || []);
+      setLessons(lessonsData as Lesson[] || []);
       
       if (user) {
         const { data: enrollData } = await supabase.from("enrollments").select("*").eq("course_id", id).eq("user_id", user.id).maybeSingle();
-        setEnrollment(enrollData);
+        setEnrollment(enrollData as Enrollment);
 
         // Fetch completed lessons based on test results
         const { data: testResults } = await supabase
@@ -53,7 +71,7 @@ const CourseDetail = () => {
           .eq("user_id", user.id)
           .eq("is_correct", true);
         
-        const completedIds = [...new Set(testResults?.map((r: any) => r.tests?.lesson_id) || [])];
+        const completedIds = [...new Set(((testResults as unknown) as { tests: { lesson_id: string } }[])?.map((r) => r.tests?.lesson_id) || [])] as string[];
         setCompletedLessons(completedIds);
       }
     } catch (error) {
@@ -61,7 +79,12 @@ const CourseDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, user]);
+
+  useEffect(() => {
+    fetchCourseData();
+    fetchStudentCount();
+  }, [fetchCourseData, fetchStudentCount]);
 
   const nextLessonId = lessons.find(l => !completedLessons.includes(l.id))?.id || lessons[0]?.id;
 
@@ -84,8 +107,9 @@ const CourseDetail = () => {
       toast.success("Kursga muvaffaqiyatli yozildingiz!");
       fetchCourseData();
       fetchStudentCount();
-    } catch (error: any) {
-      toast.error(error.message || "Xatolik yuz berdi");
+    } catch (error) {
+      const err = error as Error;
+      toast.error(err.message || "Xatolik yuz berdi");
     } finally {
       setEnrolling(false);
     }

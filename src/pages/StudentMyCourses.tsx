@@ -8,60 +8,90 @@ import { GraduationCap, BookOpen, Clock, Activity, ArrowRight, Star, Sparkles } 
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useCallback } from "react";
+
+interface Course {
+  id: string;
+  title: string;
+  description: string;
+  image_url: string;
+  is_published: boolean;
+  teacher_name?: string;
+}
+
+interface Enrollment {
+  id: string;
+  user_id: string;
+  course_id: string;
+  progress: number;
+  courses?: Course;
+}
 
 const StudentMyCourses = () => {
   const { user } = useAuth();
-  const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchMyCourses = useCallback(async () => {
     if (!user) return;
-    const fetchMyCourses = async () => {
-      setLoading(true);
-      try {
-        const { data: enrollData, error: enrollError } = await supabase
-          .from("enrollments")
-          .select("*")
-          .eq("user_id", user.id);
+    setLoading(true);
+    try {
+      // 1. Get enrollments
+      const { data: enrollData, error: enrollError } = await supabase
+        .from("enrollments")
+        .select("*")
+        .eq("user_id", user.id);
+      
+      if (enrollError) throw enrollError;
+
+      if (enrollData && enrollData.length > 0) {
+        const courseIds = enrollData.map(e => e.course_id);
         
-        if (enrollError) throw enrollError;
+        // 2. Get courses
+        const { data: coursesData, error: coursesError } = await supabase
+          .from("courses")
+          .select("*")
+          .in("id", courseIds);
+        
+        if (coursesError) throw coursesError;
 
-        if (enrollData && enrollData.length > 0) {
-          const courseIds = enrollData.map(e => e.course_id);
-          const { data: coursesData } = await supabase
-            .from("courses")
-            .select("*, teacher:profiles!teacher_id (full_name)")
-            .in("id", courseIds);
+        // 3. Get teacher profiles separately to avoid complex join issues
+        const teacherIds = [...new Set(coursesData?.map(c => c.teacher_id) || [])];
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("user_id, full_name")
+          .in("user_id", teacherIds);
+
+        const mappedEnrollments = enrollData.map(enroll => {
+          const course = coursesData?.find(c => c.id === enroll.course_id);
+          const teacher = profilesData?.find(p => p.user_id === course?.teacher_id);
           
-          // Fallback for courses without profile join
-          let finalCourses = coursesData;
-          if (!coursesData || coursesData.length === 0) {
-            const { data: simpleCourses } = await supabase.from("courses").select("*").in("id", courseIds);
-            finalCourses = simpleCourses;
-          }
+          return {
+            ...enroll,
+            courses: course ? {
+              ...course,
+              teacher_name: teacher?.full_name || "Noma'lum ustoz"
+            } : undefined
+          } as Enrollment;
+        });
 
-          const mappedEnrollments = enrollData.map(enroll => {
-            const course = finalCourses?.find(c => c.id === enroll.course_id);
-            return {
-              ...enroll,
-              courses: course
-            };
-          });
-
-          // Only show courses that are published
-          setEnrollments(mappedEnrollments.filter(e => e.courses?.is_published));
-        } else {
-          setEnrollments([]);
-        }
-      } catch (err) {
-        console.error("MyCourses fetch error:", err);
-      } finally {
-        setLoading(false);
+        // Only show courses that are published (or all for debugging if needed)
+        setEnrollments(mappedEnrollments.filter(e => e.courses && e.courses.is_published));
+      } else {
+        setEnrollments([]);
       }
-    };
-
-    fetchMyCourses();
+    } catch (err) {
+      console.error("MyCourses fetch error:", err);
+      toast.error("Kurslarni yuklashda muammo bo'ldi");
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
+
+  useEffect(() => {
+    fetchMyCourses();
+  }, [fetchMyCourses]);
 
   return (
     <Layout>
@@ -130,6 +160,14 @@ const StudentMyCourses = () => {
                       <h3 className="text-2xl font-bold font-serif text-[#1e293b] group-hover:text-indigo-600 transition-colors leading-tight uppercase tracking-tight">
                         {enrollment.courses?.title}
                       </h3>
+                      {enrollment.courses?.teacher_name && (
+                        <div className="flex items-center gap-2">
+                           <div className="h-6 w-6 rounded-full bg-indigo-50 flex items-center justify-center">
+                              <GraduationCap className="h-3 w-3 text-indigo-600" />
+                           </div>
+                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{enrollment.courses.teacher_name}</span>
+                        </div>
+                      )}
                       <p className="text-slate-400 text-xs leading-relaxed line-clamp-2 max-w-2xl">
                         {enrollment.courses?.description}
                       </p>

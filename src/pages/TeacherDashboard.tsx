@@ -20,6 +20,50 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { useCallback } from "react";
+
+interface Profile {
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+}
+
+interface Course {
+  id: string;
+  title: string;
+  teacher_id: string;
+}
+
+interface Enrollment {
+  user_id: string;
+  course_id: string;
+  progress: number;
+  created_at: string;
+  profiles?: Profile;
+  courses?: Course;
+}
+
+interface Lesson {
+  id: string;
+  title: string;
+  course_id: string;
+}
+
+interface TestResult {
+  created_at: string;
+}
+
+interface SelfAssessment {
+  rating: number;
+  lesson_id: string;
+}
+
+interface DashboardStats {
+  coursesCount: number;
+  studentsCount: number;
+  averageProgress: number;
+  activeToday: number;
+}
 
 const COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444"];
 
@@ -27,29 +71,25 @@ const TeacherDashboard = () => {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
   
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<DashboardStats>({
     coursesCount: 0,
     studentsCount: 0,
     averageProgress: 0,
     activeToday: 0
   });
 
-  const [courses, setCourses] = useState<any[]>([]);
-  const [activityData, setActivityData] = useState<any[]>([]);
-  const [courseProgressData, setCourseProgressData] = useState<any[]>([]);
-  const [topStudents, setTopStudents] = useState<any[]>([]);
-  const [slowStudents, setSlowStudents] = useState<any[]>([]);
-  const [difficultLessons, setDifficultLessons] = useState<any[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [activityData, setActivityData] = useState<{ name: string; date: string; count: number }[]>([]);
+  const [courseProgressData, setCourseProgressData] = useState<{ name: string; progress: number }[]>([]);
+  const [topStudents, setTopStudents] = useState<Enrollment[]>([]);
+  const [slowStudents, setSlowStudents] = useState<Enrollment[]>([]);
+  const [difficultLessons, setDifficultLessons] = useState<{ title: string; avgRating: number }[]>([]);
 
   const [quickActionType, setQuickActionType] = useState<"lesson" | "test" | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
 
-  useEffect(() => {
+  const fetchDashboardData = useCallback(async () => {
     if (!user) return;
-    fetchDashboardData();
-  }, [user]);
-
-  const fetchDashboardData = async () => {
     setLoading(true);
     try {
       console.log("Fetching dashboard data for user:", user.id);
@@ -57,12 +97,12 @@ const TeacherDashboard = () => {
       // 1. Kurslarni olish
       const { data: coursesData, error: coursesError } = await supabase
         .from("courses")
-        .select("id, title")
+        .select("id, title, teacher_id")
         .eq("teacher_id", user.id);
       
       if (coursesError) throw coursesError;
       
-      const myCourses = coursesData || [];
+      const myCourses = (coursesData as Course[]) || [];
       const courseIds = myCourses.map(c => c.id);
       setCourses(myCourses);
       console.log("Teacher courses found:", myCourses.length);
@@ -80,18 +120,18 @@ const TeacherDashboard = () => {
         .in("course_id", courseIds);
 
       if (enrollError) console.error("Enrollment error:", enrollError);
-      const safeEnrollments = enrollments || [];
+      const safeEnrollments = (enrollments as Enrollment[]) || [];
       console.log("Enrollments found:", safeEnrollments.length);
 
       // 3. O'quvchilar profillarini alohida olish (Join xatoligidan qochish uchun)
       const uniqueUserIds = [...new Set(safeEnrollments.map(e => e.user_id))];
-      let studentProfiles: any[] = [];
+      let studentProfiles: Profile[] = [];
       if (uniqueUserIds.length > 0) {
         const { data: profilesData } = await supabase
           .from("profiles")
           .select("user_id, full_name, avatar_url")
           .in("user_id", uniqueUserIds);
-        studentProfiles = profilesData || [];
+        studentProfiles = (profilesData as Profile[]) || [];
       }
 
       // Ma'lumotlarni birlashtirish
@@ -107,8 +147,8 @@ const TeacherDashboard = () => {
         : 0;
 
       // 4. Faollik (Test natijalari orqali)
-      const { data: lessonsData } = await supabase.from("lessons").select("id, title").in("course_id", courseIds);
-      const myLessons = lessonsData || [];
+      const { data: lessonsData } = await supabase.from("lessons").select("id, title, course_id").in("course_id", courseIds);
+      const myLessons = (lessonsData as Lesson[]) || [];
       const lessonIds = myLessons.map(l => l.id);
       
       let todayCount = 0;
@@ -133,7 +173,7 @@ const TeacherDashboard = () => {
             .in("test_id", testIds)
             .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
           
-          const safeResults = testResults || [];
+          const safeResults = (testResults as TestResult[]) || [];
           const today = new Date().toISOString().split('T')[0];
           todayCount = safeResults.filter(r => r.created_at.startsWith(today)).length;
 
@@ -153,22 +193,22 @@ const TeacherDashboard = () => {
       setActivityData(dailyActivityData);
 
       // 5. Kurslar bo'yicha progress tahlili
-      const courseGroups = enrichedEnrollments.reduce((acc: any, curr: any) => {
+      const courseGroups = enrichedEnrollments.reduce((acc: Record<string, { name: string; progress: number; count: number }>, curr: Enrollment) => {
         const title = curr.courses?.title || "Noma'lum Kurs";
         if (!acc[title]) acc[title] = { name: title, progress: 0, count: 0 };
         acc[title].progress += curr.progress || 0;
         acc[title].count += 1;
         return acc;
       }, {});
-      setCourseProgressData(Object.values(courseGroups).map((g: any) => ({
+      setCourseProgressData(Object.values(courseGroups).map((g) => ({
         name: g.name,
         progress: Math.round(g.progress / g.count)
       })));
 
       // 6. Talabalar tahlili (Top va Slow)
       const sortedStudents = [...enrichedEnrollments].sort((a, b) => (b.progress || 0) - (a.progress || 0));
-      setTopStudents(sortedStudents.slice(0, 3));
-      setSlowStudents([...enrichedEnrollments].sort((a, b) => (a.progress || 0) - (b.progress || 0)).slice(0, 3));
+      setTopStudents(sortedStudents.slice(0, 3) as Enrollment[]);
+      setSlowStudents([...enrichedEnrollments].sort((a, b) => (a.progress || 0) - (b.progress || 0)).slice(0, 3) as Enrollment[]);
 
       // 7. Qiyin darslar tahlili
       if (lessonIds.length > 0) {
@@ -177,18 +217,18 @@ const TeacherDashboard = () => {
           .select("rating, lesson_id")
           .in("lesson_id", lessonIds);
 
-        const safeAssessments = selfAssessments || [];
-        const lessonStats = safeAssessments.reduce((acc: any, curr: any) => {
+        const safeAssessments = (selfAssessments as SelfAssessment[]) || [];
+        const lessonStats = safeAssessments.reduce((acc: Record<string, { title: string; totalRating: number; count: number }>, curr: SelfAssessment) => {
           const lesson = myLessons.find(l => l.id === curr.lesson_id);
           const title = lesson?.title || "Dars"; 
           if (!acc[title]) acc[title] = { title, totalRating: 0, count: 0 };
           acc[title].totalRating += curr.rating;
           acc[title].count += 1;
           return acc;
-        }, {} as any);
+        }, {});
         
         const difficult = Object.values(lessonStats)
-          .map((l: any) => ({ title: l.title, avgRating: l.totalRating / l.count }))
+          .map((l) => ({ title: l.title, avgRating: l.totalRating / l.count }))
           .sort((a, b) => a.avgRating - b.avgRating).slice(0, 3);
         setDifficultLessons(difficult);
       }
@@ -198,7 +238,11 @@ const TeacherDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
 
   const handleQuickAction = () => {
     if (!selectedCourseId) return;
@@ -406,14 +450,14 @@ const TeacherDashboard = () => {
                           <div className="flex items-center gap-4">
                              <div className="relative">
                                 <Avatar className="h-12 w-12 border-2 border-white shadow-md">
-                                   <AvatarImage src={s.profiles.avatar_url} />
-                                   <AvatarFallback className="bg-emerald-100 text-emerald-700 font-black">{s.profiles.full_name[0]}</AvatarFallback>
+                                   <AvatarImage src={s.profiles?.avatar_url || undefined} />
+                                   <AvatarFallback className="bg-emerald-100 text-emerald-700 font-black">{s.profiles?.full_name?.[0] || '?'}</AvatarFallback>
                                 </Avatar>
                                 <div className="absolute -top-1 -right-1 bg-yellow-400 text-white rounded-full h-5 w-5 flex items-center justify-center text-[10px] font-bold shadow-md border-2 border-white">
                                    {i + 1}
                                 </div>
                              </div>
-                             <span className="font-bold text-slate-700">{s.profiles.full_name.split(' ')[0]}</span>
+                             <span className="font-bold text-slate-700">{s.profiles?.full_name?.split(' ')[0] || "O'quvchi"}</span>
                           </div>
                           <Badge className="bg-emerald-50 text-emerald-700 border-none px-3 font-black">{s.progress}%</Badge>
                        </div>

@@ -8,11 +8,19 @@ import { TrendingUp, Users, BookOpen, Award, CheckCircle2, AlertCircle, BarChart
 import { Skeleton } from "@/components/ui/skeleton";
 
 const COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444", "#ec4899"];
+import { useCallback } from "react";
+
+interface CourseReport {
+  name: string;
+  students: number;
+  progress: number;
+  completed: number;
+}
 
 const TeacherReports = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [courseData, setCourseData] = useState<any[]>([]);
+  const [courseData, setCourseData] = useState<CourseReport[]>([]);
   const [summary, setSummary] = useState({
     totalStudents: 0,
     avgProgress: 0,
@@ -20,16 +28,13 @@ const TeacherReports = () => {
     totalCourses: 0
   });
 
-  useEffect(() => {
-    if (user) fetchReportData();
-  }, [user]);
-
-  const fetchReportData = async () => {
+  const fetchReportData = useCallback(async () => {
+    if (!user) return;
     setLoading(true);
     try {
-      const { data: courses } = await supabase.from("courses").select("id, title").eq("teacher_id", user?.id);
+      const { data: courses } = await supabase.from("courses").select("id, title").eq("teacher_id", user.id);
       
-      const reportStats: any[] = [];
+      const reportStats: CourseReport[] = [];
       let totalS = 0;
       let totalP = 0;
       let completedCount = 0;
@@ -66,7 +71,11 @@ const TeacherReports = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchReportData();
+  }, [fetchReportData]);
 
   return (
     <Layout>

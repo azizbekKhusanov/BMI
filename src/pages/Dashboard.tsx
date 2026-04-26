@@ -12,75 +12,105 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useCallback } from "react";
+
+interface Course {
+  id: string;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+}
+
+interface Test {
+  id: string;
+  question: string;
+}
+
+interface Enrollment {
+  id: string;
+  user_id: string;
+  course_id: string;
+  progress: number;
+  courses?: Course;
+}
+
+interface TestResult {
+  id: string;
+  test_id: string;
+  user_id: string;
+  is_correct: boolean;
+  answer: string;
+  created_at: string;
+  tests?: Test;
+}
 
 const Dashboard = () => {
-  const { user, profile } = useAuth();
-  const [enrollments, setEnrollments] = useState<any[]>([]);
-  const [recentResults, setRecentResults] = useState<any[]>([]);
+  const { user } = useAuth();
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [recentResults, setRecentResults] = useState<TestResult[]>([]);
+
+  const fetchDashboardData = useCallback(async () => {
+    if (!user) return;
+    try {
+      // 1. Fetch enrollments
+      const { data: enrollData, error: enrollError } = await supabase
+        .from("enrollments")
+        .select("*")
+        .eq("user_id", user.id);
+      
+      if (enrollError) throw enrollError;
+
+      if (enrollData && enrollData.length > 0) {
+        const courseIds = enrollData.map(e => e.course_id);
+        const { data: coursesData } = await supabase
+          .from("courses")
+          .select("id, title, description, image_url")
+          .in("id", courseIds);
+        
+        const mappedEnrollments = enrollData.map(enroll => ({
+          ...enroll,
+          courses: coursesData?.find(c => c.id === enroll.course_id)
+        })) as Enrollment[];
+        setEnrollments(mappedEnrollments);
+      }
+
+      // 2. Fetch recent test results
+      const { data: resultsData, error: resultsError } = await supabase
+        .from("test_results")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      if (resultsError) throw resultsError;
+
+      if (resultsData && resultsData.length > 0) {
+        const testIds = resultsData.map(r => r.test_id);
+        const { data: testsData } = await supabase
+          .from("tests")
+          .select("id, question")
+          .in("id", testIds);
+        
+        const mappedResults = resultsData.map(res => ({
+          ...res,
+          tests: testsData?.find(t => t.id === res.test_id)
+        })) as TestResult[];
+        setRecentResults(mappedResults);
+      }
+    } catch (error) {
+      console.error("Dashboard yuklashda xatolik:", error);
+    }
+  }, [user]);
 
   useEffect(() => {
-    if (!user) return;
-    
-    const fetchDashboardData = async () => {
-      try {
-        // 1. Fetch enrollments
-        const { data: enrollData, error: enrollError } = await supabase
-          .from("enrollments")
-          .select("*")
-          .eq("user_id", user.id);
-        
-        if (enrollError) throw enrollError;
-
-        if (enrollData && enrollData.length > 0) {
-          const courseIds = enrollData.map(e => e.course_id);
-          const { data: coursesData } = await supabase
-            .from("courses")
-            .select("id, title, description, image_url")
-            .in("id", courseIds);
-          
-          const mappedEnrollments = enrollData.map(enroll => ({
-            ...enroll,
-            courses: coursesData?.find(c => c.id === enroll.course_id)
-          }));
-          setEnrollments(mappedEnrollments);
-        }
-
-        // 2. Fetch recent test results
-        const { data: resultsData, error: resultsError } = await supabase
-          .from("test_results")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(5);
-
-        if (resultsError) throw resultsError;
-
-        if (resultsData && resultsData.length > 0) {
-          const testIds = resultsData.map(r => r.test_id);
-          const { data: testsData } = await supabase
-            .from("tests")
-            .select("id, question")
-            .in("id", testIds);
-          
-          const mappedResults = resultsData.map(res => ({
-            ...res,
-            tests: testsData?.find(t => t.id === res.test_id)
-          }));
-          setRecentResults(mappedResults);
-        }
-      } catch (error) {
-        console.error("Dashboard yuklashda xatolik:", error);
-      }
-    };
-
     fetchDashboardData();
-  }, [user]);
+  }, [fetchDashboardData]);
 
   const avgProgress = enrollments.length
     ? Math.round(enrollments.reduce((sum, e) => sum + Number(e.progress), 0) / enrollments.length)
     : 0;
 
-  const StatCard = ({ title, value, icon: Icon, color, sparklineColor }: any) => (
+  const StatCard = ({ title, value, icon: Icon, color, sparklineColor }: { title: string; value: string | number; icon: React.ElementType; color: string; sparklineColor: string }) => (
     <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[2rem] overflow-hidden group hover:shadow-xl transition-all duration-500 bg-white">
       <CardContent className="p-8">
         <div className="flex items-center justify-between gap-4">

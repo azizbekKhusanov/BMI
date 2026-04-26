@@ -11,19 +11,47 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { uz } from "date-fns/locale";
+import { useCallback } from "react";
+
+interface Course {
+  id: string;
+  title: string;
+}
+
+interface Lesson {
+  id: string;
+  title: string;
+  course_id: string;
+}
+
+interface Test {
+  id: string;
+  question: string;
+  lesson_id: string;
+}
+
+interface TestResult {
+  id: string;
+  test_id: string;
+  user_id: string;
+  answer: string;
+  is_correct: boolean;
+  created_at: string;
+  tests?: Test & {
+    lessons?: Lesson & {
+      courses?: Course;
+    };
+  };
+}
 
 const StudentResults = () => {
   const { user } = useAuth();
-  const [results, setResults] = useState<any[]>([]);
+  const [results, setResults] = useState<TestResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
+  const fetchResults = useCallback(async () => {
     if (!user) return;
-    fetchResults();
-  }, [user]);
-
-  const fetchResults = async () => {
     setLoading(true);
     try {
       // 1. Fetch test results
@@ -72,7 +100,7 @@ const StudentResults = () => {
                 courses: course
               }
             }
-          };
+          } as TestResult;
         });
 
         setResults(mappedResults);
@@ -84,7 +112,11 @@ const StudentResults = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchResults();
+  }, [fetchResults]);
 
   const filteredResults = results.filter(r => 
     r.tests?.question.toLowerCase().includes(searchQuery.toLowerCase()) ||

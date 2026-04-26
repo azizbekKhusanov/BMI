@@ -9,26 +9,41 @@ import { supabase } from "@/integrations/supabase/client";
 import { BookOpen, Search, Users, GraduationCap, Sparkles, Filter, ArrowRight, Star, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { useCallback } from "react";
+
+interface Profile {
+  user_id: string;
+  full_name: string | null;
+}
+
+interface Course {
+  id: string;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  teacher_id: string;
+  studentCount?: number;
+  lessonCount?: number;
+  teacher?: {
+    full_name: string;
+  };
+}
 
 const Courses = () => {
   const { user } = useAuth();
-  const [courses, setCourses] = useState<any[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [enrolledIds, setEnrolledIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchCourses();
-    if (user) fetchEnrollments();
-  }, [user]);
-
-  const fetchCourses = async () => {
+  const fetchCourses = useCallback(async () => {
     setLoading(true);
     try {
       // 1. Fetch all courses
       const { data: coursesData, error: coursesError } = await supabase
         .from("courses")
         .select("*")
+        .eq("is_published", true)
         .order("created_at", { ascending: false });
 
       if (coursesError) throw coursesError;
@@ -47,14 +62,15 @@ const Courses = () => {
         const allEnrollments = enrollmentsRes.data || [];
         const allLessons = lessonsRes.data || [];
 
-        const mappedCourses = coursesData.map(course => {
+        const mappedCourses = (coursesData as Course[]).map(course => {
           const studentCount = allEnrollments.filter(e => e.course_id === course.id).length;
           const lessonCount = allLessons.filter(l => l.course_id === course.id).length;
+          const teacherProfile = profiles.find(p => p.user_id === course.teacher_id);
           return {
             ...course,
             studentCount,
             lessonCount,
-            teacher: profiles.find(p => p.user_id === course.teacher_id) || { full_name: "MetaEdu Ustoz" }
+            teacher: teacherProfile ? { full_name: teacherProfile.full_name || "MetaEdu Ustoz" } : { full_name: "MetaEdu Ustoz" }
           };
         });
         
@@ -62,19 +78,24 @@ const Courses = () => {
       } else {
         setCourses([]);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Kurslarni yuklashda xatolik:", error);
       setCourses([]); 
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchEnrollments = async () => {
+  const fetchEnrollments = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase.from("enrollments").select("course_id").eq("user_id", user.id);
     setEnrolledIds(data?.map((e) => e.course_id) || []);
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchCourses();
+    if (user) fetchEnrollments();
+  }, [fetchCourses, fetchEnrollments, user]);
 
   const handleEnroll = async (courseId: string) => {
     if (!user) {

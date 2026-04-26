@@ -12,30 +12,47 @@ import { Search, Plus, Filter, FileText, Trash2, Edit2, BookOpen, GraduationCap,
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCallback } from "react";
+
+interface Course {
+  id: string;
+  title: string;
+}
+
+interface Lesson {
+  id: string;
+  title: string;
+  course_id: string;
+  courses: Course;
+}
+
+interface Test {
+  id: string;
+  question: string;
+  lesson_id: string;
+  options: string[];
+  correct_answer: string;
+  lessons: Lesson;
+}
 
 const TeacherTests = () => {
   const { user } = useAuth();
-  const [tests, setTests] = useState<any[]>([]);
-  const [courses, setCourses] = useState<any[]>([]);
+  const [tests, setTests] = useState<Test[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCourse, setSelectedCourse] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [testToDelete, setTestToDelete] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      fetchCourses();
-      fetchTests();
-    }
+  const fetchCourses = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase.from("courses").select("id, title").eq("teacher_id", user.id);
+    setCourses(data || []);
   }, [user]);
 
-  const fetchCourses = async () => {
-    const { data } = await supabase.from("courses").select("id, title").eq("teacher_id", user?.id);
-    setCourses(data || []);
-  };
-
-  const fetchTests = async () => {
+  const fetchTests = useCallback(async () => {
+    if (!user) return;
     setLoading(true);
     // Fetch tests with joins to get lesson and course info
     const { data, error } = await supabase
@@ -53,15 +70,20 @@ const TeacherTests = () => {
           )
         )
       `)
-      .eq("lessons.courses.teacher_id", user?.id);
+      .eq("lessons.courses.teacher_id", user.id);
 
     if (error) {
       toast.error("Testlarni yuklashda xatolik");
     } else {
-      setTests(data || []);
+      setTests((data as unknown as Test[]) || []);
     }
     setLoading(false);
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchCourses();
+    fetchTests();
+  }, [fetchCourses, fetchTests]);
 
   const handleDeleteTest = async () => {
     if (!testToDelete) return;
