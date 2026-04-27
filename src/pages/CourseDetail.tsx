@@ -1,21 +1,36 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { BookOpen, PlayCircle, FileText, HelpCircle, CheckCircle, Clock, Users, GraduationCap, ArrowRight, Sparkles, CheckCircle2, Lock } from "lucide-react";
+import { 
+  PlayCircle, CheckCircle2, Clock, Users, Target,
+  ArrowRight, Sparkles, Lock, Star, Globe, 
+  Play, ShieldCheck, Award, BookOpen, Activity, Share2, Heart,
+  Bookmark, MessageCircle, MoreVertical
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { useCallback } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Skeleton } from "@/components/ui/skeleton";
+
+interface Profile {
+  user_id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  bio?: string;
+}
 
 interface Course {
   id: string;
   title: string;
   description: string;
   image_url: string;
+  teacher_id: string;
+  category?: string;
 }
 
 interface Lesson {
@@ -37,6 +52,7 @@ const CourseDetail = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [course, setCourse] = useState<Course | null>(null);
+  const [teacher, setTeacher] = useState<Profile | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,34 +60,33 @@ const CourseDetail = () => {
   const [studentCount, setStudentCount] = useState(0);
   const [completedLessons, setCompletedLessons] = useState<string[]>([]);
 
-  const fetchStudentCount = useCallback(async () => {
-    if (!id) return;
-    const { count } = await supabase.from("enrollments").select("*", { count: 'exact', head: true }).eq("course_id", id);
-    setStudentCount(count || 0);
-  }, [id]);
-
   const fetchCourseData = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
       const { data: courseData } = await supabase.from("courses").select("*").eq("id", id).single();
+      if (!courseData) return;
       setCourse(courseData as Course);
       
       const { data: lessonsData } = await supabase.from("lessons").select("*").eq("course_id", id).order("order_index");
       setLessons(lessonsData as Lesson[] || []);
       
+      const { data: teacherData } = await supabase.from("profiles").select("*").eq("user_id", courseData.teacher_id).single();
+      setTeacher(teacherData as Profile);
+
+      const { count } = await supabase.from("enrollments").select("*", { count: 'exact', head: true }).eq("course_id", id);
+      setStudentCount(count || 0);
+
       if (user) {
         const { data: enrollData } = await supabase.from("enrollments").select("*").eq("course_id", id).eq("user_id", user.id).maybeSingle();
         setEnrollment(enrollData as Enrollment);
 
-        // Fetch completed lessons based on test results
-        const { data: testResults } = await supabase
-          .from("test_results")
-          .select("tests(lesson_id)")
-          .eq("user_id", user.id)
-          .eq("is_correct", true);
+        const { data: assessmentsData } = await supabase
+          .from("self_assessments")
+          .select("lesson_id")
+          .eq("user_id", user.id);
         
-        const completedIds = [...new Set(((testResults as unknown) as { tests: { lesson_id: string } }[])?.map((r) => r.tests?.lesson_id) || [])] as string[];
+        const completedIds = [...new Set(assessmentsData?.map((a) => a.lesson_id) || [])] as string[];
         setCompletedLessons(completedIds);
       }
     } catch (error) {
@@ -82,9 +97,9 @@ const CourseDetail = () => {
   }, [id, user]);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     fetchCourseData();
-    fetchStudentCount();
-  }, [fetchCourseData, fetchStudentCount]);
+  }, [fetchCourseData]);
 
   const nextLessonId = lessons.find(l => !completedLessons.includes(l.id))?.id || lessons[0]?.id;
 
@@ -106,7 +121,6 @@ const CourseDetail = () => {
       if (error) throw error;
       toast.success("Kursga muvaffaqiyatli yozildingiz!");
       fetchCourseData();
-      fetchStudentCount();
     } catch (error) {
       const err = error as Error;
       toast.error(err.message || "Xatolik yuz berdi");
@@ -115,182 +129,258 @@ const CourseDetail = () => {
     }
   };
 
-  const contentIcon = (type: string) => {
-    switch (type) {
-      case "video": return <PlayCircle className="h-5 w-5 text-indigo-500" />;
-      case "quiz": return <HelpCircle className="h-5 w-5 text-amber-500" />;
-      default: return <FileText className="h-5 w-5 text-sky-500" />;
-    }
-  };
-
   if (loading) {
     return (
       <Layout>
-        <div className="flex justify-center items-center h-[60vh]">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+        <div className="space-y-8 mt-6">
+          <Skeleton className="h-64 md:h-96 w-full rounded-3xl" />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-8">
+              <Skeleton className="h-40 w-full rounded-3xl" />
+              <Skeleton className="h-64 w-full rounded-3xl" />
+            </div>
+            <Skeleton className="h-96 w-full rounded-3xl" />
+          </div>
         </div>
       </Layout>
     );
   }
 
-  if (!course) return <Layout><div className="text-center py-20 font-bold">Kurs topilmadi</div></Layout>;
+  if (!course) return <Layout><div className="text-center py-32 font-bold text-2xl text-slate-500">Kurs topilmadi</div></Layout>;
 
   return (
     <Layout>
-      <div className="container py-12 max-w-7xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-10">
-            <div className="space-y-6">
-              <div className="aspect-video w-full rounded-[2.5rem] overflow-hidden shadow-2xl bg-slate-100 border-8 border-white">
-                <img 
-                  src={course.image_url || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=60"} 
-                  alt={course.title} 
-                  className="w-full h-full object-cover" 
-                />
+      <div className="flex items-center gap-2 text-sm text-slate-500 mb-6 mt-4">
+        <Link to="/student/courses" className="hover:text-indigo-600 transition-colors">Kurslar</Link>
+        <ArrowRight className="h-4 w-4" />
+        <span className="text-slate-900 font-semibold">{course.title}</span>
+      </div>
+
+      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-8">
+        <div className="h-64 md:h-96 relative bg-slate-100">
+          <img 
+            src={course.image_url || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=60"} 
+            className="w-full h-full object-cover"
+            alt={course.title}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
+          <div className="absolute bottom-0 left-0 p-8 w-full text-white">
+            <div className="flex gap-3 mb-4">
+              <Badge className="bg-indigo-600 hover:bg-indigo-700 text-white border-none font-semibold px-4 py-1.5 rounded-full">
+                {course.category || "Fan"}
+              </Badge>
+              <Badge className="bg-white/20 backdrop-blur-md text-white border-none font-semibold px-4 py-1.5 rounded-full">
+                Bepul
+              </Badge>
+            </div>
+            <h1 className="text-3xl md:text-5xl font-bold mb-4 leading-tight max-w-3xl">
+              {course.title}
+            </h1>
+            <div className="flex flex-wrap items-center gap-6 text-sm font-medium">
+              <div className="flex items-center gap-2">
+                <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
+                <span>4.9 (2.4k sharhlar)</span>
               </div>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                   <Badge className="bg-indigo-50 text-indigo-600 border-none px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">Kurs haqida</Badge>
-                   <div className="h-1 w-1 rounded-full bg-slate-200" />
-                   <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{lessons.length} ta dars</span>
-                </div>
-                <h1 className="text-5xl font-bold font-serif text-slate-800 tracking-tight leading-tight uppercase">{course.title}</h1>
-                <p className="text-lg text-slate-500 leading-relaxed max-w-3xl">{course.description}</p>
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-indigo-300" />
+                <span>{studentCount.toLocaleString()} ta talaba</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Globe className="h-5 w-5 text-emerald-300" />
+                <span>O'zbek tili</span>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
 
-            <div className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm"><BookOpen className="h-5 w-5" /></div>
-                <h2 className="text-2xl font-bold font-serif text-slate-800 uppercase tracking-tight">O'quv dasturi</h2>
-              </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-20">
+        
+        {/* Main Content Column */}
+        <div className="lg:col-span-2 space-y-8">
+          
+          <Card className="rounded-3xl border-slate-100 shadow-sm bg-white">
+            <CardContent className="p-8 space-y-6">
+              <h2 className="text-2xl font-bold text-slate-900">Kurs haqida</h2>
+              <p className="text-slate-600 leading-relaxed text-lg">
+                {course.description}
+              </p>
               
-              <div className="grid gap-3">
-                {lessons.length === 0 ? (
-                  <Card className="border-dashed py-12 text-center rounded-[2rem] bg-slate-50/50">
-                    <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest">Hali darslar qo'shilmagan</p>
-                  </Card>
-                ) : (
-                   lessons.map((lesson, idx) => {
-                     const isCompleted = completedLessons.includes(lesson.id);
-                     return (
-                       <div
-                         key={lesson.id}
-                         className={`group flex items-center gap-6 p-5 rounded-2xl border-2 transition-all ${
-                           enrollment 
-                             ? "bg-white border-white shadow-sm hover:shadow-xl hover:scale-[1.01] cursor-pointer" 
-                             : "bg-slate-50 border-transparent opacity-70 grayscale"
-                         }`}
-                         onClick={() => enrollment && navigate(`/lessons/${lesson.id}`)}
-                       >
-                         <div className={`flex h-12 w-12 items-center justify-center rounded-xl font-black text-sm shadow-inner shrink-0 transition-colors ${
-                           isCompleted ? "bg-emerald-500 text-white" : "bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white"
-                         }`}>
-                           {isCompleted ? <CheckCircle className="h-6 w-6" /> : idx + 1}
-                         </div>
-                         <div className="flex-1 space-y-1">
-                           <div className="flex items-center gap-2">
-                              {contentIcon(lesson.content_type)}
-                              <p className={`text-base font-bold transition-colors uppercase tracking-tight ${
-                                isCompleted ? "text-emerald-600" : "text-slate-800 group-hover:text-indigo-600"
-                              }`}>{lesson.title}</p>
-                           </div>
-                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{lesson.content_type} dars</p>
-                         </div>
-                         {enrollment ? (
-                           <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-all ${
-                             isCompleted ? "bg-emerald-50 text-emerald-500" : "bg-slate-50 text-slate-300 group-hover:bg-indigo-50 group-hover:text-indigo-600"
-                           }`}>
-                              {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : <ArrowRight className="h-5 w-5" />}
-                           </div>
-                         ) : (
-                           <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                              <Lock className="h-4 w-4" />
-                           </div>
-                         )}
-                       </div>
-                     );
-                   })
-                )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
+                <div className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50">
+                  <div className="h-10 w-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                    <Target className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 mb-1">Amaliy ko'nikmalar</h4>
+                    <p className="text-sm text-slate-500">O'rganganlaringizni real loyihalarda qo'llashni o'rganasiz.</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-4 p-4 rounded-2xl bg-slate-50">
+                  <div className="h-10 w-10 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                    <Award className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-900 mb-1">Sertifikat</h4>
+                    <p className="text-sm text-slate-500">Kursni yakunlagach maxsus sertifikatga ega bo'lasiz.</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          {/* Sidebar / Enrollment Card */}
-          <div className="space-y-8">
-             <Card className="border-none shadow-2xl rounded-[3rem] overflow-hidden bg-white sticky top-24">
-                <CardHeader className="bg-[#1e293b] p-10 text-white space-y-2">
-                   <p className="text-[10px] font-black text-indigo-300 uppercase tracking-[0.3em]">Hozir boshlang</p>
-                   <CardTitle className="text-3xl font-bold font-serif uppercase tracking-tight">Kursga a'zo bo'lish</CardTitle>
-                </CardHeader>
-                <CardContent className="p-10 space-y-8">
-                   <div className="space-y-6">
-                      <div className="flex items-center justify-between py-4 border-b border-slate-50">
-                         <div className="flex items-center gap-3 text-slate-400">
-                            <Clock className="h-5 w-5" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Davomiyligi</span>
-                         </div>
-                         <span className="text-sm font-bold text-slate-700 uppercase">O'z tezligingizda</span>
+          <Card className="rounded-3xl border-slate-100 shadow-sm bg-white">
+            <CardContent className="p-8">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-bold text-slate-900">Dars dasturi</h2>
+                <div className="flex items-center gap-4 text-sm font-semibold text-slate-500">
+                  <span className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" /> {lessons.length} dars</span>
+                  <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> 24 soat</span>
+                </div>
+              </div>
+
+              <Accordion type="single" collapsible defaultValue="module-1" className="w-full">
+                <AccordionItem value="module-1" className="border-slate-100 mb-4 bg-slate-50 rounded-2xl overflow-hidden px-2">
+                  <AccordionTrigger className="hover:no-underline px-4 py-4 text-left">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-xl bg-white text-indigo-600 flex items-center justify-center font-bold shadow-sm">1</div>
+                      <div>
+                        <h4 className="font-bold text-slate-900">Asosiy Darslar</h4>
+                        <p className="text-xs text-slate-500 mt-1 font-normal">Barcha dars modullari</p>
                       </div>
-                      <div className="flex items-center justify-between py-4 border-b border-slate-50">
-                         <div className="flex items-center gap-3 text-slate-400">
-                            <GraduationCap className="h-5 w-5" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Daraja</span>
-                         </div>
-                         <span className="text-sm font-bold text-slate-700 uppercase">Boshlang'ich</span>
-                      </div>
-                      <div className="flex items-center justify-between py-4 border-b border-slate-50">
-                         <div className="flex items-center gap-3 text-slate-400">
-                            <Users className="h-5 w-5" />
-                            <span className="text-[10px] font-black uppercase tracking-widest">Talabalar</span>
-                         </div>
-                         <span className="text-sm font-bold text-slate-700 uppercase">{studentCount} ta talaba</span>
-                      </div>
-                   </div>
- 
-                   {enrollment ? (
-                      <div className="space-y-6">
-                         <div className="space-y-3">
-                            <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
-                               <span>Progress</span>
-                               <span>{Math.round(enrollment.progress)}%</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-4 pb-4">
+                    <div className="space-y-2 mt-2">
+                      {lessons.length === 0 ? (
+                        <div className="py-8 text-center bg-white rounded-xl border border-slate-100">
+                           <p className="text-sm text-slate-400">Hozircha darslar yuklanmagan</p>
+                        </div>
+                      ) : (
+                        lessons.map((lesson, idx) => {
+                          const isCompleted = completedLessons.includes(lesson.id);
+                          const isLocked = enrollment ? (idx > 0 && !completedLessons.includes(lessons[idx-1].id)) : true;
+                          
+                          return (
+                            <div 
+                              key={lesson.id} 
+                              className={`flex items-center justify-between p-4 rounded-xl border border-slate-100 bg-white transition-all ${
+                                !isLocked ? "hover:border-indigo-200 cursor-pointer" : "opacity-50 cursor-not-allowed bg-slate-50"
+                              }`}
+                              onClick={() => !isLocked && navigate(`/lessons/${lesson.id}`)}
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 ${
+                                  isCompleted ? "bg-emerald-50 text-emerald-500" : isLocked ? "bg-slate-200 text-slate-400" : "bg-indigo-50 text-indigo-500"
+                                }`}>
+                                  {isCompleted ? <CheckCircle2 className="h-5 w-5" /> : isLocked ? <Lock className="h-5 w-5" /> : <PlayCircle className="h-5 w-5" />}
+                                </div>
+                                <div>
+                                   <span className={`text-sm font-semibold ${isLocked ? "text-slate-400" : isCompleted ? "text-slate-500" : "text-slate-900"}`}>
+                                     {lesson.title}
+                                   </span>
+                                   <div className="text-xs text-slate-400 mt-0.5">Modul {lesson.order_index}</div>
+                                </div>
+                              </div>
+                              <div className="text-slate-300">
+                                 {isLocked ? <Lock className="h-4 w-4" /> : isCompleted ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <ArrowRight className="h-4 w-4 text-indigo-400" />}
+                              </div>
                             </div>
-                            <Progress value={Number(enrollment.progress)} className="h-2 bg-slate-100" />
-                         </div>
-                         <Button asChild className="w-full h-16 rounded-[2rem] bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-indigo-100">
-                            <Link to={`/lessons/${nextLessonId}`}>O'rganishni davom ettirish</Link>
-                         </Button>
-                      </div>
-                   ) : (
-                      <Button 
-                        onClick={handleEnroll} 
-                        disabled={enrolling}
-                        className="w-full h-16 rounded-[2rem] bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase text-xs tracking-[0.2em] shadow-xl shadow-indigo-100 transition-all active:scale-95"
-                      >
-                         {enrolling ? "Yozilmoqda..." : "Kursga yozilish"}
-                      </Button>
-                   )}
-                   
-                   <p className="text-center text-[10px] font-black text-slate-300 uppercase tracking-widest leading-relaxed">
-                      Kursga yozilish mutlaqo bepul. <br /> Barcha darslar va testlar ochiladi.
-                   </p>
-                </CardContent>
-             </Card>
+                          );
+                        })
+                      )}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            </CardContent>
+          </Card>
 
-             {/* Teacher info card or related features */}
-             <div className="p-10 rounded-[3rem] bg-indigo-50/50 border border-indigo-100/50 space-y-4">
-                <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Kafolatlanadi</h4>
-                <div className="flex items-center gap-3 text-indigo-700 font-bold text-sm">
-                   <CheckCircle className="h-5 w-5 text-indigo-600" />
-                   Metakognitiv yondashuv
+          <Card className="rounded-3xl border-slate-100 shadow-sm bg-white">
+            <CardContent className="p-8">
+              <h2 className="text-2xl font-bold text-slate-900 mb-8">O'qituvchi haqida</h2>
+              <div className="flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left">
+                <Avatar className="h-32 w-32 rounded-2xl border-4 border-slate-50 shadow-sm">
+                  <AvatarImage src={teacher?.avatar_url || undefined} className="object-cover" />
+                  <AvatarFallback className="bg-indigo-50 text-indigo-600 text-3xl font-bold">{teacher?.full_name?.[0] || "T"}</AvatarFallback>
+                </Avatar>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">{teacher?.full_name || "O'qituvchi"}</h3>
+                    <p className="text-indigo-600 font-semibold text-sm mt-1">Platforma mualiffi</p>
+                  </div>
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    Sizga yangi bilimlarni mukammal darajada yetkazish va kelajak kasblariga tayyorlash uchun shu yerdaman. Har bir dars qiziqarli va foydali bo'lishiga ishonaman.
+                  </p>
                 </div>
-                <div className="flex items-center gap-3 text-indigo-700 font-bold text-sm">
-                   <CheckCircle className="h-5 w-5 text-indigo-600" />
-                   AI yordamida o'zlashtirish
+              </div>
+            </CardContent>
+          </Card>
+
+        </div>
+
+        {/* Sidebar Column */}
+        <div className="lg:col-span-1 space-y-6">
+          <Card className="rounded-3xl border-slate-100 shadow-sm bg-white sticky top-24">
+            <CardContent className="p-8">
+              
+              <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-100">
+                 <h3 className="text-xl font-bold text-slate-900">Kurs xolati</h3>
+                 <Badge className="bg-emerald-50 text-emerald-600 border-none font-bold">Bepul</Badge>
+              </div>
+
+              {enrollment ? (
+                 <div className="space-y-6">
+                    <Link to={`/lessons/${nextLessonId}`}>
+                       <Button className="w-full h-14 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm transition-all text-base">
+                         O'rganishni Davom Ettirish <ArrowRight className="ml-2 h-5 w-5" />
+                       </Button>
+                    </Link>
+                    <div className="text-center text-sm font-medium text-slate-500">
+                      Siz bu kursga yozilgansiz
+                    </div>
+                 </div>
+              ) : (
+                <div className="space-y-6">
+                  <Button 
+                    onClick={handleEnroll}
+                    disabled={enrolling}
+                    className="w-full h-14 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-sm transition-all text-base"
+                  >
+                    {enrolling ? "Yozilmoqda..." : "Kursga Yozilish Bepul"}
+                  </Button>
                 </div>
-             </div>
-          </div>
+              )}
+
+              <div className="space-y-4 pt-8 mt-8 border-t border-slate-100">
+                <div className="grid grid-cols-1 gap-4">
+                  {[
+                    { label: "To'liq bepul kirish", icon: ShieldCheck },
+                    { label: "Cheklanmagan vaqt", icon: Clock },
+                    { label: "Amaliy mashg'ulotlar", icon: Activity },
+                    { label: "Sertifikat beriladi", icon: Award },
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-3 text-slate-600 font-medium text-sm">
+                      <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center text-indigo-500">
+                         <item.icon className="h-4 w-4" />
+                      </div>
+                      {item.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-8 flex gap-3">
+                 <Button variant="outline" className="flex-1 h-12 rounded-xl border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 shadow-sm">
+                    <Bookmark className="h-4 w-4 mr-2" /> Saqlash
+                 </Button>
+                 <Button variant="outline" className="flex-1 h-12 rounded-xl border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 shadow-sm">
+                    <Share2 className="h-4 w-4 mr-2" /> Ulashish
+                 </Button>
+              </div>
+
+            </CardContent>
+          </Card>
         </div>
       </div>
     </Layout>

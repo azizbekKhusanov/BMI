@@ -39,36 +39,70 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const fetchProfileAndRoles = async (userId: string) => {
       try {
-        const [{ data: profileData }, { data: rolesData }] = await Promise.all([
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
+        );
+        
+        const fetchPromise = Promise.all([
           supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
           supabase.from("user_roles").select("role").eq("user_id", userId),
         ]);
-        setProfile(profileData as Profile);
-        setRoles(rolesData ? rolesData.map((r) => r.role) : []);
+
+        const [{ data: profileData, error: profileError }, { data: rolesData, error: rolesError }] = await Promise.race([
+          fetchPromise,
+          timeoutPromise
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ]) as any;
+        
+        if (profileError) console.error("Error fetching profile:", profileError);
+        if (rolesError) console.error("Error fetching roles:", rolesError);
+
+        setProfile(profileData as Profile || null);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setRoles(rolesData ? rolesData.map((r: any) => r.role) : []);
       } catch (err) {
-        console.error(err);
+        console.error("Critical error in fetchProfileAndRoles:", err);
       }
     };
 
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      currentUserRef.current = session?.user?.id ?? null;
-      if (session?.user) {
-        fetchProfileAndRoles(session.user.id).then(() => setLoading(false));
-      } else {
+    const initializeAuth = async () => {
+      // Safety timeout to prevent infinite white screen if Supabase lock is stuck
+      const timeoutId = setTimeout(() => {
+        setLoading(false);
+      }, 2000);
+
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("Auth initialization error:", error);
+          setSession(null);
+          setUser(null);
+          currentUserRef.current = null;
+        } else {
+          setSession(session);
+          setUser(session?.user ?? null);
+          currentUserRef.current = session?.user?.id ?? null;
+          
+          if (session?.user) {
+            await fetchProfileAndRoles(session.user.id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to initialize auth:", err);
+      } finally {
+        clearTimeout(timeoutId);
         setLoading(false);
       }
-    });
+    };
+
+    initializeAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const newUser = session?.user ?? null;
       const newUserId = newUser?.id ?? null;
       
-      // Only set loading if the user has actually changed (sign in or different user)
-      // We check against the Ref to avoid stale closure issues
       if (newUserId !== currentUserRef.current && (event === 'SIGNED_IN' || newUser)) {
         setLoading(true);
       }
@@ -77,11 +111,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(session);
       setUser(newUser);
       
-      if (newUser) {
-        fetchProfileAndRoles(newUser.id).then(() => setLoading(false));
-      } else {
-        setProfile(null);
-        setRoles([]);
+      try {
+        if (newUser) {
+          await fetchProfileAndRoles(newUser.id);
+        } else {
+          setProfile(null);
+          setRoles([]);
+        }
+      } catch (err) {
+        console.error("Error handling auth state change:", err);
+      } finally {
         setLoading(false);
       }
     });

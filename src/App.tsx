@@ -29,6 +29,7 @@ import StudentMyCourses from "./pages/StudentMyCourses";
 import StudentResults from "./pages/StudentResults";
 import StudentNotifications from "./pages/StudentNotifications";
 import StudentMetacognition from "./pages/StudentMetacognition";
+import StudentSettings from "./pages/StudentSettings";
 
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminUsers from "./pages/AdminUsers";
@@ -59,11 +60,11 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/student/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             
             {/* Umumiy */}
-            <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
-            <Route path="/courses/:id" element={<ProtectedRoute><CourseDetail /></ProtectedRoute>} />
+            <Route path="/student/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
+            <Route path="/student/courses/:id" element={<ProtectedRoute><CourseDetail /></ProtectedRoute>} />
             <Route path="/lessons/:id" element={<ProtectedRoute><LessonPage /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
@@ -72,6 +73,7 @@ const App = () => (
             <Route path="/student/results" element={<ProtectedRoute><StudentResults /></ProtectedRoute>} />
             <Route path="/student/notifications" element={<ProtectedRoute><StudentNotifications /></ProtectedRoute>} />
             <Route path="/student/metacognition" element={<ProtectedRoute><StudentMetacognition /></ProtectedRoute>} />
+            <Route path="/student/settings" element={<ProtectedRoute><StudentSettings /></ProtectedRoute>} />
 
             {/* O'qituvchi (Teacher) maxsus */}
             <Route path="/teacher" element={<ProtectedRoute requiredRole="teacher"><TeacherDashboard /></ProtectedRoute>} />

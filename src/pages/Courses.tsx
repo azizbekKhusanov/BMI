@@ -1,20 +1,20 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { BookOpen, Search, Users, GraduationCap, Sparkles, Filter, ArrowRight, Star, Clock } from "lucide-react";
+import { 
+  BookOpen, Search, Filter, 
+  ArrowRight, Star, Clock, 
+  Users, LayoutGrid, List, Sparkles, Zap, Palette, Flame, Activity, ChevronDown
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { useCallback } from "react";
-
-interface Profile {
-  user_id: string;
-  full_name: string | null;
-}
+import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface Course {
   id: string;
@@ -22,24 +22,31 @@ interface Course {
   description: string | null;
   image_url: string | null;
   teacher_id: string;
+  category?: string;
   studentCount?: number;
   lessonCount?: number;
   teacher?: {
     full_name: string;
+    avatar_url?: string;
   };
 }
 
+const CATEGORIES = [
+  { name: "Barchasi", icon: LayoutGrid },
+  { name: "Sun'iy Intellekt", icon: Sparkles },
+  { name: "Dasturlash", icon: Zap },
+  { name: "Dizayn", icon: Palette },
+  { name: "Biznes", icon: Flame }
+];
+
 const Courses = () => {
   const { user } = useAuth();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [enrolledIds, setEnrolledIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState("Barchasi");
 
-  const fetchCourses = useCallback(async () => {
-    setLoading(true);
-    try {
-      // 1. Fetch all courses
+  const { data: { courses = [], enrolledIds = [] } = {}, isLoading: loading } = useQuery({
+    queryKey: ['all-courses', user?.id],
+    queryFn: async () => {
       const { data: coursesData, error: coursesError } = await supabase
         .from("courses")
         .select("*")
@@ -48,54 +55,36 @@ const Courses = () => {
 
       if (coursesError) throw coursesError;
 
-      if (coursesData && coursesData.length > 0) {
-        // 2. Fetch profiles and enrollment counts in parallel
-        const teacherIds = [...new Set(coursesData.map(c => c.teacher_id))].filter(Boolean);
-        
-        const [profilesRes, enrollmentsRes, lessonsRes] = await Promise.all([
-          supabase.from("profiles").select("user_id, full_name").in("user_id", teacherIds),
-          supabase.from("enrollments").select("course_id"),
-          supabase.from("lessons").select("course_id")
-        ]);
+      let enrichedCourses = coursesData || [];
+      if (enrichedCourses.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const teacherIds = [...new Set(enrichedCourses.map((c: any) => c.teacher_id).filter(Boolean))];
+        const { data: profiles } = await supabase.from("profiles").select("user_id, full_name, avatar_url").in("user_id", teacherIds);
+        const { data: enrollments } = await supabase.from("enrollments").select("course_id");
+        const { data: lessons } = await supabase.from("lessons").select("course_id");
 
-        const profiles = profilesRes.data || [];
-        const allEnrollments = enrollmentsRes.data || [];
-        const allLessons = lessonsRes.data || [];
-
-        const mappedCourses = (coursesData as Course[]).map(course => {
-          const studentCount = allEnrollments.filter(e => e.course_id === course.id).length;
-          const lessonCount = allLessons.filter(l => l.course_id === course.id).length;
-          const teacherProfile = profiles.find(p => p.user_id === course.teacher_id);
-          return {
-            ...course,
-            studentCount,
-            lessonCount,
-            teacher: teacherProfile ? { full_name: teacherProfile.full_name || "MetaEdu Ustoz" } : { full_name: "MetaEdu Ustoz" }
-          };
+        enrichedCourses = enrichedCourses.map(c => {
+          const teacher = profiles?.find(p => p.user_id === c.teacher_id);
+          const studentCount = enrollments?.filter(e => e.course_id === c.id).length || 0;
+          const lessonCount = lessons?.filter(l => l.course_id === c.id).length || 0;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return { ...c, teacher, studentCount, lessonCount } as any;
         });
-        
-        setCourses(mappedCourses);
-      } else {
-        setCourses([]);
       }
-    } catch (error) {
-      console.error("Kurslarni yuklashda xatolik:", error);
-      setCourses([]); 
-    } finally {
-      setLoading(false);
-    }
-  }, []);
 
-  const fetchEnrollments = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase.from("enrollments").select("course_id").eq("user_id", user.id);
-    setEnrolledIds(data?.map((e) => e.course_id) || []);
-  }, [user]);
+      let userEnrolledIds: string[] = [];
+      if (user) {
+        const { data: userEnrolls } = await supabase.from("enrollments").select("course_id").eq("user_id", user.id);
+        if (userEnrolls) userEnrolledIds = userEnrolls.map(e => e.course_id);
+      }
 
-  useEffect(() => {
-    fetchCourses();
-    if (user) fetchEnrollments();
-  }, [fetchCourses, fetchEnrollments, user]);
+      return { courses: enrichedCourses as Course[], enrolledIds: userEnrolledIds };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+
+  const queryClient = useQueryClient();
 
   const handleEnroll = async (courseId: string) => {
     if (!user) {
@@ -107,151 +96,139 @@ const Courses = () => {
       toast.error("Kursga yozilishda xatolik");
     } else {
       toast.success("Kursga muvaffaqiyatli yozildingiz!");
-      setEnrolledIds([...enrolledIds, courseId]);
+      queryClient.invalidateQueries({ queryKey: ['all-courses'] });
     }
   };
 
   const filtered = courses.filter((c) =>
-    c.title.toLowerCase().includes(search.toLowerCase()) ||
-    c.description?.toLowerCase().includes(search.toLowerCase())
+    (c.title.toLowerCase().includes(search.toLowerCase()) ||
+    c.description?.toLowerCase().includes(search.toLowerCase())) &&
+    (activeCategory === "Barchasi" || c.description?.includes(activeCategory) || c.category === activeCategory)
   );
 
   return (
     <Layout>
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-        {/* Hero Section - Thinner and Vibrant Blue */}
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-r from-blue-600 to-indigo-600 p-10 lg:p-14 shadow-lg shadow-blue-100">
-           <div className="absolute top-0 right-0 w-1/3 h-full opacity-10 pointer-events-none">
-              <Sparkles className="w-full h-full text-white" />
-           </div>
-           <div className="relative z-10 max-w-3xl space-y-4">
-              <Badge className="bg-white/20 text-white border-none px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em]">Metakognitiv Ta'lim</Badge>
-              <h1 className="text-4xl lg:text-5xl font-bold font-serif leading-tight text-white uppercase tracking-tight">
-                Barcha <span className="text-blue-100">kurslar</span>
-              </h1>
-              <p className="text-blue-50 text-sm lg:text-base font-medium leading-relaxed max-w-xl">
-                O'zlashtirish samaradorligini AI va metakognitiv yondashuv orqali oshiring.
-              </p>
-           </div>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 mt-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Barcha Kurslar</h1>
+          <p className="text-slate-600">Platformadagi barcha mavjud kurslarni kashf eting.</p>
         </div>
-
-        {/* Search & Filter Bar - Compact */}
-        <div className="flex flex-col lg:flex-row items-center gap-4">
-          <div className="relative group flex-1 w-full">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
-            <Input 
-              placeholder="Qidiring..." 
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full h-14 pl-14 pr-6 rounded-2xl border-slate-100 bg-white shadow-sm focus-visible:ring-2 focus-visible:ring-indigo-500 transition-all text-sm font-medium"
-            />
-          </div>
-          <Button variant="outline" className="h-14 px-8 rounded-2xl border-slate-100 bg-white shadow-sm gap-2 font-black text-[10px] uppercase tracking-widest text-slate-500 hover:bg-slate-50 transition-all active:scale-95">
-            <Filter className="h-4 w-4" /> Filtr
-          </Button>
-        </div>
-
-        {loading ? (
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-[400px] rounded-[2.5rem] bg-white animate-pulse shadow-sm" />
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          <Card className="border-dashed border-2 py-32 text-center bg-slate-50/50 rounded-[3rem]">
-            <CardContent className="space-y-6">
-              <div className="h-20 w-20 rounded-full bg-white shadow-lg flex items-center justify-center mx-auto">
-                <BookOpen className="h-8 w-8 text-slate-200" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-xl font-serif font-bold text-[#1e293b] uppercase">Kurslar Topilmadi</h3>
-                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Qidiruv natijasida hech narsa chiqmadi</p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((course) => {
-              const isEnrolled = enrolledIds.includes(course.id);
-              const CardWrapper = isEnrolled ? Link : 'div';
-              const wrapperProps = isEnrolled ? { to: `/courses/${course.id}` } : {};
-
-              return (
-                <CardWrapper key={course.id} {...wrapperProps} className={isEnrolled ? "block group/card" : ""}>
-                  <Card className="border-none shadow-sm rounded-[2.5rem] overflow-hidden group hover:shadow-xl transition-all duration-700 bg-white flex flex-col h-full hover:-translate-y-1">
-                    <div className="h-52 overflow-hidden relative">
-                      <img 
-                        src={course.image_url || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=60"} 
-                        className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-1000"
-                        alt={course.title} 
-                      />
-                      <div className="absolute top-5 right-5">
-                        <Badge className="bg-white/95 backdrop-blur-md text-indigo-600 border-none px-3 py-1 font-black text-[9px] uppercase shadow-lg tracking-widest rounded-full">
-                          {isEnrolled ? "O'RGANISHDA" : "BEPUL"}
-                        </Badge>
-                      </div>
-                    </div>
-                    <CardContent className="p-8 flex flex-col flex-1 gap-5">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-indigo-500">
-                          <BookOpen className="h-3.5 w-3.5" />
-                          <span className="text-[9px] font-black uppercase tracking-[0.2em]">O'quv kursi</span>
-                        </div>
-                        <h3 className="text-xl font-bold font-serif text-[#1e293b] group-hover:text-indigo-600 transition-colors leading-tight line-clamp-2 uppercase tracking-tight">
-                          {course.title}
-                        </h3>
-                        <p className="text-slate-400 text-xs leading-relaxed line-clamp-2">
-                          {course.description}
-                        </p>
-                      </div>
-
-                      <div className="mt-auto space-y-5">
-                        <div className="flex items-center justify-between py-3 border-y border-slate-50">
-                          <div className="flex items-center gap-2">
-                              <Users className="h-3.5 w-3.5 text-slate-300" />
-                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{course.studentCount || 0} Talaba</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                              <BookOpen className="h-3.5 w-3.5 text-slate-300" />
-                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{course.lessonCount || 0} Dars</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-full bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100">
-                              <GraduationCap className="h-4.5 w-4.5 text-slate-400" />
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">O'qituvchi</span>
-                              <span className="text-[11px] font-bold text-slate-700 truncate">{course.teacher?.full_name || "MetaEdu Ustoz"}</span>
-                          </div>
-                        </div>
-
-                        {isEnrolled ? (
-                          <div className="w-full rounded-2xl h-14 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-[10px] tracking-[0.1em] uppercase transition-all flex items-center justify-center gap-2">
-                            O'rganish <ArrowRight className="h-3.5 w-3.5 group-hover/card:translate-x-1 transition-transform" />
-                          </div>
-                        ) : (
-                          <Button 
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleEnroll(course.id);
-                            }}
-                            className="w-full rounded-2xl h-14 bg-[#1e293b] hover:bg-[#334155] text-white font-black text-[10px] tracking-[0.1em] uppercase shadow-lg shadow-indigo-100/50 transition-all active:scale-95 flex items-center justify-center gap-2"
-                          >
-                            Yozilish <ArrowRight className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </CardWrapper>
-              );
-            })}
-          </div>
-        )}
       </div>
+
+      <div className="flex flex-col md:flex-row gap-4 mb-8">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input 
+            type="text" 
+            placeholder="Kurslarni qidirish..." 
+            className="w-full pl-10 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <Button variant="outline" className="h-[46px] rounded-xl px-6 bg-white border-slate-200 text-slate-600 hover:bg-slate-50">
+          <Filter className="h-4 w-4 mr-2" /> Filterlar
+        </Button>
+      </div>
+
+      <div className="flex overflow-x-auto pb-4 mb-4 gap-3 no-scrollbar">
+        {CATEGORIES.map((cat) => (
+          <button
+            key={cat.name}
+            onClick={() => setActiveCategory(cat.name)}
+            className={`whitespace-nowrap px-5 py-2.5 rounded-full text-sm font-semibold flex items-center gap-2 transition-colors ${
+              activeCategory === cat.name 
+                ? "bg-indigo-600 text-white" 
+                : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+            }`}
+          >
+            <cat.icon className="h-4 w-4" />
+            {cat.name}
+          </button>
+        ))}
+      </div>
+
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <Skeleton key={i} className="h-96 w-full rounded-3xl" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-3xl border border-slate-100 shadow-sm mb-12">
+           <div className="h-20 w-20 rounded-full bg-slate-50 flex items-center justify-center mb-6">
+             <BookOpen className="h-8 w-8 text-slate-400" />
+           </div>
+           <h3 className="text-xl font-bold text-slate-900 mb-2">Kurslar topilmadi</h3>
+           <p className="text-slate-500 mb-6">Boshqa kalit so'z yoki kategoriya bilan urinib ko'ring.</p>
+           <Button onClick={() => { setSearch(""); setActiveCategory("Barchasi"); }} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-8 font-semibold">
+             Barchasini ko'rsatish
+           </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          {filtered.map((course) => {
+            const isEnrolled = enrolledIds.includes(course.id);
+            return (
+              <Card key={course.id} className="rounded-3xl border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all group flex flex-col bg-white">
+                <div className="h-48 relative overflow-hidden bg-slate-100">
+                  {course.image_url ? (
+                    <img 
+                      src={course.image_url} 
+                      alt={course.title} 
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 opacity-40" />
+                  )}
+                  <Badge className="absolute top-4 left-4 bg-white/90 text-slate-900 hover:bg-white border-none font-bold rounded-full shadow-sm">
+                    {course.category || "Fan"}
+                  </Badge>
+                  <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2.5 py-1 bg-white/90 rounded-full text-xs font-bold text-slate-700 shadow-sm">
+                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> 4.8
+                  </div>
+                </div>
+
+                <CardContent className="p-6 flex-1 flex flex-col">
+                  <div className="flex items-center justify-between mb-3 text-xs font-semibold text-slate-500">
+                     <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> 12 soat</div>
+                     <div className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> {course.studentCount || 0} talaba</div>
+                  </div>
+                  
+                  <h3 className="text-lg font-bold text-slate-900 line-clamp-2 mb-2 group-hover:text-indigo-600 transition-colors">
+                    {course.title}
+                  </h3>
+                  
+                  <div className="flex items-center gap-2 mb-6">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={course.teacher?.avatar_url} />
+                      <AvatarFallback className="bg-slate-100 text-[10px] text-slate-600 font-bold">{course.teacher?.full_name?.[0]}</AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium text-slate-600">{course.teacher?.full_name}</span>
+                  </div>
+
+                  <div className="mt-auto pt-4 border-t border-slate-100">
+                    {isEnrolled ? (
+                      <Link to={`/student/courses/${course.id}`}>
+                        <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-full font-semibold h-11 transition-all">
+                          Darsni davom ettirish <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </Link>
+                    ) : (
+                      <Button 
+                        onClick={() => handleEnroll(course.id)}
+                        className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-full font-semibold h-11 transition-all shadow-sm"
+                      >
+                        Kursga yozilish
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </Layout>
   );
 };

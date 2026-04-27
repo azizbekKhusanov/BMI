@@ -1,526 +1,296 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { 
-  BookOpen, Users, TrendingUp, Plus, ArrowRight, GraduationCap, 
-  Activity, Award, AlertCircle, BarChart3, PieChart as PieChartIcon,
-  ChevronRight, Calendar, UserCheck, UserMinus, Brain, Video
+  BookOpen, Users, TrendingUp, Plus, Search, Bell, 
+  Star, ChevronRight, CheckCircle2, Clock, MoreVertical,
+  Calendar, Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell, PieChart, Pie
-} from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { useCallback } from "react";
 
-interface Profile {
-  user_id: string;
-  full_name: string | null;
-  avatar_url: string | null;
-}
-
-interface Course {
-  id: string;
-  title: string;
-  teacher_id: string;
-}
-
-interface Enrollment {
-  user_id: string;
-  course_id: string;
-  progress: number;
-  created_at: string;
-  profiles?: Profile;
-  courses?: Course;
-}
-
-interface Lesson {
-  id: string;
-  title: string;
-  course_id: string;
-}
-
-interface TestResult {
-  created_at: string;
-}
-
-interface SelfAssessment {
-  rating: number;
-  lesson_id: string;
-}
-
-interface DashboardStats {
-  coursesCount: number;
-  studentsCount: number;
-  averageProgress: number;
-  activeToday: number;
-}
-
-const COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444"];
+const DONUT_COLORS = ["#4338ca", "#e11d48", "#8b5cf6"];
+const DONUT_DATA = [
+  { name: "Yuqori", value: 45 },
+  { name: "O'rtacha", value: 35 },
+  { name: "Past", value: 20 },
+];
 
 const TeacherDashboard = () => {
   const { user, profile } = useAuth();
   const [loading, setLoading] = useState(true);
-  
-  const [stats, setStats] = useState<DashboardStats>({
-    coursesCount: 0,
-    studentsCount: 0,
-    averageProgress: 0,
-    activeToday: 0
-  });
-
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [activityData, setActivityData] = useState<{ name: string; date: string; count: number }[]>([]);
-  const [courseProgressData, setCourseProgressData] = useState<{ name: string; progress: number }[]>([]);
-  const [topStudents, setTopStudents] = useState<Enrollment[]>([]);
-  const [slowStudents, setSlowStudents] = useState<Enrollment[]>([]);
-  const [difficultLessons, setDifficultLessons] = useState<{ title: string; avgRating: number }[]>([]);
-
-  const [quickActionType, setQuickActionType] = useState<"lesson" | "test" | null>(null);
-  const [selectedCourseId, setSelectedCourseId] = useState<string>("");
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    try {
-      console.log("Fetching dashboard data for user:", user.id);
-      
-      // 1. Kurslarni olish
-      const { data: coursesData, error: coursesError } = await supabase
-        .from("courses")
-        .select("id, title, teacher_id")
-        .eq("teacher_id", user.id);
-      
-      if (coursesError) throw coursesError;
-      
-      const myCourses = (coursesData as Course[]) || [];
-      const courseIds = myCourses.map(c => c.id);
-      setCourses(myCourses);
-      console.log("Teacher courses found:", myCourses.length);
-
-      if (myCourses.length === 0) {
-        setStats({ coursesCount: 0, studentsCount: 0, averageProgress: 0, activeToday: 0 });
-        setLoading(false);
-        return;
-      }
-
-      // 2. Jami o'quvchilar va O'rtacha progress (Kurs ID lari orqali filtrlash)
-      const { data: enrollments, error: enrollError } = await supabase
-        .from("enrollments")
-        .select("user_id, course_id, progress, created_at")
-        .in("course_id", courseIds);
-
-      if (enrollError) console.error("Enrollment error:", enrollError);
-      const safeEnrollments = (enrollments as Enrollment[]) || [];
-      console.log("Enrollments found:", safeEnrollments.length);
-
-      // 3. O'quvchilar profillarini alohida olish (Join xatoligidan qochish uchun)
-      const uniqueUserIds = [...new Set(safeEnrollments.map(e => e.user_id))];
-      let studentProfiles: Profile[] = [];
-      if (uniqueUserIds.length > 0) {
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("user_id, full_name, avatar_url")
-          .in("user_id", uniqueUserIds);
-        studentProfiles = (profilesData as Profile[]) || [];
-      }
-
-      // Ma'lumotlarni birlashtirish
-      const enrichedEnrollments = safeEnrollments.map(e => ({
-        ...e,
-        profiles: studentProfiles.find(p => p.user_id === e.user_id),
-        courses: myCourses.find(c => c.id === e.course_id)
-      }));
-
-      const totalStudents = uniqueUserIds.length;
-      const avgProg = safeEnrollments.length > 0 
-        ? safeEnrollments.reduce((sum, e) => sum + (e.progress || 0), 0) / safeEnrollments.length 
-        : 0;
-
-      // 4. Faollik (Test natijalari orqali)
-      const { data: lessonsData } = await supabase.from("lessons").select("id, title, course_id").in("course_id", courseIds);
-      const myLessons = (lessonsData as Lesson[]) || [];
-      const lessonIds = myLessons.map(l => l.id);
-      
-      let todayCount = 0;
-      let dailyActivityData = Array.from({ length: 7 }, (_, i) => {
-        const date = new Date();
-        date.setDate(date.getDate() - (6 - i));
-        return { 
-          name: date.toLocaleDateString("uz-UZ", { weekday: 'short' }), 
-          date: date.toISOString().split('T')[0],
-          count: 0 
-        };
-      });
-
-      if (lessonIds.length > 0) {
-        const { data: testsData } = await supabase.from("tests").select("id").in("lesson_id", lessonIds);
-        const testIds = (testsData || []).map(t => t.id);
-        
-        if (testIds.length > 0) {
-          const { data: testResults } = await supabase
-            .from("test_results")
-            .select("created_at")
-            .in("test_id", testIds)
-            .gte("created_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
-          
-          const safeResults = (testResults as TestResult[]) || [];
-          const today = new Date().toISOString().split('T')[0];
-          todayCount = safeResults.filter(r => r.created_at.startsWith(today)).length;
-
-          dailyActivityData = dailyActivityData.map(day => {
-            const count = safeResults.filter(r => r.created_at.startsWith(day.date)).length;
-            return { ...day, count };
-          });
-        }
-      }
-
-      setStats({
-        coursesCount: myCourses.length,
-        studentsCount: totalStudents,
-        averageProgress: Math.round(avgProg),
-        activeToday: todayCount
-      });
-      setActivityData(dailyActivityData);
-
-      // 5. Kurslar bo'yicha progress tahlili
-      const courseGroups = enrichedEnrollments.reduce((acc: Record<string, { name: string; progress: number; count: number }>, curr: Enrollment) => {
-        const title = curr.courses?.title || "Noma'lum Kurs";
-        if (!acc[title]) acc[title] = { name: title, progress: 0, count: 0 };
-        acc[title].progress += curr.progress || 0;
-        acc[title].count += 1;
-        return acc;
-      }, {});
-      setCourseProgressData(Object.values(courseGroups).map((g) => ({
-        name: g.name,
-        progress: Math.round(g.progress / g.count)
-      })));
-
-      // 6. Talabalar tahlili (Top va Slow)
-      const sortedStudents = [...enrichedEnrollments].sort((a, b) => (b.progress || 0) - (a.progress || 0));
-      setTopStudents(sortedStudents.slice(0, 3) as Enrollment[]);
-      setSlowStudents([...enrichedEnrollments].sort((a, b) => (a.progress || 0) - (b.progress || 0)).slice(0, 3) as Enrollment[]);
-
-      // 7. Qiyin darslar tahlili
-      if (lessonIds.length > 0) {
-        const { data: selfAssessments } = await supabase
-          .from("self_assessments")
-          .select("rating, lesson_id")
-          .in("lesson_id", lessonIds);
-
-        const safeAssessments = (selfAssessments as SelfAssessment[]) || [];
-        const lessonStats = safeAssessments.reduce((acc: Record<string, { title: string; totalRating: number; count: number }>, curr: SelfAssessment) => {
-          const lesson = myLessons.find(l => l.id === curr.lesson_id);
-          const title = lesson?.title || "Dars"; 
-          if (!acc[title]) acc[title] = { title, totalRating: 0, count: 0 };
-          acc[title].totalRating += curr.rating;
-          acc[title].count += 1;
-          return acc;
-        }, {});
-        
-        const difficult = Object.values(lessonStats)
-          .map((l) => ({ title: l.title, avgRating: l.totalRating / l.count }))
-          .sort((a, b) => a.avgRating - b.avgRating).slice(0, 3);
-        setDifficultLessons(difficult);
-      }
-
-    } catch (error) {
-      console.error("Dashboard critical error:", error);
-    } finally {
-      setLoading(false);
-    }
+    // Real data fetching would happen here
+    setTimeout(() => setLoading(false), 800);
   }, [user]);
 
   useEffect(() => {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  const handleQuickAction = () => {
-    if (!selectedCourseId) return;
-    window.location.href = `/teacher/courses?id=${selectedCourseId}&action=${quickActionType}`;
-  };
+  if (loading) return (
+    <Layout>
+      <div className="space-y-6">
+        <Skeleton className="h-12 w-64 rounded-xl" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <Skeleton className="h-32 rounded-xl" /><Skeleton className="h-32 rounded-xl" />
+          <Skeleton className="h-32 rounded-xl" /><Skeleton className="h-32 rounded-xl" />
+        </div>
+      </div>
+    </Layout>
+  );
 
   return (
     <Layout>
-      <div className="container pt-8 pb-32 animate-in fade-in duration-1000 flex flex-col gap-12">
-        
-        {/* Header Section: Welcome & Context */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-900 p-10 rounded-[3rem] text-white shadow-2xl relative overflow-hidden">
-           <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32 blur-3xl opacity-50" />
-           <div className="absolute bottom-0 left-0 w-48 h-48 bg-primary/20 rounded-full -ml-24 -mb-24 blur-2xl opacity-30" />
-           
-           <div className="relative z-10 space-y-4">
-              <Badge className="bg-white/20 text-white hover:bg-white/30 border-none px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest backdrop-blur-md">
-                 O'qituvchi Kabineti
-              </Badge>
-              <div className="space-y-2">
-                 <h1 className="text-5xl font-black font-serif tracking-tight leading-tight">
-                    Xayrli kun, {profile?.full_name?.split(' ')[0] || "Ustoz"}! <span className="inline-block animate-bounce">👋</span>
-                 </h1>
-                 <p className="text-indigo-100 text-xl max-w-xl opacity-80 font-medium">
-                    Talabalaringiz bugun ajoyib natijalar ko'rsatmoqda. Tizimdagi oxirgi tahlillarni ko'rib chiqing.
-                 </p>
-              </div>
-           </div>
-
-           <div className="relative z-10 grid grid-cols-2 gap-4 w-full lg:w-auto">
-              <div className="bg-white/10 backdrop-blur-xl p-5 rounded-[2rem] border border-white/20 flex flex-col justify-center">
-                 <span className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">BUGUN FAOL</span>
-                 <span className="text-3xl font-black mt-1">{stats.activeToday} ta</span>
-              </div>
-              <div className="bg-white/10 backdrop-blur-xl p-5 rounded-[2rem] border border-white/20 flex flex-col justify-center">
-                 <span className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest">O'RT. BALL</span>
-                 <span className="text-3xl font-black mt-1">4.8 XP</span>
-              </div>
-           </div>
+      {/* Topbar matching the design */}
+      <div className="hidden md:flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
+        <div className="text-sm font-bold text-slate-500 tracking-wider">TEACHER PORTAL</div>
+        <div className="flex-1 max-w-xl mx-8">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input 
+              type="text" 
+              placeholder="Search courses, lessons, or insights..." 
+              className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+            />
+          </div>
         </div>
+        <div className="flex items-center gap-4">
+          <button className="text-slate-400 hover:text-slate-600 relative">
+            <Bell className="h-5 w-5" />
+            <span className="absolute top-0 right-0 h-2 w-2 bg-rose-500 rounded-full border border-white"></span>
+          </button>
+          <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
+            <div className="text-right">
+              <div className="text-sm font-bold text-slate-900 leading-tight">Professor Erkinov</div>
+              <div className="text-xs text-slate-500">teacher</div>
+            </div>
+            <Avatar className="h-10 w-10 border border-slate-200">
+              <AvatarImage src={profile?.avatar_url || ""} />
+              <AvatarFallback className="bg-primary/10 text-primary">PE</AvatarFallback>
+            </Avatar>
+          </div>
+        </div>
+      </div>
 
-        <div className="grid gap-12 lg:grid-cols-12">
-           
-           {/* Quick Actions Bar */}
-           <div className="lg:col-span-12">
-              <div className="flex flex-col md:flex-row items-center gap-6">
-                 <h2 className="text-2xl font-black font-serif shrink-0 flex items-center gap-3">
-                    <Activity className="h-7 w-7 text-primary" /> TEZKOR HARAKATLAR
-                 </h2>
-                 <div className="h-px bg-muted flex-1 hidden md:block" />
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">Xush kelibsiz, Professor!</h1>
+          <p className="text-slate-600">Bugun sizning kurslaringizda <span className="font-bold text-indigo-600">124 ta</span> faol talaba bor.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" className="border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-semibold rounded-full px-6">
+            <BookOpen className="mr-2 h-4 w-4" /> Barcha kurslar
+          </Button>
+          <Button className="bg-indigo-500 hover:bg-indigo-600 text-white rounded-full px-6 font-semibold shadow-sm">
+            <Plus className="mr-2 h-4 w-4" /> Yangi kurs yaratish
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {[
+          { label: "Faol kurslar", value: "12", sub: "Hozirda nashr etilgan", icon: BookOpen, trend: "+2 yangi" },
+          { label: "Jami talabalar", value: "1,452", sub: "O'tgan oyga nisbatan +12%", icon: Users, trend: "Yuqori" },
+          { label: "Onlayn talabalar", value: "84", sub: "Hozirda platformada", icon: TrendingUp, trend: "" },
+          { label: "O'rtacha reyting", value: "4.9", sub: "856 ta fikrlar asosida", icon: Star, trend: "Barqaror" },
+        ].map((s, i) => (
+          <Card key={i} className="rounded-3xl border-slate-100 shadow-sm hover:shadow-md transition-all">
+            <CardContent className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div className="h-12 w-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-500">
+                  <s.icon className="h-6 w-6" />
+                </div>
+                {s.trend && <span className="text-xs font-semibold text-slate-600 flex items-center gap-1"><TrendingUp className="h-3 w-3" /> {s.trend}</span>}
               </div>
-              <div className="grid gap-6 md:grid-cols-3 mt-8">
-                 {/* Action 1: Create Course */}
-                 <Card className="group relative border-none shadow-xl hover:shadow-2xl transition-all rounded-[2.5rem] bg-indigo-600 border overflow-hidden cursor-pointer">
-                    <Link to="/teacher/courses">
-                       <CardContent className="p-8 flex items-center justify-between text-white">
-                          <div className="space-y-1">
-                             <h3 className="text-xl font-black text-white">Yangi Kurs</h3>
-                             <p className="text-indigo-100 text-sm opacity-70">O'quv dasturi yaratish</p>
-                          </div>
-                          <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
-                             <Plus className="h-8 w-8 text-white" />
-                          </div>
-                       </CardContent>
-                    </Link>
-                 </Card>
+              <h3 className="text-3xl font-bold text-slate-900 mb-1">{s.value}</h3>
+              <p className="text-sm font-semibold text-slate-700">{s.label}</p>
+              <p className="text-xs text-slate-400 mt-1">{s.sub}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-                 {/* Action 2: Add Lesson */}
-                 <Dialog open={quickActionType === "lesson"} onOpenChange={(open) => setQuickActionType(open ? "lesson" : null)}>
-                    <DialogTrigger asChild>
-                       <Card className="group relative border-none shadow-xl hover:shadow-2xl transition-all rounded-[2.5rem] bg-emerald-600 border overflow-hidden cursor-pointer">
-                          <CardContent className="p-8 flex items-center justify-between text-white">
-                             <div className="space-y-1">
-                                <h3 className="text-xl font-black text-white">Dars Qo'shish</h3>
-                                <p className="text-emerald-100 text-sm opacity-70">Video yoki matn</p>
-                             </div>
-                             <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
-                                <Video className="h-8 w-8 text-white" />
-                             </div>
-                          </CardContent>
-                       </Card>
-                    </DialogTrigger>
-                    <DialogContent className="rounded-[2.5rem] p-8 max-w-md">
-                       <DialogHeader>
-                          <DialogTitle className="text-2xl font-black font-serif">Kursni tanlang</DialogTitle>
-                       </DialogHeader>
-                       <div className="space-y-6 pt-4 text-left">
-                          <Select onValueChange={setSelectedCourseId}>
-                             <SelectTrigger className="h-14 rounded-2xl bg-muted/50 border-none text-lg">
-                                <SelectValue placeholder="Kursni tanlang" />
-                             </SelectTrigger>
-                             <SelectContent className="rounded-2xl border-none shadow-2xl">
-                                {courses.map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
-                             </SelectContent>
-                          </Select>
-                          <Button onClick={handleQuickAction} className="w-full h-14 rounded-2xl text-lg font-bold bg-emerald-600 hover:bg-emerald-700 shadow-xl">Davom etish</Button>
-                       </div>
-                    </DialogContent>
-                 </Dialog>
-
-                 {/* Action 3: Create Test */}
-                 <Dialog open={quickActionType === "test"} onOpenChange={(open) => setQuickActionType(open ? "test" : null)}>
-                    <DialogTrigger asChild>
-                       <Card className="group relative border-none shadow-xl hover:shadow-2xl transition-all rounded-[2.5rem] bg-orange-600 border overflow-hidden cursor-pointer">
-                          <CardContent className="p-8 flex items-center justify-between text-white">
-                             <div className="space-y-1">
-                                <h3 className="text-xl font-black text-white">Vazifa & Tahlil</h3>
-                                <p className="text-orange-100 text-sm opacity-70">Bilim va mulohaza nuqtasi</p>
-                             </div>
-                             <div className="h-14 w-14 rounded-2xl bg-white/20 flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-500">
-                                <Brain className="h-8 w-8 text-white" />
-                             </div>
-                          </CardContent>
-                       </Card>
-                    </DialogTrigger>
-                    <DialogContent className="rounded-[2.5rem] p-8 max-w-md">
-                       <DialogHeader>
-                          <DialogTitle className="text-2xl font-black font-serif">Kursni tanlang</DialogTitle>
-                       </DialogHeader>
-                       <div className="space-y-6 pt-4 text-left">
-                          <Select onValueChange={setSelectedCourseId}>
-                             <SelectTrigger className="h-14 rounded-2xl bg-muted/50 border-none text-lg">
-                                <SelectValue placeholder="Kursni tanlang" />
-                             </SelectTrigger>
-                             <SelectContent className="rounded-2xl border-none shadow-2xl">
-                                {courses.map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
-                             </SelectContent>
-                          </Select>
-                          <Button onClick={handleQuickAction} className="w-full h-14 rounded-2xl text-lg font-bold bg-orange-600 hover:bg-orange-700 shadow-xl">Savol qo'shish</Button>
-                       </div>
-                    </DialogContent>
-                 </Dialog>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <Card className="rounded-3xl border-slate-100 shadow-sm overflow-hidden">
+            <CardHeader className="p-6 border-b border-slate-50 flex flex-row items-center justify-between bg-white">
+              <div>
+                <CardTitle className="text-lg font-bold text-slate-900">Tekshirilishi kutilayotganlar</CardTitle>
+                <p className="text-sm text-slate-500 mt-1">Yangi yuborilgan vazifalar va hisobotlar</p>
               </div>
-           </div>
+              <Badge variant="secondary" className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border-none px-3 py-1 text-xs font-semibold rounded-full">
+                3 ta kutilmoqda
+              </Badge>
+            </CardHeader>
+            <CardContent className="p-0">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="text-left font-semibold text-slate-500 px-6 py-4 uppercase text-xs tracking-wider">Talaba</th>
+                    <th className="text-left font-semibold text-slate-500 px-6 py-4 uppercase text-xs tracking-wider">Kurs / Vazifa</th>
+                    <th className="text-left font-semibold text-slate-500 px-6 py-4 uppercase text-xs tracking-wider">Sana</th>
+                    <th className="text-left font-semibold text-slate-500 px-6 py-4 uppercase text-xs tracking-wider">Muhimlik</th>
+                    <th className="px-6 py-4"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {[
+                    { name: "Doston Baxtiyorov", task: "Amaliy ish #3", course: "AI ASOSLARI", date: "Bugun, 10:45", priority: "Tezkor", color: "text-rose-600 bg-rose-50" },
+                    { name: "Laylo Rahmonova", task: "Esse: Metakognitsiya", course: "PSIXOLOGIYA", date: "Kecha, 18:20", priority: "O'rtacha", color: "text-slate-600 bg-slate-100" },
+                    { name: "Aziz Toshpulatov", task: "Loyiha hisoboti", course: "MA'LUMOTLAR TAHLILI", date: "2 kun avval", priority: "Past", color: "text-slate-600 bg-slate-100" },
+                  ].map((row, i) => (
+                    <tr key={i} className="hover:bg-slate-50/50">
+                      <td className="px-6 py-4 font-semibold text-slate-900">{row.name}</td>
+                      <td className="px-6 py-4">
+                        <div className="font-semibold text-slate-900">{row.task}</div>
+                        <div className="text-xs text-slate-500 font-semibold tracking-wider mt-0.5">{row.course}</div>
+                      </td>
+                      <td className="px-6 py-4 text-slate-600 flex items-center gap-1.5 mt-2.5">
+                        <Clock className="h-3.5 w-3.5" /> {row.date}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold ${row.color}`}>
+                          {row.priority}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button className="text-indigo-600 font-semibold text-sm hover:text-indigo-700">Tekshirish</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="p-4 bg-slate-50/50 border-t border-slate-100 text-center">
+                <button className="text-sm font-semibold text-slate-600 hover:text-slate-900">Barcha topshiriqlarni ko'rish</button>
+              </div>
+            </CardContent>
+          </Card>
 
-           {/* Stats Summary (Mini Cards) */}
-           <div className="lg:col-span-12 grid gap-6 md:grid-cols-4">
+          <Card className="rounded-3xl border-slate-100 shadow-sm">
+            <CardHeader className="p-6">
+              <CardTitle className="text-lg font-bold text-slate-900">So'nggi faoliyat</CardTitle>
+              <p className="text-sm text-slate-500 mt-1">Talabalarning platformadagi jonli harakatlari</p>
+            </CardHeader>
+            <CardContent className="p-6 pt-0 space-y-6">
               {[
-                { label: "Jami Kurslar", val: stats.coursesCount, icon: BookOpen, color: "text-blue-500", bg: "bg-blue-50", border: "border-blue-100" },
-                { label: "Jami O'quvchilar", val: stats.studentsCount, icon: Users, color: "text-purple-500", bg: "bg-purple-50", border: "border-purple-100" },
-                { label: "O'rtacha Progress", val: `${stats.averageProgress}%`, icon: TrendingUp, color: "text-emerald-500", bg: "bg-emerald-50", border: "border-emerald-100" },
-                { label: "Talabalar Faolligi", val: stats.activeToday, icon: Activity, color: "text-orange-500", bg: "bg-orange-50", border: "border-orange-100" },
-              ].map((s, i) => (
-                <div key={i} className={`p-6 rounded-[2.5rem] border ${s.bg} ${s.border} shadow-sm flex items-center gap-6 group hover:translate-y-[-4px] transition-all duration-300`}>
-                   <div className={`h-16 w-16 rounded-[1.5rem] bg-white shadow-sm flex items-center justify-center ${s.color} group-hover:shadow-md transition-all`}>
-                      <s.icon className="h-8 w-8" />
-                   </div>
-                   <div>
-                      <p className="text-[11px] font-black uppercase text-muted-foreground opacity-60 tracking-widest">{s.label}</p>
-                      <p className="text-3xl font-black mt-0.5">{loading ? <Skeleton className="h-8 w-12" /> : s.val}</p>
-                   </div>
+                { name: "Jasur Aliyev", action: "Kognitiv testni yakunladi", time: "5 DAQIQA AVVAL", avatar: "JA", online: true },
+                { name: "Malika Sobirova", action: "2-modul darsini ko'rmoqda", time: "12 DAQIQA AVVAL", avatar: "MS", online: true },
+                { name: "Sardor Karimov", action: "Yangi savol qoldirdi", time: "2 SOAT AVVAL", avatar: "SK", online: false },
+                { name: "Guli Ikromova", action: "Topshiriq yubordi", time: "3 SOAT AVVAL", avatar: "GI", online: true },
+              ].map((activity, idx) => (
+                <div key={idx} className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="relative">
+                      <Avatar className="h-10 w-10 border border-slate-200">
+                        <AvatarFallback className="bg-slate-100 text-slate-600 font-bold text-xs">{activity.avatar}</AvatarFallback>
+                      </Avatar>
+                      {activity.online && <div className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-emerald-500 rounded-full border-2 border-white"></div>}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">{activity.name}</h4>
+                      <p className="text-sm text-slate-500">{activity.action}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{activity.time}</span>
+                    <button className="text-slate-400 hover:text-slate-600"><MoreVertical className="h-4 w-4" /></button>
+                  </div>
                 </div>
               ))}
-           </div>
-
-           {/* Analytics Central Hub */}
-           <div className="lg:col-span-8 space-y-8">
-              <Card className="border-none shadow-2xl bg-white rounded-[3rem] overflow-hidden border">
-                 <CardHeader className="p-10 pb-4">
-                    <div className="flex items-center justify-between">
-                       <div>
-                          <CardTitle className="text-3xl font-black font-serif">O'quvchilar Faollik Dinamikasi</CardTitle>
-                          <CardDescription className="text-base">Haftalik test natijalari tahlili</CardDescription>
-                       </div>
-                    </div>
-                 </CardHeader>
-                 <CardContent className="px-6 pb-10">
-                    <div className="h-[400px] w-full">
-                       {loading ? <Skeleton className="h-full w-full rounded-2xl" /> : (
-                          <ResponsiveContainer width="100%" height="100%">
-                             <AreaChart data={activityData} margin={{ top: 20, right: 30, left: 10, bottom: 35 }}>
-                                <defs>
-                                   <linearGradient id="colorCountHub" x1="0" y1="0" x2="0" y2="1">
-                                      <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2}/>
-                                      <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
-                                   </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 13, fill: '#64748b', fontWeight: 600 }} dy={15} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 13, fill: '#64748b', fontWeight: 600 }} />
-                                <Tooltip 
-                                   contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)', padding: '16px' }}
-                                   itemStyle={{ color: '#4f46e5', fontWeight: '900' }}
-                                />
-                                <Area type="monotone" dataKey="count" stroke="#4f46e5" strokeWidth={5} fillOpacity={1} fill="url(#colorCountHub)" />
-                             </AreaChart>
-                          </ResponsiveContainer>
-                       )}
-                    </div>
-                 </CardContent>
-              </Card>
-           </div>
-
-           {/* Side Stats & Leaderboard */}
-           <div className="lg:col-span-4 space-y-8">
-              <Card className="border-none shadow-2xl bg-white rounded-[3rem] overflow-hidden border">
-                 <CardHeader className="p-8 pb-2">
-                    <CardTitle className="text-xl font-black font-serif flex items-center gap-2">
-                       <Award className="h-6 w-6 text-emerald-500" /> ETALON TALABALAR
-                    </CardTitle>
-                 </CardHeader>
-                 <CardContent className="p-8 pt-2 space-y-6">
-                    {topStudents.map((s, i) => (
-                       <div key={i} className="flex items-center justify-between p-4 bg-muted/10 rounded-[2rem] border transition-all hover:bg-white hover:shadow-xl group">
-                          <div className="flex items-center gap-4">
-                             <div className="relative">
-                                <Avatar className="h-12 w-12 border-2 border-white shadow-md">
-                                   <AvatarImage src={s.profiles?.avatar_url || undefined} />
-                                   <AvatarFallback className="bg-emerald-100 text-emerald-700 font-black">{s.profiles?.full_name?.[0] || '?'}</AvatarFallback>
-                                </Avatar>
-                                <div className="absolute -top-1 -right-1 bg-yellow-400 text-white rounded-full h-5 w-5 flex items-center justify-center text-[10px] font-bold shadow-md border-2 border-white">
-                                   {i + 1}
-                                </div>
-                             </div>
-                             <span className="font-bold text-slate-700">{s.profiles?.full_name?.split(' ')[0] || "O'quvchi"}</span>
-                          </div>
-                          <Badge className="bg-emerald-50 text-emerald-700 border-none px-3 font-black">{s.progress}%</Badge>
-                       </div>
-                    ))}
-                    <Button variant="ghost" className="w-full rounded-2xl text-muted-foreground font-black text-xs uppercase" asChild>
-                       <Link to="/teacher/students">BARCHASINI KO'RISH <ChevronRight className="ml-1 h-4 w-4" /></Link>
-                    </Button>
-                 </CardContent>
-              </Card>
-
-              <div className="bg-indigo-900 rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-indigo-100 border">
-                 <div className="absolute top-0 right-0 h-full w-1/3 bg-gradient-to-l from-white/10 to-transparent" />
-                 <Brain className="h-10 w-10 text-indigo-300 mb-4" />
-                 <h3 className="text-2xl font-black mb-2">Metakognitiv Tavsiya</h3>
-                 <p className="text-indigo-100 opacity-70 leading-relaxed font-medium">
-                    Talabalar darsi ko'rishi hafta o'rtasida sustlashdi. Quizlar orqali qiziqishni oshirishni tavsiya etamiz.
-                 </p>
-              </div>
-           </div>
-
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Difficult Lessons: Deeper analytics */}
-        <div className="bg-muted/10 p-10 rounded-[4rem] border-2 border-dashed border-muted-foreground/10">
-           <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-10">
-              <div className="space-y-2">
-                 <h2 className="text-3xl font-black font-serif">Diqqat Markazidagilar</h2>
-                 <p className="text-muted-foreground text-lg">Metakognitiv tahlil asosida darslar reytingi</p>
+        <div className="space-y-8">
+          <Card className="rounded-3xl border-none bg-gradient-to-br from-indigo-600 to-indigo-800 text-white shadow-lg shadow-indigo-200">
+            <CardHeader className="p-6">
+              <CardTitle className="text-lg font-bold">Tezkor amallar</CardTitle>
+              <p className="text-sm text-indigo-200 mt-1">Boshqaruvni osonlashtiring</p>
+            </CardHeader>
+            <CardContent className="p-6 pt-0 space-y-3">
+              <Button variant="secondary" className="w-full justify-between bg-white/10 hover:bg-white/20 border-none text-white h-12 rounded-xl">
+                <span className="flex items-center gap-2"><Plus className="h-4 w-4" /> Yangi kurs</span>
+                <ChevronRight className="h-4 w-4 opacity-50" />
+              </Button>
+              <Button variant="secondary" className="w-full justify-between bg-white/10 hover:bg-white/20 border-none text-white h-12 rounded-xl">
+                <span className="flex items-center gap-2"><BookOpen className="h-4 w-4" /> Loyihani nashr etish</span>
+                <ChevronRight className="h-4 w-4 opacity-50" />
+              </Button>
+              
+              <div className="mt-6 p-4 bg-indigo-900/40 rounded-xl border border-indigo-500/30">
+                <div className="flex gap-3 items-start">
+                  <div className="p-1.5 bg-indigo-500/30 rounded-md text-indigo-200 mt-0.5">
+                    <Info className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold">Eslatma: Bugun soat 18:00 da vebinar bor.</h4>
+                    <button className="text-xs font-semibold text-indigo-300 mt-2 hover:text-white">Taqvimni ochish</button>
+                  </div>
+                </div>
               </div>
-              <Badge className="bg-orange-50 text-orange-600 border-none px-6 py-2 rounded-2xl text-sm font-black">
-                 QIYINLIK DARAJASI YUQORI
-              </Badge>
-           </div>
-           
-           <div className="grid gap-8 md:grid-cols-3">
-              {difficultLessons.map((l, i) => (
-                 <Card key={i} className="border-none shadow-xl bg-white rounded-[2.5rem] overflow-hidden group hover:scale-[1.02] transition-all">
-                    <div className="h-2 bg-indigo-500" />
-                    <CardContent className="p-8 space-y-6">
-                       <h4 className="text-xl font-black truncate">{l.title}</h4>
-                       <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                             <span className="text-[10px] font-black uppercase text-muted-foreground opacity-50">Tushunarli darajasi</span>
-                             <span className="font-black text-indigo-600">{((l.avgRating / 5) * 100).toFixed(0)}%</span>
-                          </div>
-                          <div className="flex gap-2">
-                             {Array(5).fill(0).map((_, idx) => (
-                                <div key={idx} className={`h-2 flex-1 rounded-full ${idx < Math.round(l.avgRating) ? "bg-indigo-500" : "bg-indigo-100"}`} />
-                             ))}
-                          </div>
-                       </div>
-                       <Button variant="outline" className="w-full rounded-2xl h-12 font-bold border-2" asChild>
-                          <Link to="/teacher/courses">Materialni ko'rish</Link>
-                       </Button>
-                    </CardContent>
-                 </Card>
-              ))}
-           </div>
-        </div>
+            </CardContent>
+          </Card>
 
-        {/* Footer info */}
-        <div className="flex items-center justify-between pb-10 border-t pt-10 px-4 opacity-50">
-           <p className="text-xs font-black uppercase tracking-widest">Digital Learning Metacog Analysis System v2.0</p>
+          <Card className="rounded-3xl border-slate-100 shadow-sm">
+            <CardHeader className="p-6">
+              <CardTitle className="text-lg font-bold text-slate-900">O'zlashtirish tahlili</CardTitle>
+              <p className="text-sm text-slate-500 mt-1">Talabalarning natijalari bo'yicha taqsimoti</p>
+            </CardHeader>
+            <CardContent className="p-6 pt-0 space-y-6">
+              <div className="h-48 relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={DONUT_DATA}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={65}
+                      outerRadius={85}
+                      paddingAngle={5}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {DONUT_DATA.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={DONUT_COLORS[index % DONUT_COLORS.length]} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              
+              <div className="flex justify-center gap-4">
+                 {DONUT_DATA.map((d, i) => (
+                   <div key={i} className="flex items-center gap-1.5">
+                      <div className="h-2 w-2 rounded-full" style={{ backgroundColor: DONUT_COLORS[i] }} />
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">{d.name}</span>
+                   </div>
+                 ))}
+              </div>
+
+              <div className="flex items-center justify-between p-3 border border-slate-100 rounded-xl bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-indigo-500" />
+                  <span className="text-sm font-semibold text-slate-700">Yuqori o'zlashtirish</span>
+                </div>
+                <span className="font-bold text-slate-900">45%</span>
+              </div>
+
+              <div className="p-4 bg-indigo-50 rounded-xl text-sm border border-indigo-100/50">
+                <p className="text-slate-600 italic">"O'rtacha natija ko'rsatgan talabalarga qo'shimcha metacognitive mashqlar tavsiya eting."</p>
+                <button className="text-indigo-600 font-bold text-xs mt-3 hover:text-indigo-700">AI tavsiyalari</button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </Layout>

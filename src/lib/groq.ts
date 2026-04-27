@@ -41,7 +41,7 @@ export const getMetacognitiveFeedback = async (
           Ushbu holat yuzasidan talabaga metakognitiv feedback bering.`
         }
       ],
-      model: "llama3-70b-8192", 
+      model: "llama-3.3-70b-versatile", 
       temperature: 0.7,
       max_tokens: 500,
     });
@@ -50,5 +50,78 @@ export const getMetacognitiveFeedback = async (
   } catch (error) {
     console.error("Groq API Error:", error);
     return "Kechirasiz, hozirda feedback bera olmayman. Lekin o'z ustingizda ishlashda davom eting!";
+  }
+};
+
+export const getGroqChatResponse = async (
+  messages: {role: "system" | "user" | "assistant", content: string}[]
+) => {
+  if (!apiKey) {
+    return "API kalit o'rnatilmagan (VITE_GROQ_API_KEY). Iltimos o'rnating.";
+  }
+  
+  try {
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: `Siz "MetaEdu" dasturlash platformasining shaxsiy sun'iy intellekt yordamchisisiz. 
+          Sizning VAZIFANGIZ FAQAT DASTURLASH, IT, TEXNOLOGIYALAR VA O'QUV JARAYONIGA OID savollarga javob berish.
+          QAT'IY QOIDA: Agar foydalanuvchi dasturlashdan yoki platformadan tashqari mavzularda (masalan: ob-havo, tarix, siyosat, kino, sport va hokazo) savol bersa, muloyimlik bilan rad eting va darsga qaytarishga harakat qiling.
+          Rad etish namunasi: "Kechirasiz, men faqat dasturlash va MetaEdu platformasiga oid savollarga javob bera olaman. Dars yuzasidan qanday yordam bera olaman?"
+          Talaba bilan o'zbek tilida, qisqa, do'stona va motivatsion ruhda gaplashing.`
+        },
+        ...messages
+      ],
+      model: "llama-3.3-70b-versatile", 
+      temperature: 0.7,
+      max_tokens: 600,
+    });
+
+    return chatCompletion.choices[0]?.message?.content;
+  } catch (error) {
+    console.error("Groq Chat API Error:", error);
+    return "Kechirasiz, ulanishda xatolik yuz berdi.";
+  }
+};
+
+export const generateLessonTests = async (topic: string, courseName: string, count: number = 10) => {
+  if (!apiKey) return null;
+  
+  try {
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: `Sen MetaEdu platformasining test tuzuvchi yordamchisisan.
+          Sening vazifang "${courseName}" kursi doirasidagi "${topic}" mavzusi bo'yicha ${count} ta test (multiple choice) yaratish. Dasturlash tili yoki texnologiya nima ekanligi kurs nomidan ('${courseName}') kelib chiqishi shart. Boshqa til yoki mavzuga aslo adashib ketma!
+          Har bir testda 4 ta variant (options) va 1 ta to'g'ri javob (correct_answer) bo'lishi shart.
+          Faqat va faqat quyidagi JSON formatida javob ber (hech qanday qo'shimcha matnsiz):
+          {
+            "tests": [
+              {
+                "question": "Savol matni",
+                "options": ["A variant", "B variant", "C variant", "D variant"],
+                "correct_answer": "To'g'ri variant matni"
+              }
+            ]
+          }`
+        },
+        {
+          role: "user",
+          content: `Kurs nomi: ${courseName}\nMavzu: ${topic}`
+        }
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.3,
+      response_format: { type: "json_object" },
+    });
+    const content = chatCompletion.choices[0]?.message?.content;
+    if (!content) return null;
+    const parsed = JSON.parse(content);
+    return parsed.tests;
+  } catch (e) {
+    console.error("Test generation error:", e);
+    return null;
   }
 };

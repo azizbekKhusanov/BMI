@@ -1,24 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { 
-  BookOpen, Trophy, Target, TrendingUp, Search, 
-  RefreshCcw, UserCheck, GraduationCap, Brain, Activity, Sparkles
+  BookOpen, Trophy, Target, Search, 
+  RefreshCcw, Activity, Sparkles, Clock, PlayCircle, MoreVertical
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { useCallback } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface Course {
   id: string;
   title: string;
   description: string | null;
   image_url: string | null;
+  category?: string;
 }
 
 interface Test {
@@ -31,6 +32,7 @@ interface Enrollment {
   user_id: string;
   course_id: string;
   progress: number;
+  last_accessed?: string;
   courses?: Course;
 }
 
@@ -45,12 +47,14 @@ interface TestResult {
 }
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [recentResults, setRecentResults] = useState<TestResult[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
+    setLoading(true);
     try {
       // 1. Fetch enrollments
       const { data: enrollData, error: enrollError } = await supabase
@@ -64,7 +68,7 @@ const Dashboard = () => {
         const courseIds = enrollData.map(e => e.course_id);
         const { data: coursesData } = await supabase
           .from("courses")
-          .select("id, title, description, image_url")
+          .select("*")
           .in("id", courseIds);
         
         const mappedEnrollments = enrollData.map(enroll => ({
@@ -99,6 +103,8 @@ const Dashboard = () => {
       }
     } catch (error) {
       console.error("Dashboard yuklashda xatolik:", error);
+    } finally {
+      setLoading(false);
     }
   }, [user]);
 
@@ -110,170 +116,143 @@ const Dashboard = () => {
     ? Math.round(enrollments.reduce((sum, e) => sum + Number(e.progress), 0) / enrollments.length)
     : 0;
 
-  const StatCard = ({ title, value, icon: Icon, color, sparklineColor }: { title: string; value: string | number; icon: React.ElementType; color: string; sparklineColor: string }) => (
-    <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[2rem] overflow-hidden group hover:shadow-xl transition-all duration-500 bg-white">
-      <CardContent className="p-8">
-        <div className="flex items-center justify-between gap-4">
-          <div className={`h-14 w-14 rounded-2xl ${color} flex items-center justify-center shrink-0`}>
-            <Icon className="h-7 w-7 text-white" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">{title}</p>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-slate-800 font-serif">{value}</span>
-            </div>
-          </div>
-          {/* Simple SVG Sparkline */}
-          <div className="w-20 h-12 opacity-30 group-hover:opacity-100 transition-opacity">
-            <svg viewBox="0 0 100 40" className="w-full h-full">
-              <path 
-                d="M0 35 Q 25 35, 40 20 T 70 25 T 100 5" 
-                fill="none" 
-                stroke={sparklineColor} 
-                strokeWidth="4" 
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
   return (
     <Layout>
-      <div className="space-y-10 animate-in fade-in duration-700">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 shadow-sm border border-indigo-100/50">
-              <GraduationCap className="h-8 w-8" />
-            </div>
-            <div>
-              <h1 className="text-4xl font-bold text-[#1e293b] font-serif tracking-tight flex items-center gap-3 uppercase">
-                Mening Ta'lim Panelim
-              </h1>
-              <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.2em] mt-1">
-                O'zlashtirish faolligi va metakognitiv natijalar boshqaruv paneli
-              </p>
-            </div>
-          </div>
-          <Button variant="outline" className="rounded-2xl h-12 px-6 border-slate-200 bg-white shadow-sm hover:bg-slate-50 gap-2 font-bold text-[10px] uppercase tracking-widest text-slate-500 transition-all">
-            <RefreshCcw className="h-4 w-4" /> Yangilash
-          </Button>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 mt-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">
+            Xush kelibsiz, <span className="text-indigo-600">{profile?.full_name?.split(' ')[0] || "O'quvchi"}!</span>
+          </h1>
+          <p className="text-slate-600">Sizning o'quv jarayoningiz haqida qisqacha ma'lumotlar.</p>
         </div>
-
-        {/* Stats Grid */}
-        <div className="grid gap-6 md:grid-cols-3">
-          <StatCard 
-            title="Jami Kurslarim" 
-            value={enrollments.length} 
-            icon={BookOpen} 
-            color="bg-indigo-500" 
-            sparklineColor="#6366f1"
-          />
-          <StatCard 
-            title="O'rtacha Progress" 
-            value={`${avgProgress}%`} 
-            icon={Activity} 
-            color="bg-amber-500" 
-            sparklineColor="#f59e0b"
-          />
-          <StatCard 
-            title="Faol Testlar" 
-            value={recentResults.length} 
-            icon={Target} 
-            color="bg-sky-500" 
-            sparklineColor="#0ea5e9"
-          />
-        </div>
-
-        {/* Search & Filter bar like in the image */}
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1 group">
-            <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300 group-focus-within:text-indigo-500 transition-colors" />
-            <Input 
-              placeholder="Kurs yoki dars nomini kiriting..." 
-              className="w-full h-16 pl-16 pr-6 rounded-[2rem] border-none bg-white shadow-[0_8px_30px_rgb(0,0,0,0.03)] focus-visible:ring-2 focus-visible:ring-indigo-500 transition-all text-sm font-medium"
-            />
-          </div>
-          <div className="flex gap-4">
-            <Button variant="outline" className="h-16 px-8 rounded-[2rem] border-none bg-white shadow-[0_8px_30px_rgb(0,0,0,0.03)] font-bold text-[10px] uppercase tracking-widest text-slate-500">
-              Barcha kurslar
-            </Button>
-            <Button variant="outline" className="h-16 px-8 rounded-[2rem] border-none bg-white shadow-[0_8px_30px_rgb(0,0,0,0.03)] font-bold text-[10px] uppercase tracking-widest text-slate-500">
-              Sana bo'yicha
-            </Button>
-          </div>
-        </div>
-
-        {/* List Section */}
-        <div className="space-y-6">
-          <div className="flex items-center gap-4">
-            <div className="h-10 w-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
-              <BookOpen className="h-5 w-5" />
-            </div>
-            <h2 className="text-3xl font-bold text-[#1e293b] font-serif uppercase tracking-tight">Kurslarim Ro'yxati</h2>
-            <Badge className="bg-indigo-50 text-indigo-600 hover:bg-indigo-50 border-none px-4 py-1.5 rounded-full text-xs font-black shadow-sm">
-              {enrollments.length} ta natija
-            </Badge>
-          </div>
-
-          <div className="grid gap-6">
-            {enrollments.length === 0 ? (
-              <Card className="border-dashed border-2 py-32 text-center bg-slate-50/50 rounded-[3rem] border-slate-200">
-                <CardContent className="space-y-6">
-                  <div className="h-24 w-24 rounded-full bg-white shadow-xl flex items-center justify-center mx-auto">
-                    <BookOpen className="h-10 w-10 text-slate-300" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-2xl font-serif font-bold text-[#1e293b] uppercase">Kurslar Topilmadi</h3>
-                    <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Kurslaringizda hali darslar yo'q yoki qidiruv natijasi bo'sh</p>
-                  </div>
-                  <Button asChild className="rounded-full h-14 px-10 bg-[#1e293b] hover:bg-[#334155] font-bold text-xs tracking-widest uppercase shadow-lg transition-all">
-                    <Link to="/courses">Barcha kurslarga o'tish</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {enrollments.map((e) => (
-                  <Card key={e.id} className="border-none shadow-md rounded-[2.5rem] overflow-hidden group hover:shadow-2xl transition-all duration-500 bg-white">
-                    <div className="h-48 overflow-hidden relative">
-                      <img 
-                        src={e.courses?.image_url || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=60"} 
-                        className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-700"
-                        alt={e.courses?.title} 
-                      />
-                      <div className="absolute top-4 left-4">
-                        <Badge className="bg-white/90 backdrop-blur-md text-indigo-600 border-none px-3 py-1 font-bold text-[10px]">
-                          {Math.round(e.progress)}% TUGALLANDI
-                        </Badge>
-                      </div>
-                    </div>
-                    <CardContent className="p-8 space-y-4">
-                      <h3 className="text-xl font-bold font-serif text-[#1e293b] group-hover:text-indigo-600 transition-colors leading-tight">
-                        {e.courses?.title}
-                      </h3>
-                      <Progress value={Number(e.progress)} className="h-1.5 bg-slate-100" />
-                      <div className="flex items-center justify-between pt-2">
-                        <div className="flex -space-x-2">
-                          {[1, 2, 3].map(i => (
-                            <div key={i} className="h-7 w-7 rounded-full border-2 border-white bg-slate-200" />
-                          ))}
-                        </div>
-                        <Button variant="ghost" size="sm" asChild className="rounded-xl text-indigo-600 font-bold text-[10px] uppercase tracking-widest hover:bg-indigo-50">
-                          <Link to={`/student/courses/${e.course_id}`}>O'rganishni davom ettirish</Link>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        
+        <Button onClick={fetchDashboardData} variant="outline" className="h-11 px-6 rounded-full bg-white border-slate-200 text-slate-600 hover:bg-slate-50 transition-all font-semibold shadow-sm">
+          <RefreshCcw className="h-4 w-4 mr-2" /> Yangilash
+        </Button>
       </div>
+
+      {loading ? (
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Skeleton className="h-32 rounded-3xl" />
+            <Skeleton className="h-32 rounded-3xl" />
+            <Skeleton className="h-32 rounded-3xl" />
+          </div>
+          <Skeleton className="h-96 rounded-3xl" />
+        </div>
+      ) : (
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="rounded-3xl border-slate-100 shadow-sm bg-white overflow-hidden relative">
+              <div className="absolute right-0 top-0 w-32 h-32 bg-indigo-50 rounded-full -mr-10 -mt-10 blur-2xl" />
+              <CardContent className="p-6 relative z-10 flex items-center gap-6">
+                <div className="h-16 w-16 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <BookOpen className="h-8 w-8" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Mening Kurslarim</p>
+                  <p className="text-4xl font-bold text-slate-900">{enrollments.length}</p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="rounded-3xl border-slate-100 shadow-sm bg-white overflow-hidden relative">
+              <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-50 rounded-full -mr-10 -mt-10 blur-2xl" />
+              <CardContent className="p-6 relative z-10 flex items-center gap-6">
+                <div className="h-16 w-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <Activity className="h-8 w-8" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">O'rtacha Progress</p>
+                  <p className="text-4xl font-bold text-slate-900">{avgProgress}%</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="rounded-3xl border-slate-100 shadow-sm bg-white overflow-hidden relative">
+              <div className="absolute right-0 top-0 w-32 h-32 bg-amber-50 rounded-full -mr-10 -mt-10 blur-2xl" />
+              <CardContent className="p-6 relative z-10 flex items-center gap-6">
+                <div className="h-16 w-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <Target className="h-8 w-8" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">Test Natijalari</p>
+                  <p className="text-4xl font-bold text-slate-900">{recentResults.length}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex items-center justify-between mt-8 mb-6">
+            <h2 className="text-2xl font-bold text-slate-900">Faol Kurslaringiz</h2>
+            <Link to="/student/courses">
+              <Button variant="ghost" className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 font-semibold rounded-full px-6">
+                Barcha kurslarni ko'rish
+              </Button>
+            </Link>
+          </div>
+
+          {enrollments.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-3xl border border-slate-100 shadow-sm">
+               <div className="h-20 w-20 rounded-full bg-slate-50 flex items-center justify-center mb-6">
+                 <Sparkles className="h-8 w-8 text-slate-400" />
+               </div>
+               <h3 className="text-xl font-bold text-slate-900 mb-2">Hozircha kurslar yo'q</h3>
+               <p className="text-slate-500 mb-6">Yangi kurslarni kashf eting va o'qishni boshlang.</p>
+               <Link to="/student/courses">
+                 <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-8 font-semibold">
+                   Katalogni ochish
+                 </Button>
+               </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+              {enrollments.map((enrollment) => (
+                <Card key={enrollment.id} className="rounded-3xl border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all group flex flex-col bg-white">
+                  <div className="h-48 bg-slate-100 relative overflow-hidden flex items-center justify-center">
+                     {enrollment.courses?.image_url ? (
+                       <img src={enrollment.courses.image_url} alt={enrollment.courses.title} className="absolute inset-0 w-full h-full object-cover" />
+                     ) : (
+                       <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 opacity-40" />
+                     )}
+                     <Badge className="absolute top-4 left-4 bg-white/90 text-indigo-600 hover:bg-white border-none font-bold rounded-full">
+                       {enrollment.courses?.category || "Fan"}
+                     </Badge>
+                  </div>
+                  
+                  <CardContent className="p-6 flex-1 flex flex-col">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="text-lg font-bold text-slate-900 line-clamp-2 pr-4 group-hover:text-indigo-600 transition-colors">{enrollment.courses?.title}</h3>
+                      <button className="text-slate-400 hover:text-slate-600 shrink-0"><MoreVertical className="h-5 w-5" /></button>
+                    </div>
+                    
+                    <div className="mt-auto space-y-4 pt-4">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-semibold">
+                          <span className="text-slate-600">O'zlashtirish</span>
+                          <span className="text-indigo-600">{enrollment.progress}%</span>
+                        </div>
+                        <Progress value={enrollment.progress} className="h-2 bg-slate-100 [&>div]:bg-indigo-600" />
+                      </div>
+                      
+                      <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                        <Clock className="h-3.5 w-3.5" /> Oxirgi faollik: {enrollment.last_accessed ? new Date(enrollment.last_accessed).toLocaleDateString() : "Bugun"}
+                      </div>
+                      
+                      <Link to={`/student/courses/${enrollment.course_id}`}>
+                        <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-full font-semibold h-11 mt-2 shadow-sm transition-all">
+                          <PlayCircle className="mr-2 h-5 w-5" /> Davom ettirish
+                        </Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+        </div>
+      )}
     </Layout>
   );
 };
