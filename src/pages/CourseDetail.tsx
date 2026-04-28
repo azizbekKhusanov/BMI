@@ -131,7 +131,6 @@ const CourseDetail = () => {
 
   if (loading) {
     return (
-      <Layout>
         <div className="space-y-8 mt-6">
           <Skeleton className="h-64 md:h-96 w-full rounded-3xl" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -142,14 +141,12 @@ const CourseDetail = () => {
             <Skeleton className="h-96 w-full rounded-3xl" />
           </div>
         </div>
-      </Layout>
     );
   }
 
-  if (!course) return <Layout><div className="text-center py-32 font-bold text-2xl text-slate-500">Kurs topilmadi</div></Layout>;
+  if (!course) return <div className="text-center py-32 font-bold text-2xl text-slate-500">Kurs topilmadi</div>;
 
   return (
-    <Layout>
       <div className="flex items-center gap-2 text-sm text-slate-500 mb-6 mt-4">
         <Link to="/student/courses" className="hover:text-indigo-600 transition-colors">Kurslar</Link>
         <ArrowRight className="h-4 w-4" />
@@ -383,7 +380,6 @@ const CourseDetail = () => {
           </Card>
         </div>
       </div>
-    </Layout>
   );
 };
 

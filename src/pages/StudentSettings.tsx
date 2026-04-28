@@ -52,7 +52,6 @@ const StudentSettings = () => {
   ];
 
   return (
-    <Layout>
       <div className="max-w-[1400px] mx-auto py-12 px-6 lg:px-12 space-y-16 animate-fade-in">
         
         {/* Cinematic Header */}
@@ -405,7 +404,6 @@ const StudentSettings = () => {
         </div>
 
       </div>
-    </Layout>
   );
 };
 

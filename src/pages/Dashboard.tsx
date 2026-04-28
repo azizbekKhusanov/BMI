@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import Layout from "@/components/Layout";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +8,7 @@ import {
   BookOpen, Trophy, Target, Search, 
   RefreshCcw, Activity, Sparkles, Clock, PlayCircle, MoreVertical
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,10 +47,21 @@ interface TestResult {
 }
 
 const Dashboard = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, roles } = useAuth();
+  const navigate = useNavigate();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [recentResults, setRecentResults] = useState<TestResult[]>([]);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (roles && roles.length > 0) {
+      if (roles.includes("teacher")) {
+        navigate("/teacher", { replace: true });
+      } else if (roles.includes("admin")) {
+        navigate("/admin", { replace: true });
+      }
+    }
+  }, [roles, navigate]);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
@@ -117,7 +128,6 @@ const Dashboard = () => {
     : 0;
 
   return (
-    <Layout>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 mt-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">
@@ -252,8 +262,7 @@ const Dashboard = () => {
           )}
 
         </div>
-      )}
-    </Layout>
+      </div>
   );
 };
 

@@ -148,8 +148,48 @@ const LessonPage = () => {
   const updateProgress = useCallback(async () => {
     if (!user || !id || !lesson) return;
     try {
-      await supabase.from("enrollments").update({ progress: 100 }).eq("user_id", user.id).eq("course_id", lesson.course_id);
-    } catch (err) { console.error("Error updating progress:", err); }
+      // 1. Get total lessons in this course
+      const { count: totalLessons } = await supabase
+        .from("lessons")
+        .select("*", { count: 'exact', head: true })
+        .eq("course_id", lesson.course_id);
+
+      // 2. Get unique completed lessons for this user in this course
+      const { data: lessonsData } = await supabase
+        .from("lessons")
+        .select("id")
+        .eq("course_id", lesson.course_id);
+      
+      const lessonIds = lessonsData?.map(l => l.id) || [];
+      
+      const { data: assessmentsData } = await supabase
+        .from("self_assessments")
+        .select("lesson_id")
+        .eq("user_id", user.id)
+        .in("lesson_id", lessonIds);
+
+      // Use a Set to get unique lesson IDs that are completed
+      const uniqueCompletedIds = new Set(assessmentsData?.map(a => a.lesson_id) || []);
+      
+      // If the current lesson is not yet in the set, we add it to the count
+      const isCurrentLessonAlreadyCounted = uniqueCompletedIds.has(id || "");
+      const completedCount = uniqueCompletedIds.size + (isCurrentLessonAlreadyCounted ? 0 : 1);
+
+      // 3. Calculate percentage
+      const total = totalLessons || 1;
+      const progressPercent = Math.min(Math.round((completedCount / total) * 100), 100);
+
+      // 4. Update enrollment progress
+      await supabase
+        .from("enrollments")
+        .update({ progress: progressPercent })
+        .eq("user_id", user.id)
+        .eq("course_id", lesson.course_id);
+        
+      console.log(`Updated progress: ${progressPercent}% (${completed}/${total})`);
+    } catch (err) { 
+      console.error("Error updating progress:", err); 
+    }
   }, [user, id, lesson]);
 
   const fetchData = useCallback(async () => {
@@ -277,6 +317,7 @@ const LessonPage = () => {
       });
 
       setIsLessonCompleted(true);
+      updateProgress(); // Ensure progress is updated on reflection submission
       toast.success("AI tahlil muvaffaqiyatli yakunlandi va saqlandi!");
     } catch (error) {
       console.error(error);
@@ -288,7 +329,6 @@ const LessonPage = () => {
 
   if (loading) {
     return (
-      <Layout>
         <div className="max-w-[1400px] mx-auto py-20 px-8 space-y-12">
           <div className="flex items-center gap-6">
              <Skeleton className="h-14 w-14 rounded-2xl" />
@@ -299,12 +339,10 @@ const LessonPage = () => {
           </div>
           <Skeleton className="h-[600px] w-full rounded-[4rem]" />
         </div>
-      </Layout>
     );
   }
 
   return (
-    <Layout>
       <div className="max-w-[1600px] mx-auto space-y-12 py-12 px-6 lg:px-12 animate-fade-in pb-32">
         
         {/* High-Tech Planning Modal */}
@@ -725,8 +763,6 @@ const LessonPage = () => {
            </div>
         </div>
       </div>
-
-    </Layout>
   );
 };
 

@@ -17,7 +17,7 @@ import AICoach from "./AICoach";
 import { motion, AnimatePresence } from "framer-motion";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
-  const { profile, roles, signOut } = useAuth();
+  const { profile, roles, signOut, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -79,72 +79,86 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const navLinks = getNavLinks();
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-slate-50 border-r border-slate-200 text-slate-900">
+    <div className="flex flex-col h-full bg-white border-r border-slate-200 text-slate-900">
       {/* Logo Area */}
       <div className="px-6 py-8">
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-white">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0056d2] text-white">
             <GraduationCap className="h-6 w-6" />
           </div>
-          <span className="text-xl font-bold text-slate-900">MetaEdu</span>
+          <span className="text-xl font-bold text-slate-900 tracking-tight">MetaEdu</span>
         </Link>
       </div>
       
       {/* Navigation */}
       <nav className="flex-1 px-4 space-y-6 overflow-y-auto custom-scrollbar py-2">
-        {navLinks.map((item, idx) => (
-          <div key={idx} className="space-y-2">
-            <div className="px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-              {item.group}
-            </div>
-            <div className="space-y-1">
-              {item.links.map((link) => (
-                <Link
-                  key={link.path}
-                  to={link.path}
-                  onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
-                    isActive(link.path)
-                      ? "bg-primary/10 text-primary font-semibold"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                  }`}
-                >
-                  <link.icon className="h-5 w-5" />
-                  <span>{link.label}</span>
-                </Link>
+        {authLoading ? (
+          <div className="space-y-4 px-4">
+            <div className="h-4 w-20 bg-slate-100 rounded animate-pulse mb-4" />
+            <div className="space-y-2">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="h-10 w-full bg-slate-50 rounded-md animate-pulse" />
               ))}
             </div>
           </div>
-        ))}
+        ) : (
+          navLinks.map((item, idx) => (
+            <div key={idx} className="space-y-2">
+              <div className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">
+                {item.group}
+              </div>
+              <div className="space-y-1">
+                {item.links.map((link) => (
+                  <Link
+                    key={link.path}
+                    to={link.path}
+                    onClick={() => setMobileOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-semibold transition-all ${
+                      isActive(link.path)
+                        ? "bg-blue-50 text-[#0056d2] border-l-4 border-[#0056d2]"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                    }`}
+                  >
+                    <link.icon className={`h-5 w-5 ${isActive(link.path) ? "text-[#0056d2]" : "text-slate-400"}`} />
+                    <span>{link.label}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          ))
+        )}
       </nav>
 
       {/* Profile Section */}
-      <div className="p-4 mt-auto border-t border-slate-200">
+      <div className="p-4 mt-auto border-t border-slate-100 bg-slate-50/50">
         <div className="flex items-center gap-3 px-2 py-3">
-           <div className="h-10 w-10 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold">
-             {profile?.full_name?.[0]?.toUpperCase() || "A"}
-           </div>
+           <Avatar className="h-9 w-9 border border-slate-200">
+             <AvatarImage src={profile?.avatar_url || ""} />
+             <AvatarFallback className="bg-blue-100 text-[#0056d2] font-bold text-xs">
+               {profile?.full_name?.[0]?.toUpperCase() || "A"}
+             </AvatarFallback>
+           </Avatar>
            <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-sm font-semibold text-slate-900 truncate">{profile?.full_name || "Foydalanuvchi"}</span>
-              <span className="text-xs text-slate-500 truncate">
+              <span className="text-sm font-bold text-slate-900 truncate">{profile?.full_name || "Foydalanuvchi"}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                  {isTeacher ? "O'qituvchi" : isAdmin ? "Admin" : "Talaba"}
               </span>
            </div>
            <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+                <button className="h-8 w-8 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors">
                    <Settings className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" side="top" className="w-56">
-                 <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer">
+                 <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer font-medium">
                     <User className="mr-2 h-4 w-4" /> Mening Profilim
                  </DropdownMenuItem>
-                 <DropdownMenuItem onClick={() => navigate(isAdmin ? "/admin/settings" : isTeacher ? "/profile" : "/student/settings")} className="cursor-pointer">
+                 <DropdownMenuItem onClick={() => navigate(isAdmin ? "/admin/settings" : isTeacher ? "/profile" : "/student/settings")} className="cursor-pointer font-medium">
                     <ShieldCheck className="mr-2 h-4 w-4" /> Xavfsizlik
                  </DropdownMenuItem>
                  <DropdownMenuSeparator />
-                 <DropdownMenuItem onClick={signOut} className="cursor-pointer text-rose-500 focus:text-rose-500">
+                 <DropdownMenuItem onClick={signOut} className="cursor-pointer text-rose-500 focus:text-rose-500 font-bold">
                     <LogOut className="mr-2 h-4 w-4" /> Tizimdan Chiqish
                  </DropdownMenuItem>
               </DropdownMenuContent>
@@ -208,35 +222,35 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           <div className="max-w-7xl mx-auto min-h-full flex flex-col">
             
             {/* Global Desktop Topbar */}
-            <div className="hidden md:flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
-              <div className="text-sm font-bold text-slate-500 tracking-wider">
+            <div className="hidden md:flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
+              <div className="text-[10px] font-bold text-slate-400 tracking-[0.2em] uppercase">
                 {isAdmin ? "ADMIN PORTAL" : isTeacher ? "TEACHER PORTAL" : "STUDENT PORTAL"}
               </div>
-              <div className="flex-1 max-w-xl mx-8">
+              <div className="flex-1 max-w-xl mx-12">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input 
                     type="text" 
-                    placeholder="Qidirish..." 
-                    className="w-full pl-10 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+                    placeholder="Kurslar, mavzular yoki bilimlar bo'yicha qidirish..." 
+                    className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/10 focus:border-[#0056d2] focus:bg-white outline-none transition-all font-medium"
                   />
                 </div>
               </div>
-              <div className="flex items-center gap-4">
-                <button className="text-slate-400 hover:text-slate-600 relative">
+              <div className="flex items-center gap-6">
+                <button className="text-slate-400 hover:text-[#0056d2] relative transition-colors">
                   <Bell className="h-5 w-5" />
-                  <span className="absolute top-0 right-0 h-2 w-2 bg-rose-500 rounded-full border border-white"></span>
+                  <span className="absolute -top-1 -right-1 h-2 w-2 bg-rose-500 rounded-full border-2 border-white"></span>
                 </button>
-                <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
-                  <div className="text-right">
-                    <div className="text-sm font-bold text-slate-900 leading-tight">{profile?.full_name || "Foydalanuvchi"}</div>
-                    <div className="text-xs text-slate-500">
-                      {isAdmin ? "admin" : isTeacher ? "teacher" : "student"}
+                <div className="flex items-center gap-3 pl-6 border-l border-slate-100">
+                  <div className="text-right hidden sm:block">
+                    <div className="text-sm font-bold text-slate-900 leading-none mb-1">{profile?.full_name || "Foydalanuvchi"}</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      {isAdmin ? "Administrator" : isTeacher ? "O'qituvchi" : "Talaba"}
                     </div>
                   </div>
-                  <Avatar className="h-10 w-10 border border-slate-200">
+                  <Avatar className="h-9 w-9 border-2 border-white shadow-sm ring-1 ring-slate-100">
                     <AvatarImage src={profile?.avatar_url || ""} />
-                    <AvatarFallback className="bg-primary/10 text-primary">
+                    <AvatarFallback className="bg-blue-50 text-[#0056d2] font-bold text-xs">
                       {profile?.full_name?.[0]?.toUpperCase() || "U"}
                     </AvatarFallback>
                   </Avatar>

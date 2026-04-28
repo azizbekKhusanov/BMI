@@ -87,7 +87,6 @@ const TeacherReports = () => {
   }, [fetchReportData]);
 
   return (
-    <Layout>
       <div className="max-w-7xl mx-auto py-10 px-6 lg:px-12 space-y-12 animate-fade-in">
         
         {/* Premium Header */}
@@ -267,7 +266,6 @@ const TeacherReports = () => {
           </motion.div>
         </div>
       </div>
-    </Layout>
   );
 };
 

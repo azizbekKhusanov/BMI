@@ -11,7 +11,7 @@ import {
   Loader2, User, Mail, Shield, BookOpen, 
   Award, Zap, Star, Camera, Settings, 
   LogOut, ChevronRight, CheckCircle2, 
-  Target, TrendingUp, Calendar
+  Target, TrendingUp, Calendar, Brain
 } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -57,7 +57,6 @@ const Profile = () => {
   ];
 
   return (
-    <Layout>
       <div className="max-w-7xl mx-auto py-10 px-4 lg:px-8 space-y-12 animate-fade-in">
         
         {/* Profile Hero Section */}
@@ -236,7 +235,6 @@ const Profile = () => {
            </div>
         </div>
       </div>
-    </Layout>
   );
 };
 

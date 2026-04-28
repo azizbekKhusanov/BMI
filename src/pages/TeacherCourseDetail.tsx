@@ -250,16 +250,13 @@ const TeacherCourseDetail = () => {
   };
 
   if (loading) return (
-    <Layout>
       <div className="max-w-7xl mx-auto space-y-12 animate-fade-in p-8 lg:p-12">
         <Skeleton className="h-16 w-1/3 rounded-[2rem]" />
         <Skeleton className="h-[400px] w-full rounded-[4rem]" />
       </div>
-    </Layout>
   );
 
   return (
-    <Layout>
       <div className="max-w-7xl mx-auto py-6 px-4 lg:px-8 space-y-12 animate-fade-in">
         
         {/* Premium Header Section */}
@@ -620,7 +617,6 @@ const TeacherCourseDetail = () => {
            </div>
         </DialogContent>
       </Dialog>
-    </Layout>
   );
 };
 

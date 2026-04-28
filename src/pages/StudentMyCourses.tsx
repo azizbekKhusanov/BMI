@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import Layout from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +19,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Course {
   id: string;
@@ -123,13 +124,9 @@ const StudentMyCourses = () => {
   });
 
   const filteredEnrollments = enrollments.filter((enrollment) => {
-    // 1. Search Filter (Safe undefined check added)
     const titleMatch = (enrollment.courses?.title || "").toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // 2. Archive Filter
     const isArchived = archivedIds.includes(enrollment.course_id);
     
-    // 3. Tab Filter
     let matchesTab = true;
     if (activeTab === "faol") {
       matchesTab = enrollment.progress < 100 && !isArchived;
@@ -143,75 +140,74 @@ const StudentMyCourses = () => {
   });
 
   return (
-    <Layout>
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 animate-fade-in">
+    <>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10 mt-2 animate-fade-in">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Mening Kurslarim</h1>
-          <p className="text-slate-600">Jami {enrollments.length} ta kursda o'qiyapsiz. O'qishda davom eting!</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-1 tracking-tight">Mening kurslarim</h1>
+          <p className="text-slate-500 font-medium">Jami {enrollments.length} ta kursda o'qiyapsiz. O'qishda davom eting!</p>
         </div>
         
-        {/* AI Insight Badge */}
         {enrollments.length > 0 && (
-          <div 
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
             onClick={() => navigate(`/student/courses/${enrollments[0].course_id}`)}
-            className="flex items-center gap-4 bg-indigo-50 border border-indigo-100 rounded-full px-6 py-3 cursor-pointer hover:bg-indigo-100 transition-colors shadow-sm"
+            className="flex items-center gap-4 bg-blue-50/50 border border-blue-100 rounded-xl px-6 py-4 cursor-pointer hover:bg-blue-50 transition-all shadow-sm group"
           >
-            <div className="h-10 w-10 rounded-full bg-indigo-500 text-white flex items-center justify-center">
+            <div className="h-10 w-10 rounded-lg bg-[#0056d2] text-white flex items-center justify-center shadow-md shadow-blue-100">
               <Sparkles className="h-5 w-5" />
             </div>
-            <div>
-              <div className="text-xs font-bold text-indigo-500 uppercase tracking-wider">AI Maslahati</div>
-              <div className="text-sm font-semibold text-slate-700">"{enrollments[0]?.courses?.title || 'Kurs'}" bo'yicha darsni davom ettiring.</div>
+            <div className="min-w-0">
+              <div className="text-[10px] font-black text-[#0056d2] uppercase tracking-[0.2em] mb-0.5">AI Tavsiyasi</div>
+              <div className="text-sm font-bold text-slate-700 truncate max-w-[200px]">"{enrollments[0]?.courses?.title}" bo'yicha darsni davom ettiring</div>
             </div>
-            <ArrowRight className="h-4 w-4 text-indigo-400 ml-2" />
-          </div>
+            <ArrowRight className="h-4 w-4 text-[#0056d2] ml-2 group-hover:translate-x-1 transition-transform" />
+          </motion.div>
         )}
       </div>
 
-      {/* Tabs & Search */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 border-b border-slate-200 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8 border-b border-slate-100 pb-0">
         <div className="flex items-center gap-8">
-          <button 
-            onClick={() => setActiveTab("faol")}
-            className={`flex items-center gap-2 pb-4 -mb-4 border-b-2 font-semibold transition-all ${activeTab === "faol" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}
-          >
-            <PlayCircle className="h-4 w-4" /> Faol Kurslar
-          </button>
-          <button 
-            onClick={() => setActiveTab("tamomlangan")}
-            className={`flex items-center gap-2 pb-4 -mb-4 border-b-2 font-semibold transition-all ${activeTab === "tamomlangan" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}
-          >
-            <CheckCircle2 className="h-4 w-4" /> Tamomlangan
-          </button>
-          <button 
-            onClick={() => setActiveTab("arxiv")}
-            className={`flex items-center gap-2 pb-4 -mb-4 border-b-2 font-semibold transition-all ${activeTab === "arxiv" ? "border-indigo-600 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-700"}`}
-          >
-            <Archive className="h-4 w-4" /> Arxivlangan
-          </button>
+          {[
+            { id: "faol", label: "Faol kurslar", icon: PlayCircle },
+            { id: "tamomlangan", label: "Tamomlangan", icon: CheckCircle2 },
+            { id: "arxiv", label: "Arxivlangan", icon: Archive }
+          ].map((tab) => (
+            <button 
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 pb-4 -mb-[2px] border-b-2 font-bold text-sm transition-all whitespace-nowrap ${
+                activeTab === tab.id 
+                  ? "border-[#0056d2] text-[#0056d2]" 
+                  : "border-transparent text-slate-400 hover:text-slate-600"
+              }`}
+            >
+              <tab.icon className="h-4 w-4" /> {tab.label}
+            </button>
+          ))}
         </div>
         
-        <div className="flex items-center gap-3">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <div className="flex items-center gap-3 pb-4 sm:pb-0">
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input 
               type="text" 
-              placeholder="Kurslarni qidirish..." 
+              placeholder="Kurslarim ichidan qidirish..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/10 focus:border-[#0056d2] focus:bg-white transition-all font-medium"
             />
           </div>
-          <div className="flex items-center bg-slate-100 rounded-lg p-1 border border-slate-200">
+          <div className="flex items-center bg-slate-100/50 rounded-lg p-1 border border-slate-100">
             <button 
               onClick={() => setViewMode("grid")}
-              className={`p-1.5 rounded shadow-sm transition-colors ${viewMode === "grid" ? "bg-white text-slate-900" : "text-slate-500 hover:text-slate-900"}`}
+              className={`p-1.5 rounded-md transition-all ${viewMode === "grid" ? "bg-white text-[#0056d2] shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
             >
               <LayoutGrid className="h-4 w-4" />
             </button>
             <button 
               onClick={() => setViewMode("list")}
-              className={`p-1.5 rounded shadow-sm transition-colors ${viewMode === "list" ? "bg-white text-slate-900" : "text-slate-500 hover:text-slate-900"}`}
+              className={`p-1.5 rounded-md transition-all ${viewMode === "list" ? "bg-white text-[#0056d2] shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
             >
               <List className="h-4 w-4" />
             </button>
@@ -220,168 +216,192 @@ const StudentMyCourses = () => {
       </div>
 
       {loading ? (
-        <div className={`grid gap-6 mb-12 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}>
-           {[1, 2, 3].map((i) => (
-             <Skeleton key={i} className={`rounded-3xl ${viewMode === "grid" ? "h-96 w-full" : "h-32 w-full"}`} />
-           ))}
-        </div>
-      ) : enrollments.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-3xl border border-slate-100 shadow-sm mb-12 animate-fade-in">
-           <div className="h-20 w-20 rounded-full bg-slate-50 flex items-center justify-center mb-6">
-             <BookOpen className="h-8 w-8 text-slate-400" />
-           </div>
-           <h3 className="text-xl font-bold text-slate-900 mb-2">Hozircha kurslar yo'q</h3>
-           <p className="text-slate-500 mb-6">Platformadagi mavjud kurslar bilan tanishing va o'rganishni boshlang.</p>
-           <Link to="/student/courses">
-             <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-8 font-semibold">
-               Katalogni ochish
-             </Button>
-           </Link>
-        </div>
-      ) : filteredEnrollments.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-3xl border border-slate-100 shadow-sm mb-12 animate-fade-in">
-           <div className="h-20 w-20 rounded-full bg-slate-50 flex items-center justify-center mb-6">
-             <Search className="h-8 w-8 text-slate-400" />
-           </div>
-           <h3 className="text-xl font-bold text-slate-900 mb-2">Hech narsa topilmadi</h3>
-           <p className="text-slate-500 mb-6">Boshqa so'z bilan qidirib ko'ring yoki boshqa bo'limni tanlang.</p>
-        </div>
-      ) : (
-        <div className={`grid gap-6 mb-12 animate-fade-in ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}>
-          {filteredEnrollments.map((enrollment) => (
-            viewMode === "grid" ? (
-              // GRID VIEW
-              <Card key={enrollment.id} className="rounded-3xl border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all group flex flex-col">
-                <div className="h-48 bg-slate-100 relative overflow-hidden flex items-center justify-center">
-                   {enrollment.courses?.image_url ? (
-                     <img src={enrollment.courses.image_url} alt={enrollment.courses.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                   ) : (
-                     <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 opacity-40 group-hover:scale-105 transition-transform duration-500" />
-                   )}
-                   <Badge className="absolute top-4 left-4 bg-white/90 text-indigo-600 hover:bg-white border-none font-bold rounded-full">
-                     {enrollment.courses?.category || "Fan"}
-                   </Badge>
-                </div>
-                
-                <CardContent className="p-6 flex-1 flex flex-col bg-white">
-                  <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-bold text-slate-900 line-clamp-2 pr-4">{enrollment.courses?.title || "Nomsiz Kurs"}</h3>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger className="text-slate-400 hover:text-slate-600 focus:outline-none shrink-0 p-1">
-                        <MoreVertical className="h-5 w-5" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="rounded-xl">
-                        <DropdownMenuItem onClick={() => toggleArchive(enrollment.course_id)} className="cursor-pointer">
-                          {archivedIds.includes(enrollment.course_id) ? (
-                            <><RotateCcw className="mr-2 h-4 w-4" /> Arxivdan chiqarish</>
-                          ) : (
-                            <><FolderArchive className="mr-2 h-4 w-4" /> Arxivga qo'shish</>
-                          )}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  <p className="text-sm text-slate-500 mb-6">O'qituvchi: {enrollment.courses?.profiles?.full_name}</p>
-                  
-                  <div className="mt-auto space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-xs font-semibold">
-                        <span className="text-slate-600">O'zlashtirish</span>
-                        <span className="text-indigo-600">{enrollment.progress}%</span>
-                      </div>
-                      <Progress value={enrollment.progress} className="h-2 bg-slate-100 [&>div]:bg-indigo-600" />
-                    </div>
-                    
-                    <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
-                      <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> Oxirgi faollik:</span>
-                      <span>{enrollment.last_accessed ? new Date(enrollment.last_accessed).toLocaleDateString() : "Bugun"}</span>
-                    </div>
-                    
-                    <Link to={`/student/courses/${enrollment.course_id}`} className="block">
-                      <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold h-11 mt-2 shadow-sm transition-all">
-                        <PlayCircle className="mr-2 h-5 w-5" /> O'qishni davom ettirish
-                      </Button>
-                    </Link>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              // LIST VIEW
-              <Card key={enrollment.id} className="rounded-2xl border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all group flex flex-col md:flex-row bg-white">
-                <div className="w-full md:w-48 h-48 md:h-auto bg-slate-100 relative shrink-0">
-                  {enrollment.courses?.image_url ? (
-                    <img src={enrollment.courses.image_url} alt={enrollment.courses.title} className="absolute inset-0 w-full h-full object-cover" />
-                  ) : (
-                    <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 opacity-40" />
-                  )}
-                  <Badge className="absolute top-3 left-3 bg-white/90 text-indigo-600 border-none font-bold rounded-full">
-                    {enrollment.courses?.category || "Fan"}
-                  </Badge>
-                </div>
-                
-                <CardContent className="p-6 flex-1 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                  <div className="space-y-2 flex-1">
-                    <h3 className="text-xl font-bold text-slate-900">{enrollment.courses?.title || "Nomsiz Kurs"}</h3>
-                    <p className="text-sm text-slate-500">O'qituvchi: {enrollment.courses?.profiles?.full_name}</p>
-                    <div className="flex items-center gap-4 pt-2">
-                       <div className="flex-1 max-w-[200px] space-y-1">
-                          <div className="flex justify-between text-xs font-semibold">
-                            <span className="text-slate-600">Progress</span>
-                            <span className="text-indigo-600">{enrollment.progress}%</span>
-                          </div>
-                          <Progress value={enrollment.progress} className="h-1.5 bg-slate-100 [&>div]:bg-indigo-600" />
-                       </div>
-                       <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium whitespace-nowrap">
-                         <Clock className="h-3.5 w-3.5" /> Oxirgi: {enrollment.last_accessed ? new Date(enrollment.last_accessed).toLocaleDateString() : "Bugun"}
-                       </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 shrink-0">
-                    <Link to={`/student/courses/${enrollment.course_id}`}>
-                      <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold h-11 px-6 shadow-sm">
-                        <PlayCircle className="mr-2 h-4 w-4" /> Davom ettirish
-                      </Button>
-                    </Link>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="h-11 w-11 p-0 rounded-xl border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50">
-                          <MoreVertical className="h-5 w-5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="rounded-xl">
-                        <DropdownMenuItem onClick={() => toggleArchive(enrollment.course_id)} className="cursor-pointer">
-                          {archivedIds.includes(enrollment.course_id) ? (
-                            <><RotateCcw className="mr-2 h-4 w-4" /> Arxivdan chiqarish</>
-                          ) : (
-                            <><FolderArchive className="mr-2 h-4 w-4" /> Arxivga qo'shish</>
-                          )}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardContent>
-              </Card>
-            )
+        <div className={`grid gap-8 mb-12 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}>
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className={`rounded-xl ${viewMode === "grid" ? "h-96 w-full" : "h-32 w-full"}`} />
           ))}
         </div>
+      ) : enrollments.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center bg-white rounded-xl border border-slate-100 shadow-sm mb-12 animate-fade-in">
+          <div className="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mb-6">
+            <BookOpen className="h-8 w-8 text-slate-300" />
+          </div>
+          <h3 className="text-xl font-bold text-slate-900 mb-2">Hozircha kurslar yo'q</h3>
+          <p className="text-slate-500 mb-8 max-w-sm">Hali birorta kursga yozilmabsiz. Kurslar katalogidan o'zingizga ma'qulini toping.</p>
+          <Link to="/student/courses">
+            <Button className="bg-[#0056d2] hover:bg-[#00419e] text-white rounded-md px-10 h-12 font-bold transition-all shadow-md shadow-blue-100">
+              Katalogni ochish
+            </Button>
+          </Link>
+        </div>
+      ) : filteredEnrollments.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center bg-white rounded-xl border border-slate-100 shadow-sm mb-12 animate-fade-in">
+          <div className="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mb-6">
+            <Search className="h-8 w-8 text-slate-300" />
+          </div>
+          <h3 className="text-xl font-bold text-slate-900 mb-2">Hech narsa topilmadi</h3>
+          <p className="text-slate-500">Qidiruv natijasida kurslar topilmadi. Boshqa so'z bilan urinib ko'ring.</p>
+        </div>
+      ) : (
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab + viewMode}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className={`grid gap-8 mb-12 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}
+          >
+            {filteredEnrollments.map((enrollment) => (
+              <motion.div
+                key={enrollment.id}
+                layout
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2 }}
+                className="h-full"
+              >
+                {viewMode === "grid" ? (
+                  <Card className="rounded-xl border-slate-200 shadow-none overflow-hidden hover:shadow-xl hover:border-slate-300 transition-all group flex flex-col bg-white h-full">
+                    <div className="h-44 bg-slate-100 relative overflow-hidden flex items-center justify-center">
+                      {enrollment.courses?.image_url ? (
+                        <img src={enrollment.courses.image_url} alt={enrollment.courses.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-tr from-slate-200 to-slate-100 opacity-40 group-hover:scale-105 transition-transform duration-700" />
+                      )}
+                      <Badge className="absolute top-3 left-3 bg-[#0056d2] text-white border-none font-bold rounded-md px-3 py-1 shadow-sm">
+                        {enrollment.courses?.category || "Fan"}
+                      </Badge>
+                    </div>
+                    
+                    <CardContent className="p-6 flex-1 flex flex-col bg-white">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="text-xl font-bold text-slate-900 line-clamp-2 pr-4 tracking-tight leading-snug group-hover:text-[#0056d2] transition-colors">
+                          {enrollment.courses?.title || "Nomsiz Kurs"}
+                        </h3>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0 text-slate-300 hover:text-slate-600 focus:outline-none">
+                              <MoreVertical className="h-5 w-5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="rounded-lg">
+                            <DropdownMenuItem onClick={() => toggleArchive(enrollment.course_id)} className="cursor-pointer font-bold text-slate-700">
+                              {archivedIds.includes(enrollment.course_id) ? (
+                                <><RotateCcw className="mr-2 h-4 w-4 text-blue-500" /> Arxivdan chiqarish</>
+                              ) : (
+                                <><FolderArchive className="mr-2 h-4 w-4 text-slate-400" /> Arxivga qo'shish</>
+                              )}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                      <p className="text-sm font-bold text-slate-500 mb-6">O'qituvchi: {enrollment.courses?.profiles?.full_name}</p>
+                      
+                      <div className="mt-auto space-y-5">
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-[10px] font-black uppercase tracking-wider">
+                            <span className="text-slate-400">O'zlashtirish</span>
+                            <span className="text-[#0056d2]">{enrollment.progress}%</span>
+                          </div>
+                          <Progress value={enrollment.progress} className="h-2 bg-slate-100 [&>div]:bg-[#0056d2] rounded-full" />
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                          <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> Oxirgi faollik:</span>
+                          <span>{enrollment.last_accessed ? new Date(enrollment.last_accessed).toLocaleDateString() : "Bugun"}</span>
+                        </div>
+                        
+                        <Link to={`/student/courses/${enrollment.course_id}`} className="block pt-2">
+                          <Button className="w-full bg-[#0056d2] hover:bg-[#00419e] text-white rounded-md font-bold h-11 transition-all shadow-md shadow-blue-100">
+                            <PlayCircle className="mr-2 h-5 w-5" /> Darsni davom ettirish
+                          </Button>
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <Card className="rounded-xl border-slate-200 shadow-none overflow-hidden hover:shadow-lg hover:border-slate-300 transition-all group flex flex-col md:flex-row bg-white h-full">
+                    <div className="w-full md:w-56 h-48 md:h-auto bg-slate-100 relative shrink-0">
+                      {enrollment.courses?.image_url ? (
+                        <img src={enrollment.courses.image_url} alt={enrollment.courses.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-tr from-slate-200 to-slate-100 opacity-40 group-hover:scale-105 transition-transform duration-700" />
+                      )}
+                      <Badge className="absolute top-3 left-3 bg-[#0056d2] text-white border-none font-bold rounded-md px-3 py-1 shadow-sm">
+                        {enrollment.courses?.category || "Fan"}
+                      </Badge>
+                    </div>
+                    
+                    <CardContent className="p-8 flex-1 flex flex-col md:flex-row md:items-center justify-between gap-8">
+                      <div className="space-y-3 flex-1">
+                        <h3 className="text-2xl font-bold text-slate-900 tracking-tight group-hover:text-[#0056d2] transition-colors">
+                          {enrollment.courses?.title || "Nomsiz Kurs"}
+                        </h3>
+                        <p className="text-sm font-bold text-slate-500">O'qituvchi: {enrollment.courses?.profiles?.full_name}</p>
+                        <div className="flex items-center gap-8 pt-2">
+                           <div className="flex-1 max-w-[240px] space-y-2">
+                              <div className="flex justify-between text-[10px] font-black uppercase tracking-wider">
+                                <span className="text-slate-400">Progress</span>
+                                <span className="text-[#0056d2]">{enrollment.progress}%</span>
+                              </div>
+                              <Progress value={enrollment.progress} className="h-2 bg-slate-100 [&>div]:bg-[#0056d2] rounded-full" />
+                           </div>
+                           <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap pt-4">
+                             <Clock className="h-3.5 w-3.5" /> Oxirgi: {enrollment.last_accessed ? new Date(enrollment.last_accessed).toLocaleDateString() : "Bugun"}
+                           </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-4 shrink-0">
+                        <Link to={`/student/courses/${enrollment.course_id}`}>
+                          <Button className="bg-[#0056d2] hover:bg-[#00419e] text-white rounded-md font-bold h-12 px-8 shadow-md shadow-blue-100 transition-all">
+                            <PlayCircle className="mr-2 h-5 w-5" /> Davom ettirish
+                          </Button>
+                        </Link>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="h-12 w-12 p-0 rounded-md border-slate-200 text-slate-300 hover:text-slate-600 hover:bg-slate-50 transition-all">
+                              <MoreVertical className="h-5 w-5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="rounded-lg">
+                            <DropdownMenuItem onClick={() => toggleArchive(enrollment.course_id)} className="cursor-pointer font-bold text-slate-700">
+                              {archivedIds.includes(enrollment.course_id) ? (
+                                <><RotateCcw className="mr-2 h-4 w-4 text-blue-500" /> Arxivdan chiqarish</>
+                              ) : (
+                                <><FolderArchive className="mr-2 h-4 w-4 text-slate-400" /> Arxivga qo'shish</>
+                              )}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </motion.div>
+            ))}
+          </motion.div>
+        </AnimatePresence>
       )}
 
-      {/* Discover Banner */}
-      <div className="rounded-[2rem] bg-indigo-600 text-white p-8 md:p-10 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl shadow-indigo-200">
-        <div className="space-y-2 max-w-xl text-center sm:text-left">
-          <h2 className="text-2xl font-bold">Yangi bilimlar olamiga sho'ng'ing</h2>
-          <p className="text-indigo-100 font-medium leading-relaxed">
-            MetaEdu AI sizning qiziqishlaringizga mos keladigan professional kurslarni tavsiya qiladi.
+      <div className="relative rounded-2xl bg-white border border-slate-200 p-8 md:p-12 flex flex-col sm:flex-row items-center justify-between gap-8 overflow-hidden mt-12">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 rounded-full blur-3xl -mr-32 -mt-32 opacity-60" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl -ml-32 -mb-32 opacity-60" />
+        
+        <div className="relative z-10 space-y-3 max-w-xl text-center sm:text-left">
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Yangi bilimlar olamiga sho'ng'ing</h2>
+          <p className="text-slate-500 font-medium leading-relaxed">
+            MetaEdu AI sizning qiziqishlaringizga mos keladigan professional kurslarni tavsiya qiladi. Bilimingizni keyingi bosqichga olib chiqing.
           </p>
         </div>
-        <Link to="/student/courses" className="shrink-0 w-full sm:w-auto">
-          <Button variant="secondary" className="w-full sm:w-auto bg-white text-indigo-600 hover:bg-indigo-50 rounded-xl h-12 px-8 font-bold shadow-sm">
-            Kurslarni Ko'rish <ArrowRight className="ml-2 h-4 w-4" />
+        <Link to="/student/courses" className="relative z-10 shrink-0 w-full sm:w-auto">
+          <Button className="w-full sm:w-auto bg-[#0056d2] text-white hover:bg-[#00419e] rounded-md h-14 px-10 font-bold shadow-md shadow-blue-100 transition-all">
+            Kurslarni ko'rish <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </Link>
       </div>
-    </Layout>
+    </>
   );
 };
 

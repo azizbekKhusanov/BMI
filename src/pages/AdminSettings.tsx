@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 const AdminSettings = () => {
   return (
-    <Layout>
       <div className="container py-8 space-y-6">
         <div>
           <h1 className="text-3xl font-bold font-serif">Tizim sozlamalari</h1>
@@ -19,7 +18,6 @@ const AdminSettings = () => {
           </CardContent>
         </Card>
       </div>
-    </Layout>
   );
 };
 

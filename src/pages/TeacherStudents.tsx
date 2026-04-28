@@ -224,7 +224,6 @@ const TeacherStudents = () => {
   };
 
   return (
-    <Layout>
       <div className="max-w-7xl mx-auto py-6 px-4 lg:px-8 space-y-12 animate-fade-in">
         
         {/* Header Section */}
@@ -510,7 +509,6 @@ const TeacherStudents = () => {
            )}
         </SheetContent>
       </Sheet>
-    </Layout>
   );
 };
 

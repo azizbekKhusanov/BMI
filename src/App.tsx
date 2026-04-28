@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, Outlet } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -60,38 +60,40 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             
-            <Route path="/student/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            
-            {/* Umumiy */}
-            <Route path="/student/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
-            <Route path="/student/courses/:id" element={<ProtectedRoute><CourseDetail /></ProtectedRoute>} />
-            <Route path="/lessons/:id" element={<ProtectedRoute><LessonPage /></ProtectedRoute>} />
-            <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-
-            {/* Talaba (Student) maxsus - lek hammaga ochiq bo'lishi mumkin */}
-            <Route path="/student/my-courses" element={<ProtectedRoute><StudentMyCourses /></ProtectedRoute>} />
-            <Route path="/student/results" element={<ProtectedRoute><StudentResults /></ProtectedRoute>} />
-            <Route path="/student/notifications" element={<ProtectedRoute><StudentNotifications /></ProtectedRoute>} />
-            <Route path="/student/metacognition" element={<ProtectedRoute><StudentMetacognition /></ProtectedRoute>} />
-            <Route path="/student/settings" element={<ProtectedRoute><StudentSettings /></ProtectedRoute>} />
-
             {/* O'qituvchi (Teacher) maxsus */}
-            <Route path="/teacher" element={<ProtectedRoute requiredRole="teacher"><TeacherDashboard /></ProtectedRoute>} />
-            <Route path="/teacher/courses" element={<ProtectedRoute requiredRole="teacher"><TeacherCourses /></ProtectedRoute>} />
-            <Route path="/teacher/courses/:id" element={<ProtectedRoute requiredRole="teacher"><TeacherCourseDetail /></ProtectedRoute>} />
-            <Route path="/teacher/tests" element={<Navigate to="/teacher/assignments" replace />} />
-            <Route path="/teacher/students" element={<ProtectedRoute requiredRole="teacher"><TeacherStudents /></ProtectedRoute>} />
-            <Route path="/teacher/assignments" element={<ProtectedRoute requiredRole="teacher"><TeacherAssignments /></ProtectedRoute>} />
-            <Route path="/teacher/reports" element={<ProtectedRoute requiredRole="teacher"><TeacherReports /></ProtectedRoute>} />
-            <Route path="/teacher/monitoring" element={<ProtectedRoute requiredRole="teacher"><TeacherMonitoring /></ProtectedRoute>} />
-            <Route path="/teacher/self-assessments" element={<ProtectedRoute requiredRole="teacher"><TeacherSelfAssessments /></ProtectedRoute>} />
+            <Route element={<ProtectedRoute requiredRole="teacher"><Layout><div className="flex-1 overflow-auto"><Outlet /></div></Layout></ProtectedRoute>}>
+              <Route path="/teacher" element={<TeacherDashboard />} />
+              <Route path="/teacher/courses" element={<TeacherCourses />} />
+              <Route path="/teacher/courses/:id" element={<TeacherCourseDetail />} />
+              <Route path="/teacher/students" element={<TeacherStudents />} />
+              <Route path="/teacher/assignments" element={<TeacherAssignments />} />
+              <Route path="/teacher/reports" element={<TeacherReports />} />
+              <Route path="/teacher/monitoring" element={<TeacherMonitoring />} />
+              <Route path="/teacher/self-assessments" element={<TeacherSelfAssessments />} />
+            </Route>
+
+            {/* Talaba (Student) maxsus */}
+            <Route element={<ProtectedRoute><Layout><div className="flex-1 overflow-auto"><Outlet /></div></Layout></ProtectedRoute>}>
+              <Route path="/student/dashboard" element={<Dashboard />} />
+              <Route path="/student/courses" element={<Courses />} />
+              <Route path="/student/courses/:id" element={<CourseDetail />} />
+              <Route path="/lessons/:id" element={<LessonPage />} />
+              <Route path="/student/my-courses" element={<StudentMyCourses />} />
+              <Route path="/student/results" element={<StudentResults />} />
+              <Route path="/student/notifications" element={<StudentNotifications />} />
+              <Route path="/student/metacognition" element={<StudentMetacognition />} />
+              <Route path="/student/settings" element={<StudentSettings />} />
+              <Route path="/profile" element={<Profile />} />
+            </Route>
 
             {/* Admin maxsus */}
-            <Route path="/admin" element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
-            <Route path="/admin/users" element={<ProtectedRoute requiredRole="admin"><AdminUsers /></ProtectedRoute>} />
-            <Route path="/admin/courses" element={<ProtectedRoute requiredRole="admin"><AdminCourses /></ProtectedRoute>} />
-            <Route path="/admin/moderation" element={<ProtectedRoute requiredRole="admin"><AdminModeration /></ProtectedRoute>} />
-            <Route path="/admin/settings" element={<ProtectedRoute requiredRole="admin"><AdminSettings /></ProtectedRoute>} />
+            <Route element={<ProtectedRoute requiredRole="admin"><Layout><div className="flex-1 overflow-auto"><Outlet /></div></Layout></ProtectedRoute>}>
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/courses" element={<AdminCourses />} />
+              <Route path="/admin/moderation" element={<AdminModeration />} />
+              <Route path="/admin/settings" element={<AdminSettings />} />
+            </Route>
 
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -118,7 +118,6 @@ const StudentNotifications = () => {
   };
 
   return (
-    <Layout>
       <div className="flex flex-col h-[calc(100vh-140px)] gap-10 animate-fade-in max-w-[1600px] mx-auto">
         
         {/* Premium Cinematic Header */}
@@ -408,7 +407,6 @@ const StudentNotifications = () => {
         </div>
 
       </div>
-    </Layout>
   );
 };
 

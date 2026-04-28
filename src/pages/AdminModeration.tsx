@@ -3,7 +3,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 const AdminModeration = () => {
   return (
-    <Layout>
       <div className="container py-8 space-y-6">
         <div>
           <h1 className="text-3xl font-bold font-serif">Moderatsiya</h1>
@@ -19,7 +18,6 @@ const AdminModeration = () => {
           </CardContent>
         </Card>
       </div>
-    </Layout>
   );
 };
 

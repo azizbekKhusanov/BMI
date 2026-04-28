@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Plus, BookOpen, Search, Filter, MoreVertical, 
@@ -45,7 +47,6 @@ const TeacherCourses = () => {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   
   const [newCourse, setNewCourse] = useState({
@@ -134,51 +135,45 @@ const TeacherCourses = () => {
   );
 
   return (
-    <Layout>
-      <div className="max-w-7xl mx-auto py-6 px-4 lg:px-8 space-y-12 animate-fade-in">
+      <div className="max-w-[1400px] mx-auto py-8 px-6 space-y-12 animate-fade-in pb-20">
         
-        {/* Modern Header Section */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10">
-           <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                 <div className="h-14 w-14 rounded-3xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
-                    <Sparkles className="h-7 w-7" />
-                 </div>
-                 <div>
-                    <Badge className="bg-primary/5 text-primary border-none font-black text-[9px] uppercase tracking-[0.2em] px-3 py-1 mb-1">Akademiya Boshqaruvi</Badge>
-                    <h1 className="text-4xl lg:text-5xl font-black text-slate-900 tracking-tight leading-none uppercase italic">Mening Kurslarim</h1>
-                 </div>
+        {/* Header Section */}
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10">
+           <div className="space-y-2">
+              <div className="flex items-center gap-2 text-[#0056d2] font-black text-[10px] uppercase tracking-[0.2em] mb-2">
+                <Sparkles className="h-3 w-3" /> Kurslarni Boshqarish
               </div>
-              <p className="text-slate-400 text-sm font-medium max-w-2xl italic leading-relaxed">
-                 O'quv dasturlaringizni yaratish, boyitish va dunyo bo'ylab talabalar bilan baham ko'rish uchun markazlashgan boshqaruv paneli.
+              <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-none">Mening Kurslarim</h1>
+              <p className="text-slate-500 font-medium max-w-2xl">
+                 O'quv dasturlaringizni yaratish va dunyo bo'ylab talabalar bilan baham ko'rish boshqaruv paneli.
               </p>
            </div>
 
-           <div className="flex flex-wrap items-center gap-4">
+           <div className="flex items-center gap-4">
               <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                  <DialogTrigger asChild>
-                    <Button className="h-16 px-10 rounded-2xl bg-primary text-white font-black uppercase text-xs tracking-widest shadow-2xl shadow-primary/20 hover:scale-[1.02] transition-all gap-3">
+                    <Button className="h-14 px-8 rounded-2xl bg-[#0056d2] hover:bg-[#00419e] text-white font-bold shadow-lg shadow-blue-100 transition-all gap-3">
                        <Plus className="h-5 w-5" /> Yangi Kurs Yaratish
                     </Button>
                  </DialogTrigger>
-                 <DialogContent className="rounded-[4rem] border-none shadow-2xl p-0 max-w-2xl overflow-hidden bg-white">
-                    <div className="bg-slate-900 p-10 text-white relative">
-                       <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -translate-y-10 translate-x-10" />
+                 <DialogContent className="rounded-[2.5rem] border-none shadow-2xl p-0 max-w-2xl overflow-hidden bg-white">
+                    <div className="bg-[#0056d2] p-10 text-white relative">
+                       <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-10 translate-x-10" />
                        <DialogHeader className="relative z-10">
-                          <DialogTitle className="text-3xl font-black uppercase italic tracking-tight">Yangi Kurs</DialogTitle>
-                          <DialogDescription className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-2">
+                          <DialogTitle className="text-3xl font-black tracking-tight">Yangi Kurs</DialogTitle>
+                          <DialogDescription className="text-blue-100 font-bold text-[10px] uppercase tracking-widest mt-2">
                              Akademik sayohatni bugun boshlang
                           </DialogDescription>
                        </DialogHeader>
                     </div>
-                    <div className="p-10 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                    <div className="p-10 space-y-8 max-h-[70vh] overflow-y-auto">
                        <div className="space-y-3">
                           <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Kurs Nomi</Label>
                           <Input 
                             placeholder="Masalan: Metakognitiv Psixologiya" 
                             value={newCourse.title}
                             onChange={(e) => setNewCourse({...newCourse, title: e.target.value})}
-                            className="h-16 rounded-2xl border-slate-100 bg-slate-50/50 text-base font-bold focus-visible:ring-primary/20"
+                            className="h-14 rounded-2xl border-slate-100 bg-slate-50 text-base font-bold focus-visible:ring-blue-100"
                           />
                        </div>
 
@@ -190,7 +185,7 @@ const TeacherCourses = () => {
                                placeholder="Rasm manzilini kiriting..." 
                                value={newCourse.image_url}
                                onChange={(e) => setNewCourse({...newCourse, image_url: e.target.value})}
-                               className="h-16 pl-16 rounded-2xl border-slate-100 bg-slate-50/50"
+                               className="h-14 pl-16 rounded-2xl border-slate-100 bg-slate-50 font-bold"
                              />
                           </div>
                        </div>
@@ -201,130 +196,135 @@ const TeacherCourses = () => {
                             placeholder="Kursning maqsad va vazifalari haqida..." 
                             value={newCourse.description}
                             onChange={(e) => setNewCourse({...newCourse, description: e.target.value})}
-                            className="min-h-[150px] rounded-3xl border-slate-100 bg-slate-50/50 p-8 text-base font-medium"
+                            className="min-h-[120px] rounded-2xl border-slate-100 bg-slate-50 p-6 text-base font-medium"
                           />
                        </div>
 
-                       <div className="p-8 rounded-[2.5rem] bg-indigo-50 border border-indigo-100 flex items-center gap-6 group cursor-pointer hover:bg-indigo-100 transition-all">
-                          <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center text-indigo-600 shadow-sm"><Zap className="h-6 w-6" /></div>
+                       <div className="p-6 rounded-2xl bg-blue-50/50 border border-blue-100 flex items-center gap-6 group cursor-pointer hover:bg-blue-50 transition-all">
+                          <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center text-[#0056d2] shadow-sm"><Zap className="h-6 w-6" /></div>
                           <div className="flex-1">
-                             <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">AI Power</p>
-                             <p className="text-sm font-bold text-indigo-900">AI yordamida kurs strukturasini yaratish</p>
+                             <p className="text-[10px] font-black text-[#0056d2] uppercase tracking-widest">AI Power</p>
+                             <p className="text-sm font-bold text-slate-700">AI yordamida kurs strukturasini yaratish</p>
                           </div>
-                          <ChevronRight className="h-5 w-5 text-indigo-300 group-hover:translate-x-1 transition-transform" />
+                          <ChevronRight className="h-5 w-5 text-blue-200 group-hover:translate-x-1 transition-transform" />
                        </div>
                     </div>
                     <div className="p-10 bg-slate-50 border-t border-slate-100 flex gap-4">
-                       <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="h-16 flex-1 rounded-2xl font-black uppercase text-xs tracking-widest text-slate-400">Bekor qilish</Button>
+                       <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="h-14 flex-1 rounded-2xl font-black uppercase text-[10px] tracking-widest text-slate-400">Bekor qilish</Button>
                        <Button 
                          onClick={handleCreateCourse} 
                          disabled={isCreating}
-                         className="h-16 flex-2 px-12 rounded-2xl bg-slate-900 text-white font-black uppercase text-xs tracking-widest shadow-2xl hover:scale-[1.02] transition-all"
+                         className="h-14 flex-[2] rounded-2xl bg-[#0056d2] hover:bg-[#00419e] text-white font-black uppercase text-[10px] tracking-widest shadow-lg shadow-blue-100 transition-all"
                        >
                          {isCreating ? <Loader2 className="h-5 w-5 animate-spin" /> : "Kursni Tasdiqlash"}
                        </Button>
                     </div>
                  </DialogContent>
               </Dialog>
-              <Button variant="outline" className="h-16 w-16 rounded-2xl border-slate-100 shadow-sm flex items-center justify-center hover:bg-slate-50 transition-all">
-                 <Filter className="h-5 w-5 text-slate-400" />
+              <Button variant="outline" className="h-14 w-14 rounded-2xl border-slate-100 shadow-sm flex items-center justify-center hover:bg-slate-50 transition-all text-slate-400">
+                 <Filter className="h-5 w-5" />
               </Button>
            </div>
         </div>
 
         {/* Search Bar */}
-        <div className="relative group">
-           <Search className="absolute left-8 top-1/2 -translate-y-1/2 h-6 w-6 text-slate-300 group-focus-within:text-primary transition-colors" />
+        <div className="relative group max-w-2xl">
+           <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300 group-focus-within:text-[#0056d2] transition-colors" />
            <Input 
              placeholder="Mavjud kurslaringizni qidiring..." 
              value={searchQuery}
              onChange={(e) => setSearchQuery(e.target.value)}
-             className="w-full h-20 pl-20 pr-10 rounded-[2.5rem] border-none bg-white shadow-[0_20px_50px_rgba(0,0,0,0.04)] focus-visible:ring-2 focus-visible:ring-primary/10 transition-all text-lg font-medium italic"
+             className="w-full h-16 pl-16 pr-10 rounded-2xl border-slate-100 bg-white shadow-sm focus-visible:ring-2 focus-visible:ring-blue-100 transition-all text-base font-medium"
            />
         </div>
 
         {/* Courses List */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-             {[1, 2, 3].map(i => <Skeleton key={i} className="h-[500px] rounded-[4rem]" />)}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+             {[1, 2, 3].map(i => <Skeleton key={i} className="h-[450px] rounded-[2.5rem]" />)}
           </div>
         ) : filteredCourses.length === 0 ? (
-          <div className="py-32 text-center space-y-8 animate-fade-in">
-             <div className="h-32 w-32 rounded-[3rem] bg-slate-100 flex items-center justify-center mx-auto shadow-inner">
-                <BookOpen className="h-12 w-12 text-slate-300" />
+          <div className="py-24 text-center space-y-6 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm animate-fade-in">
+             <div className="h-24 w-24 rounded-full bg-slate-50 flex items-center justify-center mx-auto">
+                <BookOpen className="h-10 w-10 text-slate-200" />
              </div>
              <div className="space-y-2">
-                <h3 className="text-3xl font-black text-slate-900 uppercase italic tracking-tight">Hozircha kurslar yo'q</h3>
-                <p className="text-slate-400 font-medium italic">Ilk kursingizni yaratib, bilimlaringizni ulashishni boshlang!</p>
+                <h3 className="text-2xl font-black text-slate-900 tracking-tight">Hozircha kurslar yo'q</h3>
+                <p className="text-slate-500 font-medium italic">Ilk kursingizni yaratib, bilimlaringizni ulashishni boshlang!</p>
              </div>
-             <Button onClick={() => setIsDialogOpen(true)} className="h-14 px-10 rounded-2xl bg-primary/10 text-primary font-black uppercase text-xs tracking-widest border-none">Boshlash</Button>
+             <Button onClick={() => setIsDialogOpen(true)} className="h-12 px-8 rounded-xl bg-blue-50 text-[#0056d2] font-bold border-none hover:bg-blue-100">Boshlash</Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
              {filteredCourses.map((course) => (
-               <Link key={course.id} to={`/teacher/courses/${course.id}`} className="group relative">
-                  <Card className="h-[520px] rounded-[4rem] border-none bg-white shadow-[0_20px_60px_rgba(0,0,0,0.03)] overflow-hidden transition-all duration-700 hover:shadow-2xl hover:shadow-primary/5 hover:-translate-y-2 flex flex-col">
-                     <div className="h-56 relative overflow-hidden">
-                        <img 
-                          src={course.image_url || "https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?w=800&auto=format&fit=crop&q=60"} 
-                          className="h-full w-full object-cover group-hover:scale-110 transition-transform duration-1000"
-                          alt={course.title} 
-                        />
-                        <div className="absolute top-6 left-6 flex gap-2">
-                           <Badge className={`${course.is_published ? "bg-emerald-500 shadow-emerald-200" : "bg-amber-500 shadow-amber-200"} text-white border-none px-4 py-1.5 font-black text-[9px] uppercase shadow-xl tracking-[0.2em] rounded-full`}>
-                              {course.is_published ? "Published" : "Draft"}
-                           </Badge>
-                        </div>
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                     </div>
-                     
-                     <CardContent className="p-10 flex flex-col flex-1 gap-6">
-                        <div className="space-y-3">
-                           <div className="flex items-center gap-2 text-primary">
-                              <Globe className="h-3.5 w-3.5" />
-                              <span className="text-[9px] font-black uppercase tracking-[0.2em]">Global Academy</span>
-                           </div>
-                           <h3 className="text-2xl font-black text-slate-900 line-clamp-2 uppercase italic tracking-tight leading-tight group-hover:text-primary transition-colors">
-                              {course.title}
-                           </h3>
-                           <p className="text-slate-400 text-xs font-medium leading-relaxed line-clamp-2 italic">
-                              {course.description || "Ushbu kurs haqida batafsil ma'lumot tez orada qo'shiladi."}
-                           </p>
-                        </div>
+               <motion.div
+                 key={course.id}
+                 initial={{ opacity: 0, y: 20 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 transition={{ duration: 0.3 }}
+               >
+                 <Link to={`/teacher/courses/${course.id}`} className="group block h-full">
+                    <Card className="h-full rounded-[2.5rem] border-none bg-white shadow-sm overflow-hidden transition-all duration-500 hover:shadow-xl hover:shadow-blue-50/50 hover:-translate-y-2 flex flex-col p-2">
+                       <div className="h-52 relative overflow-hidden rounded-[2rem]">
+                          <img 
+                            src={course.image_url || "https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?w=800&auto=format&fit=crop&q=60"} 
+                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-700"
+                            alt={course.title} 
+                          />
+                          <div className="absolute top-4 left-4">
+                             <Badge className={`${course.is_published ? "bg-emerald-500" : "bg-amber-500"} text-white border-none px-4 py-1.5 font-black text-[9px] uppercase tracking-widest rounded-full shadow-lg`}>
+                                {course.is_published ? "Nashr etilgan" : "Qoralama"}
+                             </Badge>
+                          </div>
+                       </div>
+                       
+                       <CardContent className="p-8 flex flex-col flex-1">
+                          <div className="space-y-4 flex-1">
+                             <div className="flex items-center gap-2 text-[#0056d2]">
+                                <Globe className="h-3.5 w-3.5" />
+                                <span className="text-[9px] font-black uppercase tracking-widest">Global Academy</span>
+                             </div>
+                             <h3 className="text-xl font-black text-slate-900 line-clamp-2 leading-tight group-hover:text-[#0056d2] transition-colors">
+                                {course.title}
+                             </h3>
+                             <p className="text-slate-400 text-xs font-medium leading-relaxed line-clamp-2 italic">
+                                {course.description || "Ushbu kurs haqida batafsil ma'lumot tez orada qo'shiladi."}
+                             </p>
+                          </div>
 
-                        <div className="mt-auto space-y-6">
-                           <div className="flex items-center justify-between py-4 border-y border-slate-50">
-                              <div className="flex items-center gap-2.5">
-                                 <div className="h-8 w-8 rounded-xl bg-slate-50 flex items-center justify-center"><Users className="h-4 w-4 text-slate-400" /></div>
-                                 <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{course.studentCount || 0} Talaba</span>
-                              </div>
-                              <div className="flex items-center gap-2.5">
-                                 <div className="h-8 w-8 rounded-xl bg-slate-50 flex items-center justify-center"><BookOpen className="h-4 w-4 text-slate-400" /></div>
-                                 <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{course.lessonCount || 0} Dars</span>
-                              </div>
-                           </div>
+                          <div className="mt-8 space-y-6">
+                             <div className="flex items-center justify-between py-4 border-y border-slate-50">
+                                <div className="flex items-center gap-3">
+                                   <Users className="h-4 w-4 text-[#0056d2]" />
+                                   <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{course.studentCount || 0} Talaba</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                   <BookOpen className="h-4 w-4 text-[#0056d2]" />
+                                   <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{course.lessonCount || 0} Dars</span>
+                                </div>
+                             </div>
 
-                           <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                 <div className="h-10 w-10 rounded-2xl bg-primary/5 flex items-center justify-center"><Clock className="h-5 w-5 text-primary/40" /></div>
-                                 <div>
-                                    <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Yaratildi</p>
-                                    <p className="text-[10px] font-bold text-slate-600">{new Date(course.created_at).toLocaleDateString('uz-UZ', { month: 'short', year: 'numeric' })}</p>
-                                 </div>
-                              </div>
-                              <div className="h-12 w-12 rounded-full border-2 border-slate-100 flex items-center justify-center group-hover:border-primary group-hover:bg-primary transition-all">
-                                 <ArrowRight className="h-5 w-5 text-slate-300 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
-                              </div>
-                           </div>
-                        </div>
-                     </CardContent>
-                  </Card>
-               </Link>
+                             <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                   <div className="h-10 w-10 rounded-2xl bg-slate-50 flex items-center justify-center"><Clock className="h-5 w-5 text-slate-300" /></div>
+                                   <div>
+                                      <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest leading-none mb-1">Yaratildi</p>
+                                      <p className="text-[10px] font-bold text-slate-600 uppercase">{new Date(course.created_at).toLocaleDateString('uz-UZ', { month: 'short', year: 'numeric' })}</p>
+                                   </div>
+                                </div>
+                                <div className="h-10 w-10 rounded-full border border-slate-100 flex items-center justify-center group-hover:border-[#0056d2] group-hover:bg-[#0056d2] transition-all">
+                                   <ArrowRight className="h-4 w-4 text-slate-300 group-hover:text-white transition-all" />
+                                </div>
+                             </div>
+                          </div>
+                       </CardContent>
+                    </Card>
+                 </Link>
+               </motion.div>
              ))}
           </div>
         )}
       </div>
-    </Layout>
   );
 };
 

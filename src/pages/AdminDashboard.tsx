@@ -104,7 +104,6 @@ const AdminDashboard = () => {
   );
 
   return (
-    <Layout>
       <div className="flex flex-col gap-16 animate-fade-in pb-40 max-w-[1700px] mx-auto px-6 lg:px-12">
         
         {/* Cinematic Admin Header */}
@@ -378,7 +377,6 @@ const AdminDashboard = () => {
         </div>
 
       </div>
-    </Layout>
   );
 };
 

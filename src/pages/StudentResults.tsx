@@ -164,7 +164,6 @@ const StudentResults = () => {
   const courseArray = Object.values(groupedByCourse);
 
   return (
-    <Layout>
       <div className="max-w-[1400px] mx-auto px-6 lg:px-8 py-8 space-y-10 animate-fade-in pb-20">
         
         {/* Header */}
@@ -401,7 +400,6 @@ const StudentResults = () => {
         </div>
 
       </div>
-    </Layout>
   );
 };
 
