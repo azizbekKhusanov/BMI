@@ -1,16 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
-import Layout from "@/components/Layout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { 
   Activity, Users, Brain, Zap, AlertTriangle, 
-  ArrowUpRight, Clock, CheckCircle2, Sparkles,
-  MessageCircle, Info, ChevronRight, Monitor
+  Clock, CheckCircle2, MessageCircle, Info, Monitor
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 interface MonitoringData {
@@ -79,23 +75,22 @@ const TeacherMonitoring = () => {
   }, [fetchMonitoring]);
 
   const StatsCard = ({ title, value, icon: Icon, color, trend, bg }: { title: string; value: string; icon: React.ElementType; color: string; trend?: string; bg: string }) => (
-    <Card className="border-none shadow-xl rounded-[3rem] overflow-hidden bg-white group hover:shadow-2xl transition-all duration-700">
-      <CardContent className="p-10 relative">
-        <div className={`absolute top-0 right-0 h-32 w-32 ${bg} rounded-full -mr-16 -mt-16 opacity-40 group-hover:scale-150 transition-transform duration-700`} />
-        <div className="relative z-10 space-y-6">
+    <Card className="border border-slate-200 shadow-sm rounded-xl overflow-hidden bg-white">
+      <CardContent className="p-6 relative">
+        <div className="relative z-10 space-y-4">
           <div className="flex items-center justify-between">
-            <div className={`h-14 w-14 rounded-2xl ${bg} ${color} flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-500`}>
-              <Icon className="h-7 w-7" />
+            <div className={`h-12 w-12 rounded-lg ${bg} ${color} flex items-center justify-center`}>
+              <Icon className="h-6 w-6" />
             </div>
             {trend && (
-              <Badge className="bg-emerald-50 text-emerald-600 border-none px-4 py-1.5 rounded-full text-[9px] font-black tracking-widest italic">
+              <Badge className="bg-emerald-50 text-emerald-600 border-none px-2 py-0.5 rounded text-[10px] font-semibold tracking-wide">
                 {trend}
               </Badge>
             )}
           </div>
-          <div className="space-y-2">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">{title}</p>
-            <h3 className="text-4xl font-black text-slate-900 tracking-tight leading-none uppercase italic">{value}</h3>
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{title}</p>
+            <h3 className="text-2xl font-bold text-slate-900 leading-none">{value}</h3>
           </div>
         </div>
       </CardContent>
@@ -103,57 +98,56 @@ const TeacherMonitoring = () => {
   );
 
   return (
-      <div className="max-w-7xl mx-auto py-10 px-6 lg:px-12 space-y-12 animate-fade-in">
+      <div className="max-w-7xl mx-auto py-8 px-6 lg:px-8 space-y-8 pb-20">
         
-        {/* Premium Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 bg-white/40 backdrop-blur-xl p-10 rounded-[4rem] shadow-2xl border border-white/50 relative overflow-hidden">
-           <div className="absolute top-0 right-0 h-64 w-64 bg-primary/5 rounded-full blur-3xl -translate-y-32 translate-x-32" />
-           <div className="space-y-4 relative z-10">
-              <div className="flex items-center gap-4">
-                 <Badge className="bg-primary text-white border-none px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-primary/20">
-                    Live Monitor
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+           <div className="space-y-2">
+              <div className="flex items-center gap-3 mb-1">
+                 <Badge className="bg-[#0056d2] text-white border-none px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide">
+                    Jonli Monitoring
                  </Badge>
-                 <div className="flex items-center gap-2">
-                    <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping" />
-                    <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest italic">Real-time Sync Active</span>
+                 <div className="flex items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wide">Real vaqt sinxronizatsiyasi</span>
                  </div>
               </div>
-              <h1 className="text-4xl lg:text-6xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">
-                 Progress <span className="text-primary">Monitoring</span>
+              <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 leading-tight">
+                 Progress Monitoring
               </h1>
-              <p className="text-slate-400 font-medium italic text-lg max-w-xl leading-relaxed">
+              <p className="text-slate-500 font-medium text-sm max-w-xl">
                  O'quvchilarning metakognitiv jarayonini va darslardagi faolligini real vaqt rejimida boshqarish markazi.
               </p>
            </div>
            
-           <div className="flex items-center gap-6 bg-white shadow-2xl p-8 rounded-[2.5rem] border border-slate-50 relative z-10">
-              <div className="h-16 w-16 rounded-[1.5rem] bg-primary/10 text-primary flex items-center justify-center">
-                 <Users className="h-8 w-8" />
+           <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
+              <div className="h-12 w-12 rounded-lg bg-blue-100 text-[#0056d2] flex items-center justify-center">
+                 <Users className="h-6 w-6" />
               </div>
               <div>
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2 italic">Hozirda Faol</p>
-                 <p className="text-3xl font-black text-slate-900 tracking-tight leading-none">12 <span className="text-sm text-slate-300 font-medium italic">Talaba</span></p>
+                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Hozirda Faol</p>
+                 <p className="text-2xl font-bold text-slate-900 leading-none">12 <span className="text-xs text-slate-400 font-medium">Talaba</span></p>
               </div>
            </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StatsCard 
             title="O'rtacha Aniqlik" 
             value="84%" 
             icon={Zap} 
             color="text-amber-500" 
             bg="bg-amber-50"
-            trend="+5% vs Last Week"
+            trend="+5% vs O'tgan hafta"
           />
           <StatsCard 
             title="Refleksiya Chuqurligi" 
             value="O'rta" 
             icon={Brain} 
-            color="text-primary"
-            bg="bg-primary/5"
-            trend="Improving"
+            color="text-[#0056d2]"
+            bg="bg-blue-50"
+            trend="Yaxshilanmoqda"
           />
           <StatsCard 
             title="Kritik Xatolar" 
@@ -161,101 +155,93 @@ const TeacherMonitoring = () => {
             icon={AlertTriangle} 
             color="text-rose-500"
             bg="bg-rose-50"
-            trend="Attention Required"
+            trend="Diqqat talab qiladi"
           />
         </div>
 
         {/* Monitoring Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
           {/* Activity Table */}
-          <Card className="lg:col-span-2 border-none shadow-2xl rounded-[4rem] bg-white overflow-hidden border border-white">
-            <div className="bg-slate-900 p-10 text-white flex items-center justify-between">
+          <Card className="lg:col-span-2 border border-slate-200 shadow-sm rounded-xl bg-white overflow-hidden">
+            <div className="bg-slate-50 p-6 border-b border-slate-200 flex items-center justify-between">
                <div className="space-y-1">
-                  <h3 className="text-2xl font-black uppercase italic tracking-tight flex items-center gap-4">
-                     <Activity className="h-6 w-6 text-emerald-400" /> Oxirgi Harakatlar
+                  <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                     <Activity className="h-5 w-5 text-[#0056d2]" /> Oxirgi Harakatlar
                   </h3>
-                  <p className="text-slate-400 font-medium italic text-xs">Oxirgi 10 ta metakognitiv baholash natijalari.</p>
+                  <p className="text-slate-500 font-medium text-xs">Oxirgi 10 ta metakognitiv baholash natijalari.</p>
                </div>
-               <Badge className="bg-emerald-500 text-white border-none font-black text-[9px] tracking-[0.2em] px-5 py-2 shadow-lg shadow-emerald-500/20">LIVE</Badge>
+               <Badge className="bg-emerald-50 text-emerald-600 border-none font-semibold text-[10px] tracking-wide px-2 py-0.5">JONLI</Badge>
             </div>
             
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100">
-                      <th className="px-10 py-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Talaba</th>
-                      <th className="px-10 py-6 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Darslik</th>
-                      <th className="px-10 py-6 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Calibration</th>
-                      <th className="px-10 py-6 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] italic">Vaqt</th>
+                    <tr className="bg-white border-b border-slate-100">
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Talaba</th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Darslik</th>
+                      <th className="px-6 py-4 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Kalibrlash</th>
+                      <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Vaqt</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    <AnimatePresence mode="popLayout">
-                       {data.map((item, idx) => (
-                         <motion.tr 
-                           layout
-                           initial={{ opacity: 0, x: -20 }}
-                           animate={{ opacity: 1, x: 0 }}
-                           transition={{ delay: idx * 0.05 }}
+                  <tbody className="divide-y divide-slate-100">
+                       {data.map((item) => (
+                         <tr 
                            key={item.id} 
-                           className="hover:bg-primary/5 transition-all duration-500 group"
+                           className="hover:bg-slate-50 transition-colors"
                          >
-                           <td className="px-10 py-8">
-                             <div className="flex items-center gap-4">
-                               <Avatar className="h-12 w-12 rounded-2xl shadow-xl border-4 border-white group-hover:scale-110 transition-transform duration-500">
+                           <td className="px-6 py-4">
+                             <div className="flex items-center gap-3">
+                               <Avatar className="h-10 w-10 border border-slate-200">
                                   <AvatarImage src={item.avatar_url} />
-                                  <AvatarFallback className="bg-slate-100 text-slate-400 font-black text-xs uppercase">{item.user_name.substring(0,2)}</AvatarFallback>
+                                  <AvatarFallback className="bg-slate-100 text-slate-600 font-bold text-xs">{item.user_name.substring(0,2)}</AvatarFallback>
                                </Avatar>
-                               <span className="text-sm font-black text-slate-900 uppercase italic tracking-tight">{item.user_name}</span>
+                               <span className="text-sm font-bold text-slate-900">{item.user_name}</span>
                              </div>
                            </td>
-                           <td className="px-10 py-8">
+                           <td className="px-6 py-4">
                               <div className="space-y-1">
-                                 <p className="text-xs font-bold text-slate-600 line-clamp-1">{item.lesson_title}</p>
-                                 <Badge variant="outline" className="text-[8px] font-black uppercase tracking-widest border-slate-200 text-slate-400">Lesson Topic</Badge>
+                                 <p className="text-sm font-medium text-slate-700 line-clamp-1">{item.lesson_title}</p>
                               </div>
                            </td>
-                           <td className="px-10 py-8">
-                             <div className="flex flex-col items-center gap-3">
-                                <div className="flex items-center gap-4">
+                           <td className="px-6 py-4">
+                             <div className="flex flex-col items-center gap-2">
+                                <div className="flex items-center gap-3">
                                   <div className="flex flex-col items-center">
-                                     <span className="text-[9px] font-black text-slate-300 uppercase italic">Pred</span>
-                                     <span className="text-sm font-black text-primary italic">{item.predicted}</span>
+                                     <span className="text-[10px] font-semibold text-slate-400 uppercase">Tahmin</span>
+                                     <span className="text-sm font-bold text-[#0056d2]">{item.predicted}</span>
                                   </div>
-                                  <div className="h-8 w-[1px] bg-slate-100" />
+                                  <div className="h-6 w-[1px] bg-slate-200" />
                                   <div className="flex flex-col items-center">
-                                     <span className="text-[9px] font-black text-slate-300 uppercase italic">Actu</span>
-                                     <span className="text-sm font-black text-emerald-500 italic">{item.actual}</span>
+                                     <span className="text-[10px] font-semibold text-slate-400 uppercase">Haqiqiy</span>
+                                     <span className="text-sm font-bold text-emerald-600">{item.actual}</span>
                                   </div>
                                 </div>
-                                <div className="w-24 bg-slate-100 h-2 rounded-full overflow-hidden shadow-inner">
-                                   <motion.div 
-                                     initial={{ width: 0 }}
-                                     animate={{ width: `${Math.max(10, 100 - (item.gap * 20))}%` }}
-                                     className={`h-full ${item.gap > 1 ? 'bg-rose-500' : 'bg-primary'}`} 
+                                <div className="w-20 bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                   <div 
+                                     style={{ width: `${Math.max(10, 100 - (item.gap * 20))}%` }}
+                                     className={`h-full ${item.gap > 1 ? 'bg-rose-500' : 'bg-[#0056d2]'}`} 
                                    />
                                 </div>
                              </div>
                            </td>
-                           <td className="px-10 py-8 text-right">
-                             <div className="flex items-center justify-end gap-3 text-slate-400 font-black text-[10px] italic">
-                               <Clock className="h-4 w-4 text-primary/50" /> {item.time}
+                           <td className="px-6 py-4 text-right">
+                             <div className="flex items-center justify-end gap-1.5 text-slate-500 font-medium text-xs">
+                               <Clock className="h-3.5 w-3.5" /> {item.time}
                              </div>
                            </td>
-                         </motion.tr>
+                         </tr>
                        ))}
-                    </AnimatePresence>
                     
                     {data.length === 0 && !loading && (
                       <tr>
-                        <td colSpan={4} className="py-32 text-center">
-                           <div className="flex flex-col items-center gap-6">
-                              <div className="h-24 w-24 rounded-[2.5rem] bg-slate-50 flex items-center justify-center text-slate-200">
-                                 <Monitor className="h-12 w-12" />
+                        <td colSpan={4} className="py-20 text-center">
+                           <div className="flex flex-col items-center gap-4">
+                              <div className="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
+                                 <Monitor className="h-8 w-8" />
                               </div>
-                              <p className="text-sm font-black text-slate-400 uppercase tracking-[0.3em] italic">Hali hech qanday harakat qayd etilmadi</p>
+                              <p className="text-sm font-medium text-slate-500">Hali hech qanday harakat qayd etilmadi</p>
                            </div>
                         </td>
                       </tr>
@@ -267,69 +253,53 @@ const TeacherMonitoring = () => {
           </Card>
 
           {/* Critical Gaps Sidebar */}
-          <div className="space-y-8">
-            <div className="flex items-center justify-between bg-white p-8 rounded-[2.5rem] shadow-xl border border-slate-50">
-               <h2 className="text-xl font-black text-slate-900 uppercase italic tracking-tight flex items-center gap-4">
-                  <AlertTriangle className="h-6 w-6 text-rose-500" /> Kritik Uzilishlar
+          <div className="space-y-4">
+            <div className="flex items-center justify-between bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-rose-500" /> Kritik Uzilishlar
                </h2>
-               <Badge className="bg-rose-50 text-rose-500 border-none font-black text-[9px] uppercase px-3 py-1">Priority</Badge>
+               <Badge className="bg-rose-50 text-rose-600 border-none font-semibold text-[10px] uppercase px-2 py-0.5 rounded">Muhim</Badge>
             </div>
             
-            <AnimatePresence mode="popLayout">
-              {data.filter(i => i.gap > 1).map((item, idx) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                >
-                  <Card className="border-none shadow-2xl rounded-[3rem] bg-white relative overflow-hidden group hover:scale-[1.02] transition-all duration-500 border border-rose-50">
-                    <div className="absolute top-0 left-0 h-full w-2 bg-rose-500" />
-                    <CardContent className="p-8 space-y-6">
+              {data.filter(i => i.gap > 1).map((item) => (
+                  <Card key={item.id} className="border border-rose-100 shadow-sm rounded-xl bg-white relative overflow-hidden">
+                    <div className="absolute top-0 left-0 h-full w-1 bg-rose-500" />
+                    <CardContent className="p-6 space-y-4 pl-7">
                       <div className="flex items-center justify-between">
                          <div className="flex items-center gap-3">
-                            <Avatar className="h-10 w-10 rounded-xl">
+                            <Avatar className="h-8 w-8 rounded-lg border border-slate-100">
                                <AvatarImage src={item.avatar_url} />
-                               <AvatarFallback className="bg-rose-50 text-rose-500 font-black text-[10px]">{item.user_name.substring(0,2)}</AvatarFallback>
+                               <AvatarFallback className="bg-rose-50 text-rose-600 font-bold text-xs">{item.user_name.substring(0,2)}</AvatarFallback>
                             </Avatar>
-                            <span className="text-xs font-black text-slate-900 uppercase italic">{item.user_name}</span>
+                            <span className="text-sm font-bold text-slate-900">{item.user_name}</span>
                          </div>
-                         <span className="text-[10px] font-black text-slate-300 italic">{item.time}</span>
+                         <span className="text-[10px] font-semibold text-slate-500">{item.time}</span>
                       </div>
                       
-                      <div className="space-y-3">
-                         <p className="text-sm text-slate-500 font-medium italic leading-relaxed">
-                            Ushbu talaba o'z bilimiga <span className="text-rose-500 font-black">YUQORI</span> baho berdi ({item.predicted}), lekin natija <span className="text-rose-500 font-black">PAST</span> bo'ldi ({item.actual}).
+                      <div className="space-y-2">
+                         <p className="text-sm text-slate-600 font-medium">
+                            Ushbu talaba o'z bilimiga YUQORI baho berdi ({item.predicted}), lekin natija PAST bo'ldi ({item.actual}).
                          </p>
                       </div>
 
-                      <div className="pt-4 border-t border-slate-50 flex items-center gap-3">
-                         <Button className="flex-1 h-12 rounded-2xl bg-slate-900 text-white font-black uppercase text-[9px] tracking-widest gap-2 shadow-xl hover:bg-primary transition-all">
-                            Yordam Berish <MessageCircle className="h-3 w-3" />
-                         </Button>
-                         <Button variant="outline" size="icon" className="h-12 w-12 rounded-2xl border-slate-100 hover:bg-slate-50 transition-all">
-                            <Info className="h-4 w-4 text-slate-400" />
+                      <div className="pt-3 flex items-center gap-2">
+                         <Button className="flex-1 h-9 rounded-md bg-white border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-50 gap-2">
+                            <MessageCircle className="h-3.5 w-3.5" /> Bog'lanish
                          </Button>
                       </div>
                     </CardContent>
                   </Card>
-                </motion.div>
               ))}
-            </AnimatePresence>
 
             {data.filter(i => i.gap > 1).length === 0 && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="p-12 text-center bg-white rounded-[3rem] shadow-xl border border-slate-50 flex flex-col items-center gap-6"
-              >
-                <div className="h-20 w-20 rounded-[2rem] bg-emerald-50 flex items-center justify-center text-emerald-500 shadow-inner">
-                   <CheckCircle2 className="h-10 w-10" />
+              <div className="p-8 text-center bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col items-center gap-4">
+                <div className="h-14 w-14 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-500">
+                   <CheckCircle2 className="h-7 w-7" />
                 </div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] leading-relaxed italic">
+                <p className="text-sm font-medium text-slate-500 leading-relaxed">
                   Hozircha kritik metakognitiv uzilishlar kuzatilmadi. Barcha talabalar o'z bilimini to'g'ri baholamoqda.
                 </p>
-              </motion.div>
+              </div>
             )}
           </div>
         </div>

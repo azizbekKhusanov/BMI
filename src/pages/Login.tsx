@@ -5,10 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  GraduationCap, Loader2, Mail, Lock, 
-  ArrowRight, Brain, TrendingUp, ShieldCheck
-} from "lucide-react";
+import { GraduationCap, Loader2, ArrowRight, Brain, TrendingUp, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
@@ -20,12 +17,12 @@ const Login = () => {
 
   if (authLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      <div className="flex h-screen items-center justify-center bg-slate-50">
+        <Loader2 className="h-10 w-10 animate-spin text-[#0056d2]" />
       </div>
     );
   }
-  
+
   if (user) {
     if (roles.includes("admin")) return <Navigate to="/admin" replace />;
     if (roles.includes("teacher")) return <Navigate to="/teacher" replace />;
@@ -41,121 +38,158 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-white font-sans overflow-x-hidden">
-      {/* Left Side: Form Section */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center px-4 sm:px-8 md:px-16 lg:px-20 py-10 relative z-10 bg-white overflow-y-auto">
-        <div className="w-full max-w-md mx-auto space-y-8">
-          
-          <div className="flex items-center gap-3 mb-6 sm:mb-12">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0056d2] text-white">
-              <GraduationCap className="h-6 w-6" />
-            </div>
-            <span className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">MetaEdu</span>
+    <div className="h-screen flex bg-white font-sans overflow-hidden">
+
+      {/* ─── Left Side ─── */}
+      <div className="w-full lg:w-1/2 h-full flex flex-col items-center justify-center px-10 lg:px-16 relative overflow-hidden">
+
+        {/* Logo - absolute top */}
+        <div className="absolute top-8 left-10 lg:left-16 flex items-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0056d2] text-white shadow-lg">
+            <GraduationCap className="h-7 w-7" />
+          </div>
+          <span className="text-2xl font-black text-slate-900 tracking-tight">MetaEdu</span>
+        </div>
+
+        {/* Center: Heading + Form */}
+        <div className="flex flex-col gap-7 w-full max-w-md">
+
+          {/* Heading */}
+          <div>
+            <h1 className="text-4xl font-black text-slate-900 tracking-tight leading-tight">Xush kelibsiz!</h1>
+            <p className="text-slate-500 text-base mt-2 font-medium">
+              Metakognitiv ta'lim ekotizimiga kirish uchun ma'lumotlaringizni kiriting.
+            </p>
           </div>
 
-          <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">Xush kelibsiz!</h1>
-            <p className="text-slate-600 text-sm sm:text-base font-medium">Metakognitiv ta'lim ekotizimiga kirish uchun ma'lumotlaringizni kiriting.</p>
-          </div>
-
-          <div className="flex p-1 bg-slate-100 rounded-lg w-fit">
-            <Button className="bg-white text-slate-900 shadow-sm rounded-md px-4 sm:px-6 py-1.5 sm:py-2 h-auto font-semibold text-xs sm:text-sm border-none hover:bg-white">Kirish</Button>
+          {/* Tabs */}
+          <div className="flex p-1.5 bg-slate-100 rounded-xl w-fit gap-1">
+            <Button className="bg-white text-slate-900 shadow-sm rounded-lg px-7 py-2.5 h-auto font-bold text-sm border-none hover:bg-white">
+              Kirish
+            </Button>
             <Link to="/register">
-              <Button variant="ghost" className="text-slate-500 rounded-md px-4 sm:px-6 py-1.5 sm:py-2 h-auto font-semibold text-xs sm:text-sm hover:bg-transparent hover:text-[#0056d2]">Ro'yxatdan o'tish</Button>
+              <Button variant="ghost" className="text-slate-400 rounded-lg px-7 py-2.5 h-auto font-bold text-sm hover:bg-transparent hover:text-[#0056d2]">
+                Ro'yxatdan o'tish
+              </Button>
             </Link>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-6">
+          {/* Form */}
+          <form onSubmit={handleLogin} className="flex flex-col gap-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-semibold text-slate-700">Email manzil</Label>
-              <Input 
-                id="email" 
-                type="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                placeholder="example@metaedu.uz" 
-                className="h-12 rounded-lg border-slate-200 focus:border-[#0056d2] focus:ring-[#0056d2] font-medium" 
-                required 
+              <Label htmlFor="email" className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                Email manzil
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="example@metaedu.uz"
+                className="h-14 rounded-xl border-slate-200 text-base font-medium px-4 focus:border-[#0056d2] focus:ring-[#0056d2]"
+                required
               />
             </div>
 
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <Label htmlFor="password" className="text-sm font-semibold text-slate-700">Parol</Label>
-                <Link to="#" className="text-xs font-semibold text-[#0056d2] hover:underline">Parolni unutdingizmi?</Link>
+                <Label htmlFor="password" className="text-sm font-bold text-slate-700 uppercase tracking-wide">
+                  Parol
+                </Label>
+                <Link to="#" className="text-sm font-semibold text-[#0056d2] hover:underline">
+                  Parolni unutdingizmi?
+                </Link>
               </div>
-              <Input 
-                id="password" 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                placeholder="••••••••" 
-                className="h-12 rounded-lg border-slate-200 focus:border-[#0056d2] focus:ring-[#0056d2] font-medium" 
-                required 
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="h-14 rounded-xl border-slate-200 text-base font-medium px-4 focus:border-[#0056d2] focus:ring-[#0056d2]"
+                required
               />
             </div>
-            
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="remember" className="w-4 h-4 rounded border-slate-300 text-[#0056d2] focus:ring-[#0056d2]" />
-              <label htmlFor="remember" className="text-sm font-medium text-slate-600">Meni eslab qol</label>
+
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="remember"
+                className="w-5 h-5 rounded border-slate-300 text-[#0056d2] focus:ring-[#0056d2]"
+              />
+              <label htmlFor="remember" className="text-base font-medium text-slate-600">
+                Meni eslab qol
+              </label>
             </div>
 
-            <Button type="submit" className="w-full h-12 rounded-lg text-base font-bold bg-[#0056d2] text-white hover:bg-[#00419e] transition-all" disabled={loading}>
-              {loading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : "Kirish"}
-              {!loading && <ArrowRight className="ml-2 h-5 w-5" />}
+            <Button
+              type="submit"
+              className="w-full h-14 rounded-xl text-base font-black bg-[#0056d2] text-white hover:bg-[#00419e] transition-all shadow-lg shadow-blue-100 flex items-center justify-center gap-2"
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <>Kirish <ArrowRight className="h-5 w-5" /></>}
             </Button>
           </form>
+        </div>
 
-          <footer className="pt-8 flex justify-between items-center text-xs font-medium text-slate-400 border-t border-slate-100">
-            <span>© 2024 MetaEdu AI</span>
-            <div className="flex gap-4">
-              <Link to="#" className="hover:text-[#0056d2] transition-colors">Maxfiylik siyosati</Link>
-              <Link to="#" className="hover:text-[#0056d2] transition-colors">Yordam markazi</Link>
-            </div>
-          </footer>
+        {/* Footer - absolute bottom */}
+        <div className="absolute bottom-8 left-10 lg:left-16 right-10 lg:right-16 flex justify-between items-center text-xs font-medium text-slate-400 border-t border-slate-100 pt-5">
+          <span>© 2024 MetaEdu AI</span>
+          <div className="flex gap-5">
+            <Link to="#" className="hover:text-[#0056d2] transition-colors">Maxfiylik siyosati</Link>
+            <Link to="#" className="hover:text-[#0056d2] transition-colors">Yordam markazi</Link>
+          </div>
         </div>
       </div>
 
-      {/* Right Side: Visual Sidebar (Coursera Style) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-[#f5f7fa] relative overflow-hidden flex-col items-center justify-center p-12">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-100/50 rounded-full blur-[100px] -mr-64 -mt-64" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-100/30 rounded-full blur-[100px] -ml-64 -mb-64" />
+      {/* ─── Right Side ─── */}
+      <div className="hidden lg:flex lg:w-1/2 bg-[#f5f7fa] relative overflow-hidden flex-col items-center justify-center p-12 h-full">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-100/50 rounded-full blur-[100px] -mr-60 -mt-60 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-100/30 rounded-full blur-[100px] -ml-60 -mb-60 pointer-events-none" />
 
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="relative z-10 max-w-lg text-center"
+          transition={{ duration: 0.7 }}
+          className="relative z-10 max-w-lg w-full text-center flex flex-col gap-8"
         >
-           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-blue-100 text-[#0056d2] text-xs font-bold mb-8 uppercase tracking-wider">
+          {/* Badge */}
+          <div>
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-100 text-[#0056d2] text-xs font-black uppercase tracking-widest">
               AI yordamida metakognitiv ta'lim
-           </div>
-           <h2 className="text-4xl lg:text-5xl font-bold leading-tight tracking-tight text-slate-900 mb-6">
-              O'rganishni aqlli va samarali darajaga olib chiqing.
-           </h2>
-           <p className="text-lg text-slate-600 font-medium leading-relaxed mb-12">
-              MetaEdu sun'iy intellekt yordamida sizning o'rganish jarayoningizni tahlil qiladi va shaxsiy tavsiyalar beradi.
-           </p>
+            </span>
+          </div>
 
-          <div className="grid gap-4 w-full">
+          {/* Heading */}
+          <div>
+            <h2 className="text-4xl lg:text-5xl font-black leading-tight tracking-tight text-slate-900 mb-4">
+              O'rganishni aqlli va samarali darajaga olib chiqing.
+            </h2>
+            <p className="text-base text-slate-500 font-medium leading-relaxed">
+              MetaEdu sun'iy intellekt yordamida sizning o'rganish jarayoningizni tahlil qiladi va shaxsiy tavsiyalar beradi.
+            </p>
+          </div>
+
+          {/* Feature Cards */}
+          <div className="flex flex-col gap-4">
             {[
               { icon: Brain, title: "Metakognitiv tahlil", desc: "Siz qanday o'rganayotganingizni tushuning va xatolaringizdan dars oling." },
               { icon: TrendingUp, title: "Shaxsiy o'sish", desc: "Har bir darsdan so'ng AI tomonidan tayyorlangan maxsus hisobotlarni oling." },
-              { icon: ShieldCheck, title: "Global sertifikatlash", desc: "Platformada olingan bilimlaringiz xalqaro standartlarga javob beradi." }
+              { icon: ShieldCheck, title: "Global sertifikatlash", desc: "Platformada olingan bilimlaringiz xalqaro standartlarga javob beradi." },
             ].map((item, i) => (
-              <motion.div 
-                key={i} 
+              <motion.div
+                key={i}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5 + i * 0.1 }}
-                className="flex items-start gap-4 p-5 bg-white border border-slate-200 rounded-xl shadow-sm hover:shadow-md transition-shadow"
+                transition={{ delay: 0.4 + i * 0.12 }}
+                className="flex items-center gap-4 p-5 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow text-left"
               >
-                <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center text-[#0056d2] shrink-0">
+                <div className="h-11 w-11 rounded-xl bg-blue-50 flex items-center justify-center text-[#0056d2] shrink-0">
                   <item.icon className="h-5 w-5" />
                 </div>
-                <div className="text-left space-y-1">
-                  <h4 className="text-lg font-bold text-slate-900 tracking-tight">{item.title}</h4>
-                  <p className="text-sm text-slate-500 font-medium leading-relaxed">{item.desc}</p>
+                <div>
+                  <h4 className="text-base font-black text-slate-900">{item.title}</h4>
+                  <p className="text-sm text-slate-500 font-medium leading-snug mt-0.5">{item.desc}</p>
                 </div>
               </motion.div>
             ))}

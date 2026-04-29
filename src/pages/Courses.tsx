@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import Layout from "@/components/Layout";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -107,6 +107,7 @@ const Courses = () => {
   );
 
   return (
+    <>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10 mt-2">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 mb-1 tracking-tight">Barcha kurslar</h1>
@@ -230,6 +231,7 @@ const Courses = () => {
           })}
         </div>
       )}
+    </>
   );
 };
 

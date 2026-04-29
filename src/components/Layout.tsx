@@ -16,11 +16,21 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import AICoach from "./AICoach";
 import { motion, AnimatePresence } from "framer-motion";
 
-const Layout = ({ children }: { children: React.ReactNode }) => {
-  const { profile, roles, signOut, loading: authLoading } = useAuth();
+interface SidebarProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  profile: any;
+  roles: string[] | null;
+  signOut: () => void;
+  authLoading: boolean;
+  setMobileOpen: (v: boolean) => void;
+}
+
+const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }: SidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const isTeacher = roles?.includes("teacher") || false;
+  const isAdmin = roles?.includes("admin") || false;
 
   const isActive = (path: string) => {
     if (location.pathname === path) return true;
@@ -31,9 +41,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     }
     return false;
   };
-
-  const isTeacher = roles?.includes("teacher") || false;
-  const isAdmin = roles?.includes("admin") || false;
 
   const getNavLinks = () => {
     if (isAdmin) {
@@ -78,7 +85,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   const navLinks = getNavLinks();
 
-  const SidebarContent = () => (
+  return (
     <div className="flex flex-col h-full bg-white border-r border-slate-200 text-slate-900">
       {/* Logo Area */}
       <div className="px-6 py-8">
@@ -167,12 +174,26 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       </div>
     </div>
   );
+};
+
+const Layout = ({ children }: { children: React.ReactNode }) => {
+  const { profile, roles, signOut, loading: authLoading } = useAuth();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  const isTeacher = roles?.includes("teacher") || false;
+  const isAdmin = roles?.includes("admin") || false;
 
   return (
     <div className="min-h-screen flex bg-slate-50 text-slate-900 font-sans">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-[260px] flex-col fixed inset-y-0 z-50">
-        <SidebarContent />
+        <SidebarContent 
+          profile={profile}
+          roles={roles}
+          signOut={signOut}
+          authLoading={authLoading}
+          setMobileOpen={setMobileOpen}
+        />
       </aside>
 
       {/* Main Container */}
@@ -211,7 +232,13 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                       <X className="h-6 w-6" />
                    </Button>
                 </div>
-                <SidebarContent />
+                <SidebarContent 
+                  profile={profile}
+                  roles={roles}
+                  signOut={signOut}
+                  authLoading={authLoading}
+                  setMobileOpen={setMobileOpen}
+                />
               </motion.aside>
             </div>
           )}

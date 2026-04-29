@@ -186,7 +186,7 @@ const LessonPage = () => {
         .eq("user_id", user.id)
         .eq("course_id", lesson.course_id);
         
-      console.log(`Updated progress: ${progressPercent}% (${completed}/${total})`);
+      console.log(`Updated progress: ${progressPercent}% (${completedCount}/${total})`);
     } catch (err) { 
       console.error("Error updating progress:", err); 
     }

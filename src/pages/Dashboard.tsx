@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
@@ -127,7 +126,67 @@ const Dashboard = () => {
     ? Math.round(enrollments.reduce((sum, e) => sum + Number(e.progress), 0) / enrollments.length)
     : 0;
 
+  const enrollmentsContent = enrollments.length === 0 ? (
+    <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-3xl border border-slate-100 shadow-sm">
+       <div className="h-20 w-20 rounded-full bg-slate-50 flex items-center justify-center mb-6">
+         <Sparkles className="h-8 w-8 text-slate-400" />
+       </div>
+       <h3 className="text-xl font-bold text-slate-900 mb-2">Hozircha kurslar yo'q</h3>
+       <p className="text-slate-500 mb-6">Yangi kurslarni kashf eting va o'qishni boshlang.</p>
+       <Link to="/student/courses">
+         <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-8 font-semibold">
+           Katalogni ochish
+         </Button>
+       </Link>
+    </div>
+  ) : (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+      {enrollments.map((enrollment) => (
+        <Card key={enrollment.id} className="rounded-3xl border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all group flex flex-col bg-white">
+          <div className="h-48 bg-slate-100 relative overflow-hidden flex items-center justify-center">
+             {enrollment.courses?.image_url ? (
+               <img src={enrollment.courses.image_url} alt={enrollment.courses.title} className="absolute inset-0 w-full h-full object-cover" />
+             ) : (
+               <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 opacity-40" />
+             )}
+             <Badge className="absolute top-4 left-4 bg-white/90 text-indigo-600 hover:bg-white border-none font-bold rounded-full">
+               {enrollment.courses?.category || "Fan"}
+             </Badge>
+          </div>
+          
+          <CardContent className="p-6 flex-1 flex flex-col">
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="text-lg font-bold text-slate-900 line-clamp-2 pr-4 group-hover:text-indigo-600 transition-colors">{enrollment.courses?.title}</h3>
+              <button className="text-slate-400 hover:text-slate-600 shrink-0"><MoreVertical className="h-5 w-5" /></button>
+            </div>
+            
+            <div className="mt-auto space-y-4 pt-4">
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-semibold">
+                  <span className="text-slate-600">O'zlashtirish</span>
+                  <span className="text-indigo-600">{enrollment.progress}%</span>
+                </div>
+                <Progress value={enrollment.progress} className="h-2 bg-slate-100 [&>div]:bg-indigo-600" />
+              </div>
+              
+              <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
+                <Clock className="h-3.5 w-3.5" /> Oxirgi faollik: {enrollment.last_accessed ? new Date(enrollment.last_accessed).toLocaleDateString() : "Bugun"}
+              </div>
+              
+              <Link to={`/student/courses/${enrollment.course_id}`}>
+                <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-full font-semibold h-11 mt-2 shadow-sm transition-all">
+                  <PlayCircle className="mr-2 h-5 w-5" /> Davom ettirish
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+
   return (
+    <>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 mt-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">
@@ -202,67 +261,11 @@ const Dashboard = () => {
             </Link>
           </div>
 
-          {enrollments.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-3xl border border-slate-100 shadow-sm">
-               <div className="h-20 w-20 rounded-full bg-slate-50 flex items-center justify-center mb-6">
-                 <Sparkles className="h-8 w-8 text-slate-400" />
-               </div>
-               <h3 className="text-xl font-bold text-slate-900 mb-2">Hozircha kurslar yo'q</h3>
-               <p className="text-slate-500 mb-6">Yangi kurslarni kashf eting va o'qishni boshlang.</p>
-               <Link to="/student/courses">
-                 <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-8 font-semibold">
-                   Katalogni ochish
-                 </Button>
-               </Link>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-              {enrollments.map((enrollment) => (
-                <Card key={enrollment.id} className="rounded-3xl border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all group flex flex-col bg-white">
-                  <div className="h-48 bg-slate-100 relative overflow-hidden flex items-center justify-center">
-                     {enrollment.courses?.image_url ? (
-                       <img src={enrollment.courses.image_url} alt={enrollment.courses.title} className="absolute inset-0 w-full h-full object-cover" />
-                     ) : (
-                       <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 opacity-40" />
-                     )}
-                     <Badge className="absolute top-4 left-4 bg-white/90 text-indigo-600 hover:bg-white border-none font-bold rounded-full">
-                       {enrollment.courses?.category || "Fan"}
-                     </Badge>
-                  </div>
-                  
-                  <CardContent className="p-6 flex-1 flex flex-col">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-bold text-slate-900 line-clamp-2 pr-4 group-hover:text-indigo-600 transition-colors">{enrollment.courses?.title}</h3>
-                      <button className="text-slate-400 hover:text-slate-600 shrink-0"><MoreVertical className="h-5 w-5" /></button>
-                    </div>
-                    
-                    <div className="mt-auto space-y-4 pt-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs font-semibold">
-                          <span className="text-slate-600">O'zlashtirish</span>
-                          <span className="text-indigo-600">{enrollment.progress}%</span>
-                        </div>
-                        <Progress value={enrollment.progress} className="h-2 bg-slate-100 [&>div]:bg-indigo-600" />
-                      </div>
-                      
-                      <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-                        <Clock className="h-3.5 w-3.5" /> Oxirgi faollik: {enrollment.last_accessed ? new Date(enrollment.last_accessed).toLocaleDateString() : "Bugun"}
-                      </div>
-                      
-                      <Link to={`/student/courses/${enrollment.course_id}`}>
-                        <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-full font-semibold h-11 mt-2 shadow-sm transition-all">
-                          <PlayCircle className="mr-2 h-5 w-5" /> Davom ettirish
-                        </Button>
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          {enrollmentsContent}
 
         </div>
-      </div>
+      )}
+    </>
   );
 };
 

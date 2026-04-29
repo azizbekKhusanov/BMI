@@ -1,17 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import Layout from "@/components/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
-   BookOpen, Users, Brain, ClipboardList, Activity, ArrowLeft, 
-   Plus, Video, FileText, CheckCircle2, MoreVertical, LayoutGrid, Globe,
-   Clock, Sparkles, Settings2, Trash2, GraduationCap, TrendingUp,
-   MessageSquare, HelpCircle, UserCheck, Wand2, Search, Edit, Upload, Loader2, Youtube, ExternalLink,
-   ChevronRight, BarChart3, Target, Pencil, PlusCircle, Bookmark, Info, Zap, Layout as LayoutIcon
+   BookOpen, Users, Brain, ClipboardList, ArrowLeft, 
+   Plus, Video, FileText, Globe, Clock, Settings2, Trash2, 
+   UserCheck, Youtube, ChevronRight, PlusCircle, Upload, Loader2, LayoutIcon
 } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,10 +16,8 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -32,11 +26,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
-import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface Course {
@@ -60,6 +52,7 @@ interface Enrollment {
   id: string;
   user_id: string;
   course_id: string;
+  progress: number;
   profiles: {
     full_name: string | null;
     avatar_url: string | null;
@@ -68,7 +61,6 @@ interface Enrollment {
 
 const TeacherCourseDetail = () => {
   const { id } = useParams();
-  const { profile } = useAuth();
   const navigate = useNavigate();
   const [course, setCourse] = useState<Course | null>(null);
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -250,68 +242,65 @@ const TeacherCourseDetail = () => {
   };
 
   if (loading) return (
-      <div className="max-w-7xl mx-auto space-y-12 animate-fade-in p-8 lg:p-12">
-        <Skeleton className="h-16 w-1/3 rounded-[2rem]" />
-        <Skeleton className="h-[400px] w-full rounded-[4rem]" />
+      <div className="max-w-6xl mx-auto space-y-8 p-8">
+        <Skeleton className="h-10 w-1/3 rounded-lg" />
+        <Skeleton className="h-64 w-full rounded-xl" />
       </div>
   );
 
   return (
-      <div className="max-w-7xl mx-auto py-6 px-4 lg:px-8 space-y-12 animate-fade-in">
+    <>
+      <div className="max-w-6xl mx-auto py-8 px-6 space-y-8">
         
-        {/* Premium Header Section */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10">
-           <div className="flex items-center gap-6">
+        {/* Header Section */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+           <div className="flex items-center gap-4">
               <Link to="/teacher/courses">
-                 <Button variant="outline" className="h-16 w-16 rounded-[2rem] border-slate-100 shadow-sm hover:bg-slate-50 transition-all flex items-center justify-center">
-                    <ArrowLeft className="h-6 w-6 text-slate-400" />
+                 <Button variant="outline" className="h-10 w-10 rounded-lg border-slate-200 shadow-sm p-0 flex items-center justify-center text-slate-500">
+                    <ArrowLeft className="h-4 w-4" />
                  </Button>
               </Link>
-              <div className="space-y-3">
-                 <div className="flex items-center gap-3">
-                    <Badge className={`${course?.is_published ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"} border-none font-black text-[9px] uppercase tracking-[0.2em] px-4 py-1.5 rounded-full`}>
-                       {course?.is_published ? "Published" : "Draft Mode"}
+              <div>
+                 <div className="flex items-center gap-3 mb-1">
+                    <Badge className={`${course?.is_published ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"} border-none font-semibold text-[10px] uppercase tracking-wide px-2 py-0.5 rounded`}>
+                       {course?.is_published ? "Nashr etilgan" : "Qoralama"}
                     </Badge>
                  </div>
-                 <h1 className="text-4xl lg:text-5xl font-black text-slate-900 uppercase italic tracking-tight leading-none">{course?.title}</h1>
+                 <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 leading-tight">{course?.title}</h1>
               </div>
            </div>
            
-           <div className="flex flex-wrap items-center gap-4">
+           <div className="flex flex-wrap items-center gap-3">
               <Button 
                 variant="outline" 
                 onClick={togglePublish}
-                className={`h-16 px-10 rounded-2xl font-black uppercase text-xs tracking-widest transition-all gap-3 border-none shadow-xl ${course?.is_published ? "bg-amber-50 text-amber-600" : "bg-emerald-50 text-emerald-600"}`}
+                className={`h-10 px-4 rounded-lg font-medium text-sm transition-all border-slate-200 shadow-sm ${course?.is_published ? "bg-amber-50 text-amber-600 hover:bg-amber-100" : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"}`}
               >
-                {course?.is_published ? <Clock className="h-5 w-5" /> : <Globe className="h-5 w-5" />}
-                {course?.is_published ? "Make Draft" : "Go Live"}
+                {course?.is_published ? <Clock className="h-4 w-4 mr-2" /> : <Globe className="h-4 w-4 mr-2" />}
+                {course?.is_published ? "Qoralamaga o'tkazish" : "Nashr etish"}
               </Button>
 
               <Button 
                 variant="outline" 
                 onClick={() => setSettingsOpen(true)}
-                className="h-16 px-10 rounded-2xl bg-white border-none shadow-xl font-black uppercase text-xs tracking-widest text-slate-900 gap-3"
+                className="h-10 px-4 rounded-lg bg-white border border-slate-200 shadow-sm font-medium text-sm text-slate-700 hover:bg-slate-50"
               >
-                <Settings2 className="h-5 w-5" /> Sozlamalar
+                <Settings2 className="h-4 w-4 mr-2" /> Sozlamalar
               </Button>
               
               <DropdownMenu>
                  <DropdownMenuTrigger asChild>
-                    <Button className="h-16 px-10 rounded-2xl bg-primary text-white font-black uppercase text-xs tracking-widest shadow-2xl shadow-primary/20 gap-3">
-                       <PlusCircle className="h-5 w-5" /> Yangi Kontent
+                    <Button className="h-10 px-4 rounded-lg bg-[#0056d2] hover:bg-[#00419e] text-white font-medium text-sm shadow-sm">
+                       <PlusCircle className="h-4 w-4 mr-2" /> Yangi Kontent
                     </Button>
                  </DropdownMenuTrigger>
-                 <DropdownMenuContent align="end" className="w-72 rounded-[2.5rem] border-none shadow-2xl p-4 bg-white/95 backdrop-blur-xl">
-                    <DropdownMenuItem onClick={() => setAddLessonOpen(true)} className="rounded-2xl p-5 cursor-pointer font-black text-[10px] uppercase tracking-widest text-slate-600 gap-4 hover:bg-primary/5 group transition-all">
-                       <div className="h-12 w-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all shadow-inner">
-                          <Video className="h-6 w-6" />
-                       </div>
+                 <DropdownMenuContent align="end" className="w-56 rounded-xl border border-slate-200 shadow-md p-2 bg-white">
+                    <DropdownMenuItem onClick={() => setAddLessonOpen(true)} className="rounded-md p-3 cursor-pointer font-medium text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                       <Video className="h-4 w-4 mr-3 text-slate-400" />
                        Dars qo'shish
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setAddTestOpen(true)} className="rounded-2xl p-5 cursor-pointer font-black text-[10px] uppercase tracking-widest text-slate-600 gap-4 hover:bg-amber-50 group transition-all">
-                       <div className="h-12 w-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:bg-amber-600 group-hover:text-white transition-all shadow-inner">
-                          <ClipboardList className="h-6 w-6" />
-                       </div>
+                    <DropdownMenuItem onClick={() => setAddTestOpen(true)} className="rounded-md p-3 cursor-pointer font-medium text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                       <ClipboardList className="h-4 w-4 mr-3 text-slate-400" />
                        Test yaratish
                     </DropdownMenuItem>
                  </DropdownMenuContent>
@@ -321,8 +310,8 @@ const TeacherCourseDetail = () => {
 
         {/* Unified Tabs System */}
         <Tabs defaultValue="curriculum" className="w-full" onValueChange={setActiveTab}>
-          <div className="flex justify-center mb-16">
-             <TabsList className="bg-white/50 backdrop-blur-md border border-white shadow-2xl p-2 rounded-[3rem] h-auto space-x-2">
+          <div className="mb-8 border-b border-slate-200">
+             <TabsList className="bg-transparent border-none p-0 h-auto space-x-6">
                {[
                  { id: "curriculum", label: "Darslar", icon: LayoutIcon },
                  { id: "students", label: "Talabalar", icon: Users },
@@ -331,60 +320,58 @@ const TeacherCourseDetail = () => {
                  <TabsTrigger 
                    key={t.id} 
                    value={t.id} 
-                   className="rounded-[2.5rem] px-10 py-4 text-[11px] font-black uppercase tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white transition-all gap-3"
+                   className="rounded-none border-b-2 border-transparent px-2 py-3 text-sm font-semibold text-slate-500 data-[state=active]:border-[#0056d2] data-[state=active]:text-[#0056d2] data-[state=active]:bg-transparent data-[state=active]:shadow-none transition-colors"
                  >
-                   <t.icon className="h-5 w-5" /> {t.label}
+                   <t.icon className="h-4 w-4 mr-2" /> {t.label}
                  </TabsTrigger>
                ))}
              </TabsList>
           </div>
 
-          <TabsContent value="curriculum" className="space-y-10 focus-visible:outline-none">
-             <div className="flex items-center justify-between px-6">
-                <h2 className="text-2xl font-black text-slate-900 uppercase italic tracking-tight flex items-center gap-4">
-                   <BookOpen className="h-6 w-6 text-primary" /> Kurs Mundarijasi
+          <TabsContent value="curriculum" className="space-y-6 focus-visible:outline-none">
+             <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                   Kurs Mundarijasi
                 </h2>
-                <Badge className="bg-slate-50 text-slate-400 border-none font-black text-[9px] uppercase tracking-widest px-4 py-1.5 rounded-full">
-                   {lessons.length} Dars mavjud
+                <Badge className="bg-slate-100 text-slate-500 border-none font-medium text-xs rounded-md">
+                   {lessons.length} ta dars
                 </Badge>
              </div>
 
-             <div className="grid gap-6">
+             <div className="grid gap-4">
                 {lessons.length === 0 ? (
-                   <div className="py-32 text-center space-y-8 bg-slate-50/50 rounded-[4rem] border-4 border-dashed border-slate-100 flex flex-col items-center">
-                      <div className="h-32 w-32 rounded-[3rem] bg-white shadow-2xl flex items-center justify-center text-slate-200">
-                         <Plus className="h-12 w-12" />
+                   <div className="py-16 text-center space-y-4 bg-white rounded-xl border border-dashed border-slate-200 flex flex-col items-center">
+                      <div className="h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+                         <Plus className="h-6 w-6" />
                       </div>
-                      <div className="space-y-2">
-                         <h3 className="text-3xl font-black text-slate-900 uppercase italic">Kurs hali bo'sh</h3>
-                         <p className="text-slate-400 font-medium italic">Birinchi darsni qo'shish orqali kursingizni shakllantiring.</p>
+                      <div className="space-y-1">
+                         <h3 className="text-lg font-bold text-slate-900">Kurs hali bo'sh</h3>
+                         <p className="text-sm text-slate-500 font-medium">Birinchi darsni qo'shish orqali kursingizni shakllantiring.</p>
                       </div>
-                      <Button onClick={() => setAddLessonOpen(true)} variant="link" className="text-primary font-black uppercase text-xs tracking-[0.2em] hover:scale-105 transition-transform">Start Building Now</Button>
+                      <Button onClick={() => setAddLessonOpen(true)} variant="link" className="text-[#0056d2] font-semibold text-sm">Dars qo'shish</Button>
                    </div>
                 ) : (
                    lessons.map((lesson) => (
-                     <motion.div key={lesson.id} whileHover={{ scale: 1.01 }} className="group">
                        <Card 
+                         key={lesson.id}
                          onClick={() => navigate(`/lessons/${lesson.id}`)}
-                         className="rounded-[3.5rem] border-none shadow-sm hover:shadow-2xl hover:shadow-primary/5 bg-white p-8 cursor-pointer transition-all duration-700 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-10"
+                         className="rounded-xl border border-slate-200 shadow-sm hover:shadow-md bg-white p-4 cursor-pointer transition-shadow flex flex-col md:flex-row items-center justify-between gap-4"
                        >
-                          <div className="flex items-center gap-10">
-                             <div className="h-20 w-20 rounded-[2rem] bg-primary/5 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all shadow-inner">
-                                {lesson.content_type === 'video' ? <Video className="h-8 w-8" /> : <FileText className="h-8 w-8" />}
+                          <div className="flex items-center gap-4">
+                             <div className="h-12 w-12 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+                                {lesson.content_type === 'video' ? <Video className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
                              </div>
-                             <div className="space-y-3">
-                                <div className="flex items-center gap-4">
-                                   <h3 className="text-2xl font-black text-slate-900 uppercase italic tracking-tight group-hover:text-primary transition-colors leading-none">{lesson.title}</h3>
-                                   <Badge className="bg-slate-50 text-slate-400 border-none text-[8px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-lg italic">{lesson.content_type}</Badge>
+                             <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                   <Badge className="bg-slate-100 text-slate-500 border-none text-[10px] font-semibold uppercase tracking-wide rounded">
+                                     {lesson.content_type}
+                                   </Badge>
                                 </div>
-                                <div className="flex items-center gap-6 text-slate-400 text-[10px] font-bold uppercase tracking-widest italic">
-                                   <span className="flex items-center gap-2"><Clock className="h-4 w-4 opacity-50" /> Estimated: 45 min</span>
-                                   <span className="flex items-center gap-2 text-primary/60"><Zap className="h-4 w-4" /> AI Quiz Enabled</span>
-                                </div>
+                                <h3 className="text-base font-bold text-slate-900 leading-none">{lesson.title}</h3>
                              </div>
                           </div>
                           
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
                              <Button 
                                variant="ghost" 
                                size="icon" 
@@ -393,65 +380,67 @@ const TeacherCourseDetail = () => {
                                   setLessonToDelete(lesson.id);
                                   setDeleteConfirmOpen(true);
                                }}
-                               className="h-16 w-16 rounded-[2rem] text-slate-100 hover:text-rose-500 hover:bg-rose-50 transition-all opacity-0 group-hover:opacity-100"
+                               className="h-8 w-8 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50"
                              >
-                                <Trash2 className="h-6 w-6" />
+                                <Trash2 className="h-4 w-4" />
                              </Button>
-                             <div className="h-16 w-16 rounded-[2.5rem] bg-slate-50 text-slate-300 flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-all shadow-xl">
-                                <ChevronRight className="h-7 w-7" />
+                             <div className="h-8 w-8 rounded-md text-slate-400 flex items-center justify-center">
+                                <ChevronRight className="h-5 w-5" />
                              </div>
                           </div>
                        </Card>
-                     </motion.div>
                    ))
                 )}
              </div>
           </TabsContent>
 
           <TabsContent value="students" className="mt-0 focus-visible:outline-none">
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {enrollments.map((en) => (
-                  <motion.div key={en.id} whileHover={{ y: -10 }} className="group">
-                    <Card className="rounded-[4rem] border-none shadow-xl bg-white p-12 overflow-hidden relative group h-[450px] flex flex-col justify-between">
-                       <div className="absolute top-0 right-0 h-40 w-40 bg-primary/5 rounded-full -mr-20 -mt-20 group-hover:bg-primary group-hover:opacity-100 transition-all duration-700 opacity-50 blur-2xl" />
-                       <div className="relative z-10 space-y-8">
-                          <Avatar className="h-28 w-28 rounded-[2.5rem] border-[6px] border-white ring-2 ring-slate-50 shadow-2xl">
+                    <Card key={en.id} className="rounded-xl border border-slate-200 shadow-sm bg-white p-6 flex flex-col">
+                       <div className="flex items-center gap-4 mb-6">
+                          <Avatar className="h-14 w-14 rounded-full border border-slate-100">
                              <AvatarImage src={en.profiles?.avatar_url || undefined} />
-                             <AvatarFallback className="bg-primary text-white font-black text-3xl">{en.profiles?.full_name?.[0]}</AvatarFallback>
+                             <AvatarFallback className="bg-slate-100 text-slate-600 font-bold text-lg">{en.profiles?.full_name?.[0]}</AvatarFallback>
                           </Avatar>
-                          <div className="space-y-3">
-                             <h3 className="text-2xl font-black text-slate-900 uppercase italic tracking-tight leading-tight">{en.profiles?.full_name || "Noma'lum"}</h3>
-                             <p className="text-[10px] font-black text-primary uppercase tracking-[0.2em] italic">Full Access Student</p>
-                          </div>
-                          <div className="space-y-4">
-                             <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-widest italic">
-                                <span className="text-slate-400">Total Mastery</span>
-                                <span className="text-primary">35%</span>
-                             </div>
-                             <div className="h-3 w-full bg-slate-50 rounded-full overflow-hidden shadow-inner"><div className="h-full bg-primary" style={{ width: '35%' }} /></div>
+                          <div>
+                             <h3 className="text-base font-bold text-slate-900 leading-tight">{en.profiles?.full_name || "Noma'lum"}</h3>
+                             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Talaba</p>
                           </div>
                        </div>
-                       <Button variant="outline" className="w-full h-16 rounded-[2rem] border-slate-100 font-black uppercase text-[10px] tracking-widest gap-2 group-hover:bg-slate-900 group-hover:text-white transition-all border-none shadow-xl">
-                          <UserCheck className="h-5 w-5" /> View Profile
+                       <div className="space-y-3 mb-6 flex-1">
+                          <div className="flex items-center justify-between text-xs font-medium text-slate-600">
+                             <span>O'zlashtirish</span>
+                             <span className="font-bold text-slate-900">{en.progress || 0}%</span>
+                          </div>
+                          <Progress value={en.progress || 0} className="h-2 rounded-full bg-slate-100" />
+                       </div>
+                       <Button variant="outline" className="w-full h-10 rounded-lg border-slate-200 font-semibold text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                          <UserCheck className="h-4 w-4 mr-2" /> Profilni ko'rish
                        </Button>
                     </Card>
-                  </motion.div>
                 ))}
+                {enrollments.length === 0 && (
+                  <div className="col-span-full py-12 text-center text-slate-500 font-medium border border-dashed border-slate-200 rounded-xl">
+                    Hozircha kursga yozilgan talabalar yo'q.
+                  </div>
+                )}
              </div>
           </TabsContent>
 
           <TabsContent value="analytics" className="mt-0 focus-visible:outline-none">
-             <div className="py-40 text-center space-y-10 bg-white rounded-[5rem] shadow-2xl border-none relative overflow-hidden">
-                <div className="absolute inset-0 bg-primary/5 opacity-30" />
-                <div className="h-40 w-40 bg-white rounded-[3.5rem] flex items-center justify-center text-primary mx-auto shadow-2xl relative z-10 animate-bounce duration-[3000ms]">
-                   <Wand2 className="h-16 w-16" />
+             <div className="py-24 text-center space-y-6 bg-white rounded-xl shadow-sm border border-slate-200">
+                <div className="h-16 w-16 bg-blue-50 rounded-lg flex items-center justify-center text-[#0056d2] mx-auto">
+                   <Brain className="h-8 w-8" />
                 </div>
-                <div className="space-y-4 relative z-10">
-                   <h2 className="text-5xl font-black text-slate-900 uppercase italic tracking-tighter leading-none">Meta Analytics AI</h2>
-                   <p className="text-slate-400 font-medium italic text-lg max-w-xl mx-auto leading-relaxed">Sizning o'quvchilaringizning metakognitiv ko'nikmalari va kurs samaradorligini sun'iy intellekt yordamida tahlil qiling.</p>
+                <div className="space-y-2">
+                   <h2 className="text-2xl font-bold text-slate-900">Metakognitiv Tahlil</h2>
+                   <p className="text-slate-500 font-medium text-sm max-w-md mx-auto">
+                     Sizning o'quvchilaringizning metakognitiv ko'nikmalari va kurs samaradorligini sun'iy intellekt yordamida tahlil qiling.
+                   </p>
                 </div>
-                <Button className="h-20 px-16 rounded-[2.5rem] bg-slate-900 text-white font-black uppercase text-xs tracking-[0.3em] shadow-2xl hover:scale-[1.02] transition-all gap-4 relative z-10">
-                   <Zap className="h-6 w-6 text-primary" /> Generate Insights
+                <Button className="h-10 px-8 rounded-lg bg-[#0056d2] text-white font-medium text-sm shadow-sm hover:bg-[#00419e] transition-colors mt-4">
+                   <Brain className="h-4 w-4 mr-2" /> Tahlil qilish
                 </Button>
              </div>
           </TabsContent>
@@ -460,43 +449,42 @@ const TeacherCourseDetail = () => {
 
       {/* Add Lesson Dialog */}
       <Dialog open={addLessonOpen} onOpenChange={setAddLessonOpen}>
-        <DialogContent className="rounded-[4rem] p-0 max-w-2xl border-none shadow-2xl bg-white overflow-hidden">
-          <div className="bg-slate-900 p-12 text-white relative">
-             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -translate-y-10 translate-x-10" />
-             <DialogHeader className="relative z-10">
-               <DialogTitle className="text-4xl font-black uppercase italic tracking-tight leading-none">Yangi Dars</DialogTitle>
-               <DialogDescription className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-4">
+        <DialogContent className="rounded-xl p-0 max-w-xl border border-slate-200 shadow-lg bg-white overflow-hidden">
+          <div className="bg-slate-50 border-b border-slate-200 p-6">
+             <DialogHeader>
+               <DialogTitle className="text-xl font-bold text-slate-900">Yangi Dars</DialogTitle>
+               <DialogDescription className="text-slate-500 font-medium text-sm mt-1">
                   Kurs mundarijasini boyitishni davom eting
                </DialogDescription>
              </DialogHeader>
           </div>
-          <div className="p-12 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
-            <div className="space-y-3">
-              <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Dars Sarlavhasi</Label>
+          <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Dars Sarlavhasi</Label>
               <Input 
                 value={newLesson.title}
                 onChange={(e) => setNewLesson({ ...newLesson, title: e.target.value })}
-                placeholder="Masalan: JavaScript Metakognitsiyasi" 
-                className="h-18 rounded-[2rem] border-slate-100 bg-slate-50/50 shadow-inner px-8 text-lg font-bold focus-visible:ring-primary/20" 
+                placeholder="Masalan: JavaScript asoslari" 
+                className="h-10 rounded-lg border-slate-200 font-medium" 
               />
             </div>
-            <div className="space-y-3">
-              <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">YouTube Video URL</Label>
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">YouTube Video URL</Label>
               <div className="relative">
-                 <Youtube className="absolute left-8 top-1/2 -translate-y-1/2 h-6 w-6 text-red-500" />
+                 <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                  <Input 
                   value={newLesson.video_url}
                   onChange={(e) => setNewLesson({ ...newLesson, video_url: e.target.value })}
                   placeholder="https://www.youtube.com/watch?v=..." 
-                  className="h-18 rounded-[2rem] border-slate-100 bg-slate-50/50 shadow-inner pl-18 pr-8 text-base font-bold" 
+                  className="h-10 rounded-lg border-slate-200 pl-9 font-medium" 
                  />
               </div>
             </div>
           </div>
-          <div className="p-12 bg-slate-50 border-t border-slate-100 flex gap-4">
-            <Button variant="ghost" onClick={() => setAddLessonOpen(false)} className="h-18 flex-1 rounded-[2rem] font-black uppercase text-xs tracking-widest text-slate-400">Bekor qilish</Button>
-            <Button onClick={handleAddLesson} disabled={isAddingLesson} className="h-18 flex-2 px-12 rounded-[2rem] bg-slate-900 text-white font-black uppercase text-xs tracking-widest shadow-2xl hover:scale-[1.02] transition-all">
-               {isAddingLesson ? <Loader2 className="h-6 w-6 animate-spin" /> : "Tasdiqlash va Saqlash"}
+          <div className="p-6 bg-slate-50 border-t border-slate-200 flex gap-3">
+            <Button variant="outline" onClick={() => setAddLessonOpen(false)} className="h-10 flex-1 rounded-lg font-medium text-slate-600 border-slate-200">Bekor qilish</Button>
+            <Button onClick={handleAddLesson} disabled={isAddingLesson} className="h-10 flex-[2] rounded-lg bg-[#0056d2] text-white font-medium hover:bg-[#00419e] transition-colors">
+               {isAddingLesson ? <Loader2 className="h-4 w-4 animate-spin" /> : "Saqlash"}
             </Button>
           </div>
         </DialogContent>
@@ -504,56 +492,52 @@ const TeacherCourseDetail = () => {
 
       {/* Course Settings Dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="rounded-[4rem] p-0 max-w-3xl border-none shadow-2xl bg-white overflow-hidden">
-          <div className="bg-slate-900 p-12 text-white relative">
-             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -translate-y-10 translate-x-10" />
-             <DialogHeader className="relative z-10 flex flex-row items-center justify-between">
-               <div>
-                  <DialogTitle className="text-4xl font-black uppercase italic tracking-tight leading-none">Kurs Sozlamalari</DialogTitle>
-                  <DialogDescription className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mt-4">Platformadagi vizual ko'rinishni tahrirlash</DialogDescription>
-               </div>
-               <Button onClick={() => setCourseDeleteConfirmOpen(true)} className="h-16 w-16 rounded-3xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition-all border-none">
-                  <Trash2 className="h-6 w-6" />
-               </Button>
-             </DialogHeader>
+        <DialogContent className="rounded-xl p-0 max-w-2xl border border-slate-200 shadow-lg bg-white overflow-hidden">
+          <div className="bg-slate-50 border-b border-slate-200 p-6 flex items-center justify-between">
+             <div>
+                <DialogTitle className="text-xl font-bold text-slate-900">Kurs Sozlamalari</DialogTitle>
+             </div>
+             <Button onClick={() => setCourseDeleteConfirmOpen(true)} variant="ghost" className="h-10 w-10 p-0 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-600">
+                <Trash2 className="h-5 w-5" />
+             </Button>
           </div>
-          <div className="p-12 grid grid-cols-1 md:grid-cols-2 gap-12 max-h-[70vh] overflow-y-auto custom-scrollbar">
-            <div className="space-y-8">
-               <div className="space-y-3">
-                 <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Kurs Nomi</Label>
+          <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[70vh] overflow-y-auto">
+            <div className="space-y-5">
+               <div className="space-y-2">
+                 <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Kurs Nomi</Label>
                  <Input 
                    value={editCourse.title}
                    onChange={(e) => setEditCourse({ ...editCourse, title: e.target.value })}
-                   className="h-16 rounded-[2rem] border-slate-100 bg-slate-50/50 shadow-inner px-8 font-bold" 
+                   className="h-10 rounded-lg border-slate-200 font-medium" 
                  />
                </div>
-               <div className="space-y-3">
-                 <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Kurs Tavsifi</Label>
+               <div className="space-y-2">
+                 <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Kurs Tavsifi</Label>
                  <Textarea 
                    value={editCourse.description}
                    onChange={(e) => setEditCourse({ ...editCourse, description: e.target.value })}
-                   className="min-h-[200px] rounded-[3rem] border-slate-100 bg-slate-50/50 shadow-inner p-8 text-base font-medium" 
+                   className="min-h-[120px] rounded-lg border-slate-200 font-medium text-sm p-3" 
                  />
                </div>
             </div>
             
-            <div className="space-y-8">
-               <Label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-3">Cover Image Preview</Label>
+            <div className="space-y-2">
+               <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Muqova Rasmi</Label>
                <div 
                  onClick={() => document.getElementById('edit-course-image-upload')?.click()}
-                 className="group relative h-full w-full rounded-[4rem] border-2 border-dashed border-slate-200 bg-slate-50/50 flex flex-col items-center justify-center cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all overflow-hidden shadow-inner min-h-[300px]"
+                 className="group relative h-40 w-full rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 flex flex-col items-center justify-center cursor-pointer hover:border-[#0056d2]/40 hover:bg-[#0056d2]/5 transition-colors overflow-hidden"
                >
                  {editCourse.image_url ? (
                    <>
                      <img src={editCourse.image_url} className="h-full w-full object-cover" alt="Preview" />
-                     <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
-                        <Upload className="h-10 w-10 text-white" />
+                     <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Upload className="h-6 w-6 text-white" />
                      </div>
                    </>
                  ) : (
-                   <div className="flex flex-col items-center text-slate-400 group-hover:text-primary transition-colors italic">
-                     <Plus className="h-12 w-12 mb-2" />
-                     <span className="text-[10px] font-black uppercase tracking-widest">Update Image</span>
+                   <div className="flex flex-col items-center text-slate-400">
+                     <Plus className="h-6 w-6 mb-1" />
+                     <span className="text-xs font-medium">Rasm yuklash</span>
                    </div>
                  )}
                  <input 
@@ -572,16 +556,16 @@ const TeacherCourseDetail = () => {
                          setEditCourse(prev => ({ ...prev, image_url: data.publicUrl }));
                          setIsUploadingImage(false);
                          return data.publicUrl;
-                       }, { loading: 'Uploading...', success: 'Done!', error: 'Error uploading' }
+                       }, { loading: 'Yuklanmoqda...', success: 'Yuklandi!', error: 'Yuklashda xatolik' }
                      );
                    }}
                  />
                </div>
             </div>
           </div>
-          <div className="p-12 bg-slate-50 border-t border-slate-100">
-            <Button onClick={handleUpdateCourse} disabled={isUpdatingCourse || isUploadingImage} className="h-18 w-full rounded-[2rem] bg-slate-900 text-white font-black uppercase text-xs tracking-[0.3em] shadow-2xl hover:scale-[1.01] transition-all">
-               {isUpdatingCourse ? <Loader2 className="h-6 w-6 animate-spin" /> : "Save All Changes"}
+          <div className="p-6 bg-slate-50 border-t border-slate-200">
+            <Button onClick={handleUpdateCourse} disabled={isUpdatingCourse || isUploadingImage} className="h-10 w-full rounded-lg bg-[#0056d2] text-white font-medium hover:bg-[#00419e] transition-colors">
+               {isUpdatingCourse ? <Loader2 className="h-4 w-4 animate-spin" /> : "Saqlash"}
             </Button>
           </div>
         </DialogContent>
@@ -589,34 +573,37 @@ const TeacherCourseDetail = () => {
 
       {/* Delete Confirmations */}
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <DialogContent className="rounded-[3rem] p-12 max-w-md border-none shadow-2xl text-center space-y-6">
-           <div className="h-24 w-24 bg-rose-50 text-rose-500 rounded-[2rem] flex items-center justify-center mx-auto shadow-inner"><Trash2 className="h-10 w-10" /></div>
-           <div className="space-y-3">
-              <h2 className="text-3xl font-black text-slate-900 uppercase italic leading-none">Darsni o'chirish?</h2>
-              <p className="text-slate-400 font-medium italic">Ushbu amalni ortga qaytarib bo'lmaydi.</p>
+        <DialogContent className="rounded-xl p-6 max-w-sm border border-slate-200 shadow-lg text-center space-y-4">
+           <div className="h-12 w-12 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto">
+             <Trash2 className="h-6 w-6" />
            </div>
-           <div className="flex gap-4 pt-4">
-              <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)} className="h-16 flex-1 rounded-2xl font-black uppercase text-[10px] tracking-widest text-slate-400">Bekor qilish</Button>
-              <Button onClick={handleDeleteLesson} className="h-16 flex-1 rounded-2xl bg-rose-500 text-white font-black uppercase text-[10px] tracking-widest shadow-xl shadow-rose-100">O'chirish</Button>
+           <div className="space-y-1">
+              <h2 className="text-lg font-bold text-slate-900">Darsni o'chirish?</h2>
+              <p className="text-slate-500 text-sm font-medium">Ushbu amalni ortga qaytarib bo'lmaydi.</p>
+           </div>
+           <div className="flex gap-3 pt-2">
+              <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)} className="h-10 flex-1 rounded-lg font-medium text-slate-600 border-slate-200">Bekor qilish</Button>
+              <Button onClick={handleDeleteLesson} className="h-10 flex-1 rounded-lg bg-rose-600 text-white font-medium hover:bg-rose-700">O'chirish</Button>
            </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={courseDeleteConfirmOpen} onOpenChange={setCourseDeleteConfirmOpen}>
-        <DialogContent className="rounded-[3rem] p-12 max-w-md border-none shadow-2xl text-center space-y-6">
-           <div className="h-24 w-24 bg-rose-500 text-white rounded-[2rem] flex items-center justify-center mx-auto shadow-2xl">
-              <Trash2 className="h-10 w-10" />
+        <DialogContent className="rounded-xl p-6 max-w-sm border border-slate-200 shadow-lg text-center space-y-4">
+           <div className="h-12 w-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+              <Trash2 className="h-6 w-6" />
            </div>
-           <div className="space-y-3">
-              <h2 className="text-3xl font-black text-slate-900 uppercase italic leading-none">Kursni o'chirish?</h2>
-              <p className="text-slate-400 font-medium italic text-sm">Ushbu kurs bilan birga barcha darslar va talabalar ro'yxati o'chib ketadi.</p>
+           <div className="space-y-1">
+              <h2 className="text-lg font-bold text-slate-900">Kursni o'chirish?</h2>
+              <p className="text-slate-500 font-medium text-sm">Ushbu kurs bilan birga barcha darslar va talabalar ro'yxati o'chib ketadi.</p>
            </div>
-           <div className="flex flex-col gap-4 pt-4">
-              <Button onClick={handleDeleteCourse} className="h-16 w-full rounded-2xl bg-slate-900 text-white font-black uppercase text-[10px] tracking-widest shadow-xl">HAYE, BUTUNLAY O'CHIRILSIN</Button>
-              <Button variant="ghost" onClick={() => setCourseDeleteConfirmOpen(false)} className="h-16 w-full rounded-2xl font-black uppercase text-[10px] tracking-widest text-slate-400">Yo'q, adashdim</Button>
+           <div className="flex flex-col gap-2 pt-2">
+              <Button onClick={handleDeleteCourse} className="h-10 w-full rounded-lg bg-rose-600 text-white font-medium hover:bg-rose-700">HAYE, O'CHIRILSIN</Button>
+              <Button variant="ghost" onClick={() => setCourseDeleteConfirmOpen(false)} className="h-10 w-full rounded-lg font-medium text-slate-600">Bekor qilish</Button>
            </div>
         </DialogContent>
       </Dialog>
+    </>
   );
 };
 

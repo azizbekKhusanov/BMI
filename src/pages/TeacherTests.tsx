@@ -106,6 +106,7 @@ const TeacherTests = () => {
   });
 
   return (
+    <>
     <div className="container py-8 space-y-8 animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -244,24 +245,25 @@ const TeacherTests = () => {
           </div>
         )}
       </div>
-    </div>)
+    </div>
 
-  {/* Delete Confirmation Dialog */ }
-  <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-    <DialogContent className="sm:max-w-[400px]">
-      <DialogHeader>
-        <DialogTitle className="font-serif">Testni o'chirish</DialogTitle>
-        <CardDescription className="pt-2 text-base">
-          Haqiqatan ham ushbu test savolini o'chirib tashlamoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi.
-        </CardDescription>
-      </DialogHeader>
-      <div className="flex justify-end gap-3 pt-4">
-        <Button variant="ghost" onClick={() => setDeleteDialogOpen(false)}>Bekor qilish</Button>
-        <Button variant="destructive" onClick={handleDeleteTest}>Ha, o'chirish</Button>
-      </div>
-    </DialogContent>
-  </Dialog>
+    {/* Delete Confirmation Dialog */}
+    <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <DialogContent className="sm:max-w-[400px]">
+        <DialogHeader>
+          <DialogTitle className="font-serif">Testni o'chirish</DialogTitle>
+          <CardDescription className="pt-2 text-base">
+            Haqiqatan ham ushbu test savolini o'chirib tashlamoqchimisiz? Bu amalni ortga qaytarib bo'lmaydi.
+          </CardDescription>
+        </DialogHeader>
+        <div className="flex justify-end gap-3 pt-4">
+          <Button variant="ghost" onClick={() => setDeleteDialogOpen(false)}>Bekor qilish</Button>
+          <Button variant="destructive" onClick={handleDeleteTest}>Ha, o'chirish</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
+  );
 };
 
 export default TeacherTests;
-

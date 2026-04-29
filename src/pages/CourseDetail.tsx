@@ -147,6 +147,7 @@ const CourseDetail = () => {
   if (!course) return <div className="text-center py-32 font-bold text-2xl text-slate-500">Kurs topilmadi</div>;
 
   return (
+    <>
       <div className="flex items-center gap-2 text-sm text-slate-500 mb-6 mt-4">
         <Link to="/student/courses" className="hover:text-indigo-600 transition-colors">Kurslar</Link>
         <ArrowRight className="h-4 w-4" />
@@ -380,6 +381,7 @@ const CourseDetail = () => {
           </Card>
         </div>
       </div>
+    </>
   );
 };
 
