@@ -5,8 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  GraduationCap, Loader2, User, 
+import {
+  GraduationCap, Loader2, User,
   ArrowRight, Zap, Star, TrendingUp,
   Brain, MessageCircle, ShieldCheck
 } from "lucide-react";
@@ -103,11 +103,10 @@ const Register = () => {
                   <button
                     type="button"
                     onClick={() => setRole("student")}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                      role === "student" 
-                        ? "border-[#0056d2] bg-blue-50 text-[#0056d2]" 
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${role === "student"
+                        ? "border-[#0056d2] bg-blue-50 text-[#0056d2]"
                         : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
-                    }`}
+                      }`}
                   >
                     <User className="h-5 w-5" />
                     <span className="font-bold text-sm">Talabaman</span>
@@ -115,11 +114,10 @@ const Register = () => {
                   <button
                     type="button"
                     onClick={() => setRole("teacher")}
-                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                      role === "teacher" 
-                        ? "border-[#0056d2] bg-blue-50 text-[#0056d2]" 
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all ${role === "teacher"
+                        ? "border-[#0056d2] bg-blue-50 text-[#0056d2]"
                         : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
-                    }`}
+                      }`}
                   >
                     <GraduationCap className="h-5 w-5" />
                     <span className="font-bold text-sm">O'qituvchiman</span>
@@ -131,40 +129,40 @@ const Register = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="fullName" className="text-sm font-bold text-slate-700 uppercase tracking-wide">To'liq ism</Label>
-                  <Input 
-                    id="fullName" 
-                    value={fullName} 
-                    onChange={(e) => setFullName(e.target.value)} 
-                    placeholder="Ism Familiya" 
-                    className="h-14 rounded-xl border-slate-200 text-base font-medium px-4 focus:border-[#0056d2] focus:ring-[#0056d2]" 
-                    required 
+                  <Input
+                    id="fullName"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Ism Familiya"
+                    className="h-14 rounded-xl border-slate-200 text-base font-medium px-4 focus:border-[#0056d2] focus:ring-[#0056d2]"
+                    required
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-sm font-bold text-slate-700 uppercase tracking-wide">Email manzil</Label>
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    value={email} 
-                    onChange={(e) => setEmail(e.target.value)} 
-                    placeholder="example@metaedu.uz" 
-                    className="h-14 rounded-xl border-slate-200 text-base font-medium px-4 focus:border-[#0056d2] focus:ring-[#0056d2]" 
-                    required 
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="example@metaedu.uz"
+                    className="h-14 rounded-xl border-slate-200 text-base font-medium px-4 focus:border-[#0056d2] focus:ring-[#0056d2]"
+                    required
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-bold text-slate-700 uppercase tracking-wide">Parol</Label>
-                <Input 
-                  id="password" 
-                  type="password" 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  placeholder="••••••••" 
-                  className="h-14 rounded-xl border-slate-200 text-base font-medium px-4 focus:border-[#0056d2] focus:ring-[#0056d2]" 
-                  required 
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="h-14 rounded-xl border-slate-200 text-base font-medium px-4 focus:border-[#0056d2] focus:ring-[#0056d2]"
+                  required
                 />
               </div>
 
@@ -193,7 +191,7 @@ const Register = () => {
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-100/50 rounded-full blur-[100px] -mr-60 -mt-60 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-100/30 rounded-full blur-[100px] -ml-60 -mb-60 pointer-events-none" />
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7 }}
@@ -209,7 +207,7 @@ const Register = () => {
           {/* Heading */}
           <div>
             <h2 className="text-4xl lg:text-5xl font-black leading-tight tracking-tight text-slate-900 mb-4">
-              {role === 'student' ? 'Bilimlar siz uchun' : 'Ta\'limni boshqaring'} 
+              {role === 'student' ? 'Bilimlar siz uchun' : 'Ta\'limni boshqaring'}
             </h2>
             <p className="text-base text-slate-500 font-medium leading-relaxed">
               Shaxsiy AI yordamchi bilan o'rganish tezligini oshiring va metakognitiv tahlillar orqali o'zingizni kashf qiling.
@@ -227,8 +225,8 @@ const Register = () => {
               { icon: MessageCircle, title: "To'g'ridan-to'g'ri aloqa", desc: "Talabalar bilan muloqotni osonlashtiring va yordam bering." },
               { icon: ShieldCheck, title: "Sinfni boshqarish", desc: "Kurslarni va darslarni to'liq o'zingiz boshqaring." }
             ]).map((item, i) => (
-              <motion.div 
-                key={i} 
+              <motion.div
+                key={i}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 + i * 0.12 }}

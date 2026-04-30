@@ -134,7 +134,7 @@ const Login = () => {
 
         {/* Footer - absolute bottom */}
         <div className="absolute bottom-8 left-10 lg:left-16 right-10 lg:right-16 flex justify-between items-center text-xs font-medium text-slate-400 border-t border-slate-100 pt-5">
-          <span>© 2024 MetaEdu AI</span>
+          <span>© 2026 MetaEdu AI</span>
           <div className="flex gap-5">
             <Link to="#" className="hover:text-[#0056d2] transition-colors">Maxfiylik siyosati</Link>
             <Link to="#" className="hover:text-[#0056d2] transition-colors">Yordam markazi</Link>

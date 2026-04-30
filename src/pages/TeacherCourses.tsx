@@ -10,8 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { 
   Plus, BookOpen, Search, Filter,
   Users, ArrowRight, Clock, 
-  Loader2, Camera
+  Loader2, Camera, Brain, MessageSquare, Target, Upload
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -45,11 +46,15 @@ const TeacherCourses = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
   
   const [newCourse, setNewCourse] = useState({
     title: "",
     description: "",
-    image_url: ""
+    image_url: "",
+    meta_pre_lesson: false,
+    meta_calibration: false,
+    meta_reflection: false
   });
 
   const fetchTeacherCourses = useCallback(async () => {
@@ -111,12 +116,36 @@ const TeacherCourses = () => {
 
     setIsCreating(true);
     try {
+      let uploadedImageUrl = newCourse.image_url || "https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?w=800&auto=format&fit=crop&q=60";
+
+      if (imageFile && user) {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${user.id}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('course_images')
+          .upload(filePath, imageFile);
+
+        if (uploadError) {
+          toast.error("Rasm yuklashda xatolik: " + uploadError.message);
+          setIsCreating(false);
+          return;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('course_images')
+          .getPublicUrl(filePath);
+
+        uploadedImageUrl = publicUrl;
+      }
+
       const { data, error } = await supabase
         .from("courses")
         .insert({
           title: newCourse.title,
           description: newCourse.description,
-          image_url: newCourse.image_url || "https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?w=800&auto=format&fit=crop&q=60",
+          image_url: uploadedImageUrl,
           teacher_id: user?.id,
           is_published: false
         })
@@ -125,8 +154,24 @@ const TeacherCourses = () => {
 
       if (error) throw error;
 
+      const metaSettings = {
+        meta_pre_lesson: newCourse.meta_pre_lesson,
+        meta_calibration: newCourse.meta_calibration,
+        meta_reflection: newCourse.meta_reflection,
+      };
+      localStorage.setItem(`course_meta_${data.id}`, JSON.stringify(metaSettings));
+
       toast.success("Kurs muvaffaqiyatli yaratildi!");
       setIsDialogOpen(false);
+      setNewCourse({ 
+        title: "", 
+        description: "", 
+        image_url: "",
+        meta_pre_lesson: false,
+        meta_calibration: false,
+        meta_reflection: false
+      });
+      setImageFile(null);
       navigate(`/teacher/courses/${data.id}`);
     } catch (error) {
       toast.error("Kurs yaratishda xatolik");
@@ -159,7 +204,7 @@ const TeacherCourses = () => {
                        <Plus className="h-4 w-4" /> Yangi kurs yaratish
                     </Button>
                  </DialogTrigger>
-                 <DialogContent className="rounded-xl border border-slate-200 shadow-lg p-0 max-w-2xl bg-white">
+                 <DialogContent className="rounded-xl border border-slate-200 shadow-lg p-0 max-w-2xl bg-white overflow-y-auto max-h-[90vh]">
                     <div className="bg-slate-50 border-b border-slate-200 p-6">
                        <DialogHeader>
                           <DialogTitle className="text-xl font-bold text-slate-900">Yangi Kurs Yaratish</DialogTitle>
@@ -177,15 +222,34 @@ const TeacherCourses = () => {
                        </div>
 
                        <div className="space-y-2">
-                          <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Muqova rasmi (URL)</Label>
-                          <div className="relative">
-                             <Camera className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                             <Input 
-                               placeholder="Rasm manzilini kiriting..." 
-                               value={newCourse.image_url}
-                               onChange={(e) => setNewCourse({...newCourse, image_url: e.target.value})}
-                               className="h-10 pl-10 rounded-lg border-slate-200 font-medium"
+                          <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Muqova rasmi</Label>
+                          <div className="relative border-2 border-dashed border-slate-200 rounded-lg p-6 hover:bg-slate-50 transition-colors text-center cursor-pointer">
+                             <input 
+                               type="file" 
+                               accept="image/*"
+                               onChange={(e) => {
+                                 if (e.target.files && e.target.files[0]) {
+                                   setImageFile(e.target.files[0]);
+                                 }
+                               }}
+                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                              />
+                             {imageFile ? (
+                               <div className="flex flex-col items-center gap-2">
+                                  <img 
+                                    src={URL.createObjectURL(imageFile)} 
+                                    alt="Preview" 
+                                    className="h-20 w-32 object-cover rounded-md border border-slate-200 shadow-sm"
+                                  />
+                                  <span className="text-xs font-medium text-slate-600 line-clamp-1">{imageFile.name}</span>
+                               </div>
+                             ) : (
+                               <div className="flex flex-col items-center gap-2 text-slate-400">
+                                  <Upload className="h-6 w-6" />
+                                  <span className="text-sm font-medium">Rasmni yuklash uchun bosing yoki shu yerga tashlang</span>
+                                  <span className="text-xs text-slate-400">PNG, JPG, WEBP (max 5MB)</span>
+                               </div>
+                             )}
                           </div>
                        </div>
 
@@ -197,6 +261,96 @@ const TeacherCourses = () => {
                             onChange={(e) => setNewCourse({...newCourse, description: e.target.value})}
                             className="min-h-[100px] rounded-lg border-slate-200 p-3 font-medium text-sm"
                           />
+                       </div>
+
+                       <div className="border-t border-slate-100 pt-6">
+                         <div className="flex items-center gap-2 mb-4">
+                           <Brain className="h-4 w-4 text-[#0056d2]" />
+                           <Label className="text-sm font-semibold text-slate-900">
+                             Metakognitiv Sozlamalar
+                           </Label>
+                           <span className="text-[10px] font-medium text-slate-400 bg-slate-100 rounded-full px-2 py-0.5 ml-1">
+                             Ixtiyoriy
+                           </span>
+                         </div>
+                         <p className="text-xs text-slate-500 mb-5 leading-relaxed">
+                           Quyidagi sozlamalarni yoqsangiz, talabalar har bir darsda 
+                           metakognitiv ko'nikmalarini rivojlantiruvchi qo'shimcha 
+                           mashqlarni bajaradilar.
+                         </p>
+
+                         <div className="space-y-4">
+                           
+                           {/* 1 — Pre-lesson savol */}
+                           <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-slate-200 bg-slate-50">
+                             <div className="flex items-start gap-3">
+                               <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                 <Target className="h-4 w-4 text-[#0056d2]" />
+                               </div>
+                               <div>
+                                 <p className="text-sm font-semibold text-slate-900">
+                                   Darsdan oldingi savol
+                                 </p>
+                                 <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                                   Dars boshida talabaga "Bu darsda nimalarni o'rganaman deb o'ylaysiz?" degan savol beriladi.
+                                 </p>
+                               </div>
+                             </div>
+                             <Switch
+                               checked={newCourse.meta_pre_lesson}
+                               onCheckedChange={(v) => 
+                                 setNewCourse({...newCourse, meta_pre_lesson: v})
+                               }
+                             />
+                           </div>
+
+                           {/* 2 — Kalibrlash testi */}
+                           <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-slate-200 bg-slate-50">
+                             <div className="flex items-start gap-3">
+                               <div className="h-8 w-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                 <Brain className="h-4 w-4 text-purple-600" />
+                               </div>
+                               <div>
+                                 <p className="text-sm font-semibold text-slate-900">
+                                   Kalibrlash testi
+                                 </p>
+                                 <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                                   Talaba test savolini ko'rib, avval ishonch darajasini baholaydi. Taxmin va haqiqiy natija taqqoslanadi.
+                                 </p>
+                               </div>
+                             </div>
+                             <Switch
+                               checked={newCourse.meta_calibration}
+                               onCheckedChange={(v) => 
+                                 setNewCourse({...newCourse, meta_calibration: v})
+                               }
+                             />
+                           </div>
+
+                           {/* 3 — Majburiy refleksiya */}
+                           <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-slate-200 bg-slate-50">
+                             <div className="flex items-start gap-3">
+                               <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                 <MessageSquare className="h-4 w-4 text-emerald-600" />
+                               </div>
+                               <div>
+                                 <p className="text-sm font-semibold text-slate-900">
+                                   Majburiy refleksiya
+                                 </p>
+                                 <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                                   Talaba keyingi darsga o'tishdan oldin refleksiya yozishi shart bo'ladi.
+                                 </p>
+                               </div>
+                             </div>
+                             <Switch
+                               checked={newCourse.meta_reflection}
+                               onCheckedChange={(v) => 
+                                 setNewCourse({...newCourse, meta_reflection: v})
+                               }
+                             />
+                           </div>
+
+                         </div>
                        </div>
                     </div>
                     <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">

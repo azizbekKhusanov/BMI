@@ -6,8 +6,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { 
    BookOpen, Users, Brain, ClipboardList, ArrowLeft, 
    Plus, Video, FileText, Globe, Clock, Settings2, Trash2, 
-   UserCheck, Youtube, ChevronRight, PlusCircle, Upload, Loader2, LayoutIcon
+   UserCheck, Youtube, ChevronRight, PlusCircle, Upload, Loader2, LayoutIcon, Target, MessageSquare
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -86,6 +88,18 @@ const TeacherCourseDetail = () => {
     content: ""
   });
 
+  const [courseMeta, setCourseMeta] = useState({
+    meta_pre_lesson: false,
+    meta_calibration: false,
+    meta_reflection: false,
+  });
+
+  const [lessonMeta, setLessonMeta] = useState({
+    pre_lesson_question: "",
+    calibration_enabled: false,
+    reflection_required: false,
+  });
+
   const [editCourse, setEditCourse] = useState({
     title: "",
     description: "",
@@ -110,6 +124,14 @@ const TeacherCourseDetail = () => {
         description: courseDataTyped.description || "",
         image_url: courseDataTyped.image_url || ""
       });
+
+      const savedMeta = localStorage.getItem(`course_meta_${id}`);
+      const metaSettings = savedMeta ? JSON.parse(savedMeta) : {
+        meta_pre_lesson: false,
+        meta_calibration: false,
+        meta_reflection: false
+      };
+      setCourseMeta(metaSettings);
 
       const { data: lessonsData } = await supabase
         .from("lessons")
@@ -160,23 +182,34 @@ const TeacherCourseDetail = () => {
 
   const handleAddLesson = async () => {
     if (!newLesson.title) return toast.error("Dars nomini kiriting");
-    let contentUrl = newLesson.video_url;
+    let contentUrl: string | null = newLesson.video_url;
     if (newLesson.content_type === 'video') {
-       const ytId = getYoutubeId(newLesson.video_url);
-       if (!ytId) return toast.error("Noto'g'ri YouTube havolasi");
-       contentUrl = `https://www.youtube.com/embed/${ytId}`;
+      if (!newLesson.video_url.trim()) return toast.error("YouTube URL ni kiriting");
+      const ytId = getYoutubeId(newLesson.video_url);
+      if (!ytId) return toast.error("Noto'g'ri YouTube havolasi");
+      contentUrl = `https://www.youtube.com/embed/${ytId}`;
+    } else if (newLesson.content_type === 'text') {
+      if (!newLesson.content.trim()) return toast.error("Matn dars uchun kontent kiriting");
+      contentUrl = null;
     }
     setIsAddingLesson(true);
     try {
-      const { error } = await supabase.from("lessons").insert({
+      const { data, error } = await supabase.from("lessons").insert({
         course_id: id, title: newLesson.title, content_type: newLesson.content_type,
         content_url: contentUrl, content_text: newLesson.content_type === 'text' ? newLesson.content : null,
         order_index: lessons.length + 1
-      });
+      }).select().single();
+      
       if (error) throw error;
+      
+      if (data?.id) {
+        localStorage.setItem(`lesson_meta_${data.id}`, JSON.stringify(lessonMeta));
+      }
+
       toast.success("Dars qo'shildi");
       setAddLessonOpen(false);
       setNewLesson({ title: "", content_type: "video", video_url: "", content: "" });
+      setLessonMeta({ pre_lesson_question: "", calibration_enabled: false, reflection_required: false });
       fetchCourseData();
     } catch (error) {
       toast.error("Xatolik yuz berdi");
@@ -363,9 +396,15 @@ const TeacherCourseDetail = () => {
                              </div>
                              <div>
                                 <div className="flex items-center gap-2 mb-1">
-                                   <Badge className="bg-slate-100 text-slate-500 border-none text-[10px] font-semibold uppercase tracking-wide rounded">
-                                     {lesson.content_type}
-                                   </Badge>
+                                  {lesson.content_type === 'video' ? (
+                                    <Badge className="bg-blue-50 text-blue-700 border-none text-[10px] font-semibold uppercase tracking-wide rounded">
+                                      Video
+                                    </Badge>
+                                  ) : (
+                                    <Badge className="bg-emerald-50 text-emerald-700 border-none text-[10px] font-semibold uppercase tracking-wide rounded">
+                                      Maqola
+                                    </Badge>
+                                  )}
                                 </div>
                                 <h3 className="text-base font-bold text-slate-900 leading-none">{lesson.title}</h3>
                              </div>
@@ -468,18 +507,183 @@ const TeacherCourseDetail = () => {
                 className="h-10 rounded-lg border-slate-200 font-medium" 
               />
             </div>
+
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">YouTube Video URL</Label>
-              <div className="relative">
-                 <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                 <Input 
-                  value={newLesson.video_url}
-                  onChange={(e) => setNewLesson({ ...newLesson, video_url: e.target.value })}
-                  placeholder="https://www.youtube.com/watch?v=..." 
-                  className="h-10 rounded-lg border-slate-200 pl-9 font-medium" 
-                 />
+              <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                Kontent turi
+              </Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setNewLesson({...newLesson, content_type: "video", content: ""})}
+                  className={`flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all ${
+                    newLesson.content_type === "video"
+                      ? "border-[#0056d2] bg-blue-50"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className={`h-8 w-8 rounded-md flex items-center justify-center flex-shrink-0 ${
+                    newLesson.content_type === "video"
+                      ? "bg-[#0056d2] text-white"
+                      : "bg-slate-100 text-slate-500"
+                  }`}>
+                    <Video className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className={`text-sm font-semibold ${
+                      newLesson.content_type === "video" ? "text-[#0056d2]" : "text-slate-700"
+                    }`}>Video dars</p>
+                    <p className="text-[11px] text-slate-400 font-normal">YouTube havolasi</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setNewLesson({...newLesson, content_type: "text", video_url: ""})}
+                  className={`flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all ${
+                    newLesson.content_type === "text"
+                      ? "border-[#0056d2] bg-blue-50"
+                      : "border-slate-200 bg-white hover:border-slate-300"
+                  }`}
+                >
+                  <div className={`h-8 w-8 rounded-md flex items-center justify-center flex-shrink-0 ${
+                    newLesson.content_type === "text"
+                      ? "bg-[#0056d2] text-white"
+                      : "bg-slate-100 text-slate-500"
+                  }`}>
+                    <FileText className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className={`text-sm font-semibold ${
+                      newLesson.content_type === "text" ? "text-[#0056d2]" : "text-slate-700"
+                    }`}>Matn/Maqola</p>
+                    <p className="text-[11px] text-slate-400 font-normal">O'quv materiali</p>
+                  </div>
+                </button>
               </div>
             </div>
+
+            {newLesson.content_type === "video" ? (
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  YouTube Video URL
+                </Label>
+                <div className="relative">
+                  <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    value={newLesson.video_url}
+                    onChange={(e) => setNewLesson({ ...newLesson, video_url: e.target.value })}
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    className="h-10 rounded-lg border-slate-200 pl-9 font-medium"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  Matn / Maqola matni
+                </Label>
+                <Textarea
+                  value={newLesson.content}
+                  onChange={(e) => setNewLesson({ ...newLesson, content: e.target.value })}
+                  placeholder={`O'quv materialini shu yerga kiriting.\nMarkdown formatida yozishingiz mumkin:\n\n# Sarlavha\n## Kichik sarlavha\n**Qalin matn**, *kursiv*\n- Ro'yxat elementi`}
+                  className="min-h-[180px] resize-y rounded-lg border-slate-200 font-mono text-sm leading-relaxed"
+                />
+                <p className="text-[11px] text-slate-400">
+                  Markdown qo'llab-quvvatlanadi: # sarlavha, **qalin**, *kursiv*, - ro'yxat
+                </p>
+              </div>
+            )}
+
+            {(courseMeta.meta_pre_lesson || courseMeta.meta_calibration || courseMeta.meta_reflection) && (
+              <div className="border-t border-slate-100 pt-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Brain className="h-4 w-4 text-[#0056d2]" />
+                  <span className="text-sm font-semibold text-slate-900">
+                    Metakognitiv Sozlamalar
+                  </span>
+                  <span className="text-[10px] font-medium text-slate-400 bg-slate-100 rounded-full px-2 py-0.5 ml-1">
+                    Kurs sozlamalaridan
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  {courseMeta.meta_pre_lesson && (
+                    <div className="p-4 rounded-lg border border-slate-200 bg-slate-50 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-7 w-7 rounded-md bg-blue-100 flex items-center justify-center flex-shrink-0">
+                          <Target className="h-3.5 w-3.5 text-[#0056d2]" />
+                        </div>
+                        <span className="text-sm font-semibold text-slate-900">
+                          Darsdan oldingi savol
+                        </span>
+                      </div>
+                      <Input
+                        value={lessonMeta.pre_lesson_question}
+                        onChange={(e) => setLessonMeta({
+                          ...lessonMeta, 
+                          pre_lesson_question: e.target.value
+                        })}
+                        placeholder='Masalan: "Bu darsda nimalarni o&apos;rganasiz?"'
+                        className="h-10 rounded-lg border-slate-200 font-medium text-sm bg-white"
+                      />
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        Bo'sh qoldirsangiz standart savol ishlatiladi: 
+                        "Bu darsda nimalarni o'rganaman deb o'ylaysiz?"
+                      </p>
+                    </div>
+                  )}
+
+                  {courseMeta.meta_calibration && (
+                    <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-slate-200 bg-slate-50">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-md bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Brain className="h-3.5 w-3.5 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            Kalibrlash testini yoqish
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                            Talaba test oldidan ishonch darajasini baholaydi, keyin haqiqiy natija bilan taqqoslanadi.
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={lessonMeta.calibration_enabled}
+                        onCheckedChange={(v) => setLessonMeta({
+                          ...lessonMeta, calibration_enabled: v
+                        })}
+                      />
+                    </div>
+                  )}
+
+                  {courseMeta.meta_reflection && (
+                    <div className="flex items-start justify-between gap-4 p-4 rounded-lg border border-slate-200 bg-slate-50">
+                      <div className="flex items-start gap-3">
+                        <div className="h-7 w-7 rounded-md bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <MessageSquare className="h-3.5 w-3.5 text-emerald-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            Majburiy refleksiya
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
+                            Talaba keyingi darsga o'tishdan oldin refleksiya yozishi shart bo'ladi.
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={lessonMeta.reflection_required}
+                        onCheckedChange={(v) => setLessonMeta({
+                          ...lessonMeta, reflection_required: v
+                        })}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <div className="p-6 bg-slate-50 border-t border-slate-200 flex gap-3">
             <Button variant="outline" onClick={() => setAddLessonOpen(false)} className="h-10 flex-1 rounded-lg font-medium text-slate-600 border-slate-200">Bekor qilish</Button>
