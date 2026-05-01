@@ -45,7 +45,7 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
   const getNavLinks = () => {
     if (isAdmin) {
       return [
-        { group: "SYSTEM ADMIN", links: [
+        { group: "TIZIM ADMINI", links: [
           { path: "/admin", label: "Tizim Holati", icon: LayoutDashboard },
           { path: "/admin/users", label: "Foydalanuvchilar", icon: Users },
           { path: "/admin/courses", label: "Kurslar Nazorati", icon: BookOpen },
@@ -55,27 +55,27 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
     }
     if (isTeacher) {
       return [
-        { group: "MAIN HUB", links: [
-          { path: "/teacher", label: "Dashboard", icon: LayoutDashboard },
+        { group: "ASOSIY BO'LIM", links: [
+          { path: "/teacher", label: "Bosh sahifa", icon: LayoutDashboard },
           { path: "/teacher/courses", label: "Kurslar", icon: BookOpen },
           { path: "/teacher/students", label: "Talabalar", icon: Users },
           { path: "/teacher/assignments", label: "Vazifalar", icon: ClipboardList },
           { path: "/teacher/messages", label: "Xabarlar", icon: MessageSquare },
         ]},
-        { group: "NEURAL ANALYTICS", links: [
-          { path: "/teacher/reports", label: "Analytics", icon: BarChart },
-          { path: "/teacher/monitoring", label: "Monitoring", icon: Activity },
-          { path: "/teacher/self-assessments", label: "Assessments", icon: Brain },
+        { group: "ANALITIKA", links: [
+          { path: "/teacher/reports", label: "Tahlillar", icon: BarChart },
+          { path: "/teacher/monitoring", label: "Kuzatuv", icon: Activity },
+          { path: "/teacher/self-assessments", label: "Baholash", icon: Brain },
         ]}
       ];
     }
     return [
-      { group: "LEARNING HUB", links: [
-        { path: "/student/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { group: "O'QUV BO'LIMI", links: [
+        { path: "/student/dashboard", label: "Bosh sahifa", icon: LayoutDashboard },
         { path: "/student/courses", label: "Barcha Kurslar", icon: BookOpen },
         { path: "/student/my-courses", label: "Mening Kurslarim", icon: GraduationCap },
       ]},
-      { group: "KNOWLEDGE MATRIX", links: [
+      { group: "BILIMLAR BAZASI", links: [
         { path: "/student/metacognition", label: "Metakognitiv tahlil", icon: Brain },
         { path: "/student/results", label: "Natijalarim", icon: TrendingUp },
         { path: "/student/notifications", label: "Xabarlar", icon: MessageSquare },
@@ -250,7 +250,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
             {/* Global Desktop Topbar */}
             <div className="hidden md:flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
               <div className="text-[10px] font-bold text-slate-400 tracking-[0.2em] uppercase">
-                {isAdmin ? "ADMIN PORTAL" : isTeacher ? "TEACHER PORTAL" : "STUDENT PORTAL"}
+                {isAdmin ? "ADMIN PORTALI" : isTeacher ? "O'QITUVCHI PORTALI" : "TALABA PORTALI"}
               </div>
               <div className="flex-1 max-w-xl mx-12">
                 <div className="relative">
