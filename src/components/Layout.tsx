@@ -288,7 +288,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
         </main>
       </div>
-      <AICoach />
+      {!isTeacher && !isAdmin && <AICoach />}
     </div>
   );
 };
