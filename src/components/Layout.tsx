@@ -46,9 +46,9 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
     if (isAdmin) {
       return [
         { group: "TIZIM ADMINI", links: [
-          { path: "/admin", label: "Tizim Holati", icon: LayoutDashboard },
+          { path: "/admin", label: "Tizim holati", icon: LayoutDashboard },
           { path: "/admin/users", label: "Foydalanuvchilar", icon: Users },
-          { path: "/admin/courses", label: "Kurslar Nazorati", icon: BookOpen },
+          { path: "/admin/courses", label: "Kurslar nazorati", icon: BookOpen },
           { path: "/admin/settings", label: "Sozlamalar", icon: Settings },
         ]}
       ];
@@ -63,17 +63,17 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
           { path: "/teacher/messages", label: "Xabarlar", icon: MessageSquare },
         ]},
         { group: "ANALITIKA", links: [
-          { path: "/teacher/reports", label: "Tahlillar", icon: BarChart },
-          { path: "/teacher/monitoring", label: "Kuzatuv", icon: Activity },
-          { path: "/teacher/self-assessments", label: "Baholash", icon: Brain },
+          { path: "/teacher/reports", label: "Tizimli tahlil", icon: BarChart },
+          { path: "/teacher/monitoring", label: "Jonli monitoring", icon: Activity },
+          { path: "/teacher/self-assessments", label: "O'z-o'zini baholash", icon: Brain },
         ]}
       ];
     }
     return [
       { group: "O'QUV BO'LIMI", links: [
         { path: "/student/dashboard", label: "Bosh sahifa", icon: LayoutDashboard },
-        { path: "/student/courses", label: "Barcha Kurslar", icon: BookOpen },
-        { path: "/student/my-courses", label: "Mening Kurslarim", icon: GraduationCap },
+        { path: "/student/courses", label: "Barcha kurslar", icon: BookOpen },
+        { path: "/student/my-courses", label: "Mening kurslarim", icon: GraduationCap },
       ]},
       { group: "BILIMLAR BAZASI", links: [
         { path: "/student/metacognition", label: "Metakognitiv tahlil", icon: Brain },
