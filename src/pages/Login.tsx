@@ -45,10 +45,8 @@ const Login = () => {
 
         {/* Logo - absolute top */}
         <div className="absolute top-8 left-10 lg:left-16 flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0056d2] text-white shadow-lg">
-            <GraduationCap className="h-7 w-7" />
-          </div>
-          <span className="text-2xl font-black text-slate-900 tracking-tight">MetaEdu</span>
+          <img src="/logo.png" alt="IDROK Logo" className="h-12 w-12 object-contain rounded-xl shadow-lg" />
+          <span className="text-2xl font-black text-slate-900 tracking-tight">IDROK</span>
         </div>
 
         {/* Center: Heading + Form */}
@@ -85,7 +83,7 @@ const Login = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="example@metaedu.uz"
+                placeholder="example@idrok.uz"
                 className="h-14 rounded-xl border-slate-200 text-base font-medium px-4 focus:border-[#0056d2] focus:ring-[#0056d2]"
                 required
               />
@@ -134,7 +132,7 @@ const Login = () => {
 
         {/* Footer - absolute bottom */}
         <div className="absolute bottom-8 left-10 lg:left-16 right-10 lg:right-16 flex justify-between items-center text-xs font-medium text-slate-400 border-t border-slate-100 pt-5">
-          <span>© 2026 MetaEdu AI</span>
+          <span>© 2026 IDROK AI</span>
           <div className="flex gap-5">
             <Link to="#" className="hover:text-[#0056d2] transition-colors">Maxfiylik siyosati</Link>
             <Link to="#" className="hover:text-[#0056d2] transition-colors">Yordam markazi</Link>
@@ -166,7 +164,7 @@ const Login = () => {
               O'rganishni aqlli va samarali darajaga olib chiqing.
             </h2>
             <p className="text-base text-slate-500 font-medium leading-relaxed">
-              MetaEdu sun'iy intellekt yordamida sizning o'rganish jarayoningizni tahlil qiladi va shaxsiy tavsiyalar beradi.
+              IDROK sun'iy intellekt yordamida sizning o'rganish jarayoningizni tahlil qiladi va shaxsiy tavsiyalar beradi.
             </p>
           </div>
 

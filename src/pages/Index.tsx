@@ -34,10 +34,8 @@ const Index = () => {
       <header className="fixed top-0 left-0 right-0 z-50 h-20 flex items-center bg-white border-b border-slate-200">
         <div className="container mx-auto px-6 lg:px-12 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-white shadow-md">
-              <GraduationCap className="h-6 w-6" />
-            </div>
-            <span className="text-2xl font-bold text-slate-900 tracking-tight">Meta<span className="text-primary">Edu</span></span>
+            <img src="/logo.png" alt="IDROK Logo" className="h-10 w-10 object-contain rounded-lg shadow-md" />
+            <span className="text-2xl font-bold text-slate-900 tracking-tight">IDROK</span>
           </Link>
           
           <nav className="hidden lg:flex items-center gap-8">
@@ -100,7 +98,7 @@ const Index = () => {
         <section className="py-24 bg-white">
           <div className="container mx-auto px-6 lg:px-12">
             <div className="flex flex-col items-center text-center gap-4 mb-16 max-w-2xl mx-auto">
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900">Nega aynan MetaEdu?</h2>
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900">Nega aynan IDROK?</h2>
               <p className="text-slate-600 font-normal text-lg">
                 Bizning platforma zamonaviy ta'limning eng ilg'or usullarini sun'iy intellekt bilan birlashtiradi.
               </p>
@@ -215,7 +213,7 @@ const Index = () => {
                 Kelajak ta'limiga bugun qo'shiling
               </h2>
               <p className="text-lg text-slate-300 font-normal max-w-2xl mx-auto">
-                MetaEdu platformasida o'z o'quv jarayonini ongli boshqarishni o'rganing va 
+                IDROK platformasida o'z o'quv jarayonini ongli boshqarishni o'rganing va 
                 akademik ko'rsatkichlaringizni yangi bosqichga olib chiqing.
               </p>
               <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center">
@@ -241,10 +239,8 @@ const Index = () => {
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 mb-12">
             <div className="lg:col-span-2 space-y-6">
               <Link to="/" className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-white">
-                  <GraduationCap className="h-6 w-6" />
-                </div>
-                <span className="text-2xl font-bold text-slate-900 tracking-tight">Meta<span className="text-primary">Edu</span></span>
+                <img src="/logo.png" alt="IDROK Logo" className="h-10 w-10 object-contain rounded-lg" />
+                <span className="text-2xl font-bold text-slate-900 tracking-tight">IDROK</span>
               </Link>
               <p className="text-sm text-slate-600 font-normal max-w-md leading-relaxed">
                 Raqamli metakognitiv o'quv platformasi orqali ta'limda inqilob qiling. Har bir talabaning salohiyatini birgalikda ochamiz.
@@ -281,7 +277,7 @@ const Index = () => {
           
           <div className="pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="text-xs font-medium text-slate-500">
-              © 2026 MetaEdu AI. Barcha huquqlar himoyalangan.
+              © 2026 IDROK AI. Barcha huquqlar himoyalangan.
             </div>
             <div className="flex gap-6 text-xs font-medium text-slate-500">
                <Link to="#" className="hover:text-primary transition-colors">Maxfiylik siyosati</Link>

@@ -402,7 +402,7 @@ const StudentNotifications = () => {
         {/* Footer Cinematic Audit */}
         <div className="text-center py-6 opacity-30">
           <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.5em] italic flex items-center justify-center gap-3">
-             <ShieldCheck className="h-3 w-3" /> Encrypted by MetaEdu Neural Network v2.0
+             <ShieldCheck className="h-3 w-3" /> Encrypted by IDROK Neural Network v2.0
           </p>
         </div>
 

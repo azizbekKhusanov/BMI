@@ -91,10 +91,8 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
       {/* Logo Area */}
       <div className="px-6 py-8">
         <Link to="/" className="flex items-center gap-3 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#0056d2] text-white">
-            <GraduationCap className="h-6 w-6" />
-          </div>
-          <span className="text-xl font-bold text-slate-900 tracking-tight">MetaEdu</span>
+          <img src="/logo.png" alt="IDROK Logo" className="h-10 w-10 object-contain rounded-lg" />
+          <span className="text-xl font-bold text-slate-900 tracking-tight">IDROK</span>
         </Link>
       </div>
       
@@ -202,8 +200,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         {/* Mobile Header */}
         <header className="md:hidden sticky top-0 z-40 bg-white border-b border-slate-200 text-slate-900 flex items-center justify-between h-16 px-4">
           <Link to="/" className="flex items-center gap-2">
-             <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-white"><GraduationCap className="h-5 w-5" /></div>
-             <span className="text-lg font-bold">MetaEdu</span>
+             <img src="/logo.png" alt="IDROK Logo" className="h-8 w-8 object-contain rounded-lg" />
+             <span className="text-lg font-bold">IDROK</span>
           </Link>
           <Button variant="ghost" size="icon" onClick={() => setMobileOpen(true)}>
             <Menu className="h-6 w-6" />

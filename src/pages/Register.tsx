@@ -65,10 +65,8 @@ const Register = () => {
         {/* Logo - Top */}
         <div className="flex-none pt-8 pb-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#0056d2] text-white shadow-lg shrink-0">
-              <GraduationCap className="h-7 w-7" />
-            </div>
-            <span className="text-2xl font-black text-slate-900 tracking-tight">MetaEdu</span>
+            <img src="/logo.png" alt="IDROK Logo" className="h-12 w-12 object-contain rounded-xl shadow-lg shrink-0" />
+            <span className="text-2xl font-black text-slate-900 tracking-tight">IDROK</span>
           </div>
         </div>
 
@@ -146,7 +144,7 @@ const Register = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="example@metaedu.uz"
+                    placeholder="example@idrok.uz"
                     className="h-14 rounded-xl border-slate-200 text-base font-medium px-4 focus:border-[#0056d2] focus:ring-[#0056d2]"
                     required
                   />
@@ -177,7 +175,7 @@ const Register = () => {
         {/* Footer - Bottom */}
         <div className="flex-none pb-8 pt-4">
           <div className="flex justify-between items-center text-xs font-medium text-slate-400 border-t border-slate-100 pt-5">
-            <span>© 2026 MetaEdu AI</span>
+            <span>© 2026 IDROK AI</span>
             <div className="flex gap-5">
               <Link to="#" className="hover:text-[#0056d2] transition-colors">Maxfiylik siyosati</Link>
               <Link to="#" className="hover:text-[#0056d2] transition-colors">Yordam markazi</Link>

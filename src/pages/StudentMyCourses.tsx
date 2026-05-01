@@ -392,7 +392,7 @@ const StudentMyCourses = () => {
         <div className="relative z-10 space-y-3 max-w-xl text-center sm:text-left">
           <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Yangi bilimlar olamiga sho'ng'ing</h2>
           <p className="text-slate-500 font-medium leading-relaxed">
-            MetaEdu AI sizning qiziqishlaringizga mos keladigan professional kurslarni tavsiya qiladi. Bilimingizni keyingi bosqichga olib chiqing.
+            IDROK AI sizning qiziqishlaringizga mos keladigan professional kurslarni tavsiya qiladi. Bilimingizni keyingi bosqichga olib chiqing.
           </p>
         </div>
         <Link to="/student/courses" className="relative z-10 shrink-0 w-full sm:w-auto">
