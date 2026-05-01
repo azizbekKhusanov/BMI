@@ -12,7 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 
 interface Profile {
-  id: string;
+  user_id: string;
   full_name: string | null;
   avatar_url: string | null;
 }
@@ -52,7 +52,7 @@ const TeacherMessages = () => {
       // O'qituvchiga tegishli kurslardagi talabalarni ol
       const { data: enrollments } = await supabase
         .from("enrollments")
-        .select("user_id, profiles(id, full_name, avatar_url), courses(teacher_id)")
+        .select("user_id, profiles(user_id, full_name, avatar_url), courses!inner(teacher_id)")
         .eq("courses.teacher_id", user.id);
 
       if (!enrollments) return;
@@ -67,14 +67,14 @@ const TeacherMessages = () => {
             const { data: lastMsgs } = await supabase
               .from("messages")
               .select("*")
-              .or(`and(sender_id.eq.${user.id},recipient_id.eq.${student.id}),and(sender_id.eq.${student.id},recipient_id.eq.${user.id})`)
+              .or(`and(sender_id.eq.${user.id},recipient_id.eq.${student.user_id}),and(sender_id.eq.${student.user_id},recipient_id.eq.${user.id})`)
               .order("created_at", { ascending: false })
               .limit(1);
 
             const { count: unreadCount } = await supabase
               .from("messages")
               .select("*", { count: "exact", head: true })
-              .eq("sender_id", student.id)
+              .eq("sender_id", student.user_id)
               .eq("recipient_id", user.id)
               .eq("is_read", false);
 
@@ -88,7 +88,7 @@ const TeacherMessages = () => {
 
       // Dublikatlarni olib tashlash (user_id bo'yicha)
       const unique = convList.filter((c, i, arr) =>
-        arr.findIndex(x => x.student.id === c.student.id) === i
+        arr.findIndex(x => x.student.user_id === c.student.user_id) === i
       );
 
       // Oxirgi xabar vaqtiga qarab tartiblash
@@ -112,7 +112,7 @@ const TeacherMessages = () => {
       const { data } = await supabase
         .from("messages")
         .select("*")
-        .or(`and(sender_id.eq.${user.id},recipient_id.eq.${student.id}),and(sender_id.eq.${student.id},recipient_id.eq.${user.id})`)
+        .or(`and(sender_id.eq.${user.id},recipient_id.eq.${student.user_id}),and(sender_id.eq.${student.user_id},recipient_id.eq.${user.id})`)
         .order("created_at", { ascending: true });
 
       setMessages((data as Message[]) || []);
@@ -121,14 +121,14 @@ const TeacherMessages = () => {
       await supabase
         .from("messages")
         .update({ is_read: true })
-        .eq("sender_id", student.id)
+        .eq("sender_id", student.user_id)
         .eq("recipient_id", user.id)
         .eq("is_read", false);
 
       // Unread count ni yangilash
       setConversations(prev =>
         prev.map(c =>
-          c.student.id === student.id ? { ...c, unreadCount: 0 } : c
+          c.student.user_id === student.user_id ? { ...c, unreadCount: 0 } : c
         )
       );
     } catch (error) {
@@ -145,7 +145,7 @@ const TeacherMessages = () => {
         .from("messages")
         .insert({
           sender_id: user.id,
-          recipient_id: selectedStudent.id,
+          recipient_id: selectedStudent.user_id,
           content: newMessage.trim(),
           is_read: false
         });
@@ -164,7 +164,7 @@ const TeacherMessages = () => {
     if (!user || !selectedStudent) return;
 
     const channel = supabase
-      .channel(`messages_${user.id}_${selectedStudent.id}`)
+      .channel(`messages_${user.id}_${selectedStudent.user_id}`)
       .on("postgres_changes", {
         event: "INSERT",
         schema: "public",
@@ -172,7 +172,7 @@ const TeacherMessages = () => {
         filter: `recipient_id=eq.${user.id}`
       }, (payload) => {
         const newMsg = payload.new as Message;
-        if (newMsg.sender_id === selectedStudent.id) {
+        if (newMsg.sender_id === selectedStudent.user_id) {
           setMessages(prev => [...prev, newMsg]);
           // O'qilgan deb belgilaymiz
           supabase
@@ -286,11 +286,11 @@ const TeacherMessages = () => {
                 )
                 .map((conv) => (
                   <div
-                    key={conv.student.id}
+                    key={conv.student.user_id}
                     onClick={() => setSelectedStudent(conv.student)}
                     className={`flex items-center gap-3 p-4 cursor-pointer
                                 border-b border-slate-50 transition-colors ${
-                      selectedStudent?.id === conv.student.id
+                      selectedStudent?.user_id === conv.student.user_id
                         ? "bg-blue-50 border-l-2 border-l-[#0056d2]"
                         : "hover:bg-slate-50"
                     }`}
