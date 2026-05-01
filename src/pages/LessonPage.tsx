@@ -16,7 +16,7 @@ import {
   Zap, MessageSquare, Check, ArrowRight, Info, Clock, 
   Lightbulb, ChevronLeft, RefreshCcw, BookOpen, ShieldCheck,
   Trophy, Award, LayoutGrid, Layers, Globe, Activity,
-  ZapOff, Zap as ZapIcon, BrainCircuit, Pencil, Trash2, Plus, Save, X, ClipboardList
+  ZapOff, Zap as ZapIcon, BrainCircuit, Pencil, Trash2, Plus, Save, X, ClipboardList, LayoutIcon, Youtube
 } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -180,6 +180,16 @@ const LessonPage = () => {
     question: "",
     options: ["", "", "", ""],
     correct_answer: ""
+  });
+
+  const [editLessonOpen, setEditLessonOpen] = useState(false);
+  const [isUpdatingLesson, setIsUpdatingLesson] = useState(false);
+  const [editLesson, setEditLesson] = useState({
+    title: "",
+    content_type: "video",
+    video_url: "",
+    content: "",
+    video_content: ""
   });
   
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -399,7 +409,7 @@ const LessonPage = () => {
   }, [fetchData]);
 
   useEffect(() => {
-    if (!loading && lesson?.content_type === 'text' && !planningStarted) {
+    if (!loading && lesson?.content_type === 'text' && !planningStarted && !isTeacher) {
       setPlanningStarted(true);
       setIsPlanningModalOpen(false);
       setChatHistory([{
@@ -407,7 +417,7 @@ const LessonPage = () => {
         text: "Salom! O'quv materialini o'qib chiqayotgansiz. Savollaringiz bo'lsa menga yozing!"
       }]);
     }
-  }, [loading, lesson?.content_type, planningStarted]);
+  }, [loading, lesson?.content_type, planningStarted, isTeacher]);
 
   useEffect(() => {
     if (isPlanningModalOpen && !planningStarted && !isTeacher && !loading) {
@@ -431,6 +441,108 @@ const LessonPage = () => {
     }
   }, []);
 
+  const handleOpenEditLesson = () => {
+    if (!lesson) return;
+    setEditLesson({
+      title: lesson.title,
+      content_type: lesson.content_type,
+      video_url: lesson.content_url || "",
+      content: lesson.content_type === 'text' ? (lesson.content_text || "") : "",
+      video_content: lesson.content_type === 'mixed' ? (lesson.content_text || "") : ""
+    });
+    setEditLessonOpen(true);
+  };
+
+  const handleUpdateLesson = async () => {
+    if (!lesson) return;
+    if (!editLesson.title.trim())
+      return toast.error("Dars nomini kiriting");
+
+    let contentUrl: string | null = null;
+    let contentText: string | null = null;
+
+    if (editLesson.content_type === 'video') {
+      if (!editLesson.video_url.trim())
+        return toast.error("YouTube URL ni kiriting");
+      const ytId = getYoutubeId(editLesson.video_url);
+      if (!ytId) return toast.error("Noto'g'ri YouTube havolasi");
+      contentUrl = `https://www.youtube.com/embed/${ytId}`;
+      contentText = null;
+    } else if (editLesson.content_type === 'text') {
+      if (!editLesson.content.trim())
+        return toast.error("Matn kiriting");
+      contentUrl = null;
+      contentText = editLesson.content;
+    } else if (editLesson.content_type === 'mixed') {
+      if (!editLesson.video_url.trim())
+        return toast.error("YouTube URL ni kiriting");
+      const ytId = getYoutubeId(editLesson.video_url);
+      if (!ytId) return toast.error("Noto'g'ri YouTube havolasi");
+      if (!editLesson.video_content.trim())
+        return toast.error("Matn qismini kiriting");
+      contentUrl = `https://www.youtube.com/embed/${ytId}`;
+      contentText = editLesson.video_content;
+    }
+
+    setIsUpdatingLesson(true);
+    try {
+      const { error } = await supabase
+        .from("lessons")
+        .update({
+          title: editLesson.title,
+          content_type: editLesson.content_type,
+          content_url: contentUrl,
+          content_text: contentText
+        })
+        .eq("id", lesson.id);
+
+      if (error) throw error;
+      toast.success("Dars yangilandi");
+      setEditLessonOpen(false);
+      fetchData();
+    } catch (error) {
+      toast.error("Xatolik yuz berdi");
+    } finally {
+      setIsUpdatingLesson(false);
+    }
+  };
+
+  const ContentTypeSelector = ({ value, onChange }: { value: string; onChange: (type: string) => void; }) => (
+    <div className="space-y-2">
+      <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Kontent turi</Label>
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { type: "video", label: "Faqat Video", icon: <Video className="h-4 w-4" />, activeColor: "border-[#0056d2] bg-blue-50", activeIcon: "bg-[#0056d2] text-white", activeText: "text-[#0056d2]" },
+          { type: "text", label: "Faqat Matn", icon: <FileText className="h-4 w-4" />, activeColor: "border-[#0056d2] bg-blue-50", activeIcon: "bg-[#0056d2] text-white", activeText: "text-[#0056d2]" },
+          { type: "mixed", label: "Video + Matn", icon: <LayoutIcon className="h-4 w-4" />, activeColor: "border-purple-500 bg-purple-50", activeIcon: "bg-purple-500 text-white", activeText: "text-purple-700" }
+        ].map(({ type, label, icon, activeColor, activeIcon, activeText }) => (
+          <button key={type} type="button" onClick={() => onChange(type)} className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2 text-center transition-all ${value === type ? activeColor : "border-slate-200 bg-white hover:border-slate-300"}`}>
+            <div className={`h-8 w-8 rounded-md flex items-center justify-center ${value === type ? activeIcon : "bg-slate-100 text-slate-500"}`}>{icon}</div>
+            <p className={`text-xs font-semibold ${value === type ? activeText : "text-slate-700"}`}>{label}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const ContentInputs = ({ contentType, videoUrl, content, videoContent, onVideoUrl, onContent, onVideoContent }: any) => (
+    <>
+      {contentType === "video" && (
+        <div className="space-y-2"><Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">YouTube Video URL</Label><div className="relative"><Youtube className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" /><Input value={videoUrl} onChange={(e) => onVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." className="h-10 rounded-lg border-slate-200 pl-9 font-medium" /></div></div>
+      )}
+      {contentType === "text" && (
+        <div className="space-y-2"><Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Matn / Maqola</Label><Textarea value={content} onChange={(e) => onContent(e.target.value)} placeholder={"O'quv materialini kiriting.\n# Sarlavha\n**Qalin**, *kursiv*\n- Ro'yxat"} className="min-h-[180px] resize-y rounded-lg border-slate-200 font-mono text-sm" /><p className="text-[11px] text-slate-400">Markdown: # sarlavha, **qalin**, *kursiv*, - ro'yxat</p></div>
+      )}
+      {contentType === "mixed" && (
+        <div className="space-y-4">
+          <div className="space-y-2"><Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">YouTube Video URL</Label><div className="relative"><Youtube className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" /><Input value={videoUrl} onChange={(e) => onVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." className="h-10 rounded-lg border-slate-200 pl-9 font-medium" /></div></div>
+          <div className="flex items-center gap-3"><div className="flex-1 h-px bg-slate-200" /><span className="text-xs font-medium text-slate-400 px-2">+ qo'shimcha o'quv materiali</span><div className="flex-1 h-px bg-slate-200" /></div>
+          <div className="space-y-2"><Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Matn / Maqola</Label><Textarea value={videoContent} onChange={(e) => onVideoContent(e.target.value)} placeholder={"Videoni to'ldiruvchi material...\n# Asosiy tushunchalar\n- Birinchi nuqta"} className="min-h-[150px] resize-y rounded-lg border-slate-200 font-mono text-sm" /><p className="text-[11px] text-slate-400">Markdown: # sarlavha, **qalin**, *kursiv*, - ro'yxat</p></div>
+        </div>
+      )}
+    </>
+  );
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onPlayerStateChange = useCallback((event: any) => {
     if (event.data === 1) { setIsPlaying(true); updateQualities(); }
@@ -453,7 +565,7 @@ const LessonPage = () => {
   }, [lesson, getYoutubeId, onPlayerStateChange, updateQualities]);
 
   useEffect(() => {
-    if (!loading && lesson?.content_type === 'video') {
+    if (!loading && (lesson?.content_type === 'video' || lesson?.content_type === 'mixed')) {
       const timer = setTimeout(() => {
         if (!window.YT) {
           const tag = document.createElement('script');
@@ -713,6 +825,15 @@ const LessonPage = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
+             {isTeacher && (
+                <Button 
+                  onClick={handleOpenEditLesson}
+                  variant="outline" 
+                  className="h-12 px-6 rounded-xl text-slate-600 font-semibold border-slate-200 hover:text-[#0056d2] hover:bg-blue-50"
+                >
+                  <Pencil className="mr-2 h-4 w-4" /> Tahrirlash
+                </Button>
+             )}
              <Button variant="outline" className="h-12 px-6 rounded-xl text-slate-600 font-semibold border-slate-200 hover:bg-slate-50">
                 <ChevronLeft className="mr-2 h-4 w-4" /> Oldingi
              </Button>
@@ -723,27 +844,25 @@ const LessonPage = () => {
         </div>
 
         {/* Video Player */}
-        {lesson?.content_type === "video" && (
+        {(lesson?.content_type === "video" || lesson?.content_type === "mixed") && (
           <div className="rounded-3xl overflow-hidden bg-slate-900 aspect-video shadow-sm border border-slate-100 relative">
              <div id="youtube-player" className="w-full h-full" />
           </div>
         )}
 
         {/* Matn dars */}
-        {lesson?.content_type === "text" && lesson?.content_text && (
-          <div className="bg-white rounded-2xl border border-slate-200
-                          shadow-sm overflow-hidden">
+        {(lesson?.content_type === "text" || lesson?.content_type === "mixed") && lesson?.content_text && (
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
 
             {/* Header */}
-            <div className="flex items-center gap-3 px-8 py-5
-                            border-b border-slate-100 bg-slate-50">
-              <div className="h-8 w-8 rounded-lg bg-[#0056d2]/10
-                              text-[#0056d2] flex items-center justify-center">
+            <div className="flex items-center gap-3 px-8 py-5 border-b border-slate-100 bg-slate-50">
+              <div className="h-8 w-8 rounded-lg bg-[#0056d2]/10 text-[#0056d2] 
+                              flex items-center justify-center">
                 <FileText className="h-4 w-4" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-900">
-                  O'quv materiali
+                  {lesson.content_type === 'mixed' ? 'Qo\'shimcha o\'quv materiali' : 'O\'quv materiali'}
                 </p>
                 <p className="text-xs text-slate-400 font-medium mt-0.5">
                   Taxminan {Math.max(1, Math.ceil(lesson.content_text.length / 1000))} daqiqa o'qish
@@ -756,18 +875,16 @@ const LessonPage = () => {
               <FormattedText content={lesson.content_text} />
             </div>
 
-            {/* O'qib bo'ldim tugmasi — faqat talaba uchun, faqat yakunlanmagan bo'lsa */}
-            {!isTeacher && !videoFinished && (
+            {/* "O'qib bo'ldim" tugmasi — FAQAT text turida, talaba uchun */}
+            {lesson.content_type === 'text' && !isTeacher && !videoFinished && (
               <div className="px-8 py-5 border-t border-slate-100 bg-slate-50">
                 <Button
                   onClick={() => {
                     setVideoFinished(true);
-                    if (!isTeacher) {
-                      updateProgress();
-                      toast.success("Maqola o'qildi!");
-                    }
+                    updateProgress();
+                    toast.success("Maqola o'qildi!");
                   }}
-                  className="w-full h-11 rounded-lg bg-[#0056d2] hover:bg-[#00419e]
+                  className="w-full h-11 rounded-lg bg-[#0056d2] hover:bg-[#00419e] 
                              text-white font-semibold shadow-sm"
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
@@ -775,6 +892,9 @@ const LessonPage = () => {
                 </Button>
               </div>
             )}
+            
+            {/* Mixed turida matn DOIM ko'rinadi (video tugaguncha ham), 
+                "O'qib bo'ldim" tugmasi YO'Q — video yakunida avtomatik ochiladi */}
           </div>
         )}
 
@@ -926,9 +1046,9 @@ const LessonPage = () => {
                           <div>
                              <h3 className="text-lg font-bold text-slate-900">Test bloklangan</h3>
                              <p className="text-sm text-slate-500 mt-1">
-                                {lesson?.content_type === 'video'
-                                  ? "Avval dars videosini to'liq ko'rib chiqing."
-                                  : "Avval o'quv materialini o'qib chiqing."
+                                {lesson?.content_type === 'text'
+                                  ? "Avval o'quv materialini o'qib chiqing."
+                                  : "Avval dars videosini to'liq ko'rib chiqing."
                                 }
                              </p>
                           </div>
@@ -1054,8 +1174,9 @@ const LessonPage = () => {
 
            {/* Sidebar Column */}
            <div className="lg:col-span-4 space-y-8">
-              <Card className="rounded-3xl border-indigo-100 shadow-sm bg-indigo-50/50 p-6 flex flex-col h-[420px]">
-                 <div className="flex items-center gap-3 mb-4 pb-4 border-b border-indigo-100/50">
+              {!isTeacher && (
+                <Card className="rounded-3xl border-indigo-100 shadow-sm bg-indigo-50/50 p-6 flex flex-col h-[420px]">
+                   <div className="flex items-center gap-3 mb-4 pb-4 border-b border-indigo-100/50">
                     <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center text-indigo-600 shadow-sm shrink-0">
                        <BrainCircuit className="h-5 w-5" />
                     </div>
@@ -1117,6 +1238,7 @@ const LessonPage = () => {
                     </Button>
                  </div>
               </Card>
+              )}
 
               <Card className="rounded-3xl border-slate-100 shadow-sm bg-white p-8">
                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-6">Asosiy tayanch nuqtalar</h4>
@@ -1226,6 +1348,66 @@ const LessonPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {isTeacher && (
+        <Dialog open={editLessonOpen} onOpenChange={setEditLessonOpen}>
+          <DialogContent className="rounded-xl p-0 max-w-xl border border-slate-200 shadow-lg bg-white overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="bg-slate-50 border-b border-slate-200 p-6">
+              <DialogHeader>
+                <DialogTitle className="text-xl font-bold text-slate-900">
+                  Darsni Tahrirlash
+                </DialogTitle>
+              </DialogHeader>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                  Dars Sarlavhasi
+                </Label>
+                <Input
+                  value={editLesson.title}
+                  onChange={(e) => setEditLesson({...editLesson, title: e.target.value})}
+                  placeholder="Dars sarlavhasi"
+                  className="h-10 rounded-lg border-slate-200 font-medium"
+                />
+              </div>
+
+              <ContentTypeSelector
+                value={editLesson.content_type}
+                onChange={(type) => setEditLesson({...editLesson, content_type: type})}
+              />
+
+              <ContentInputs
+                contentType={editLesson.content_type}
+                videoUrl={editLesson.video_url}
+                content={editLesson.content}
+                videoContent={editLesson.video_content}
+                onVideoUrl={(v: any) => setEditLesson({...editLesson, video_url: v})}
+                onContent={(v: any) => setEditLesson({...editLesson, content: v})}
+                onVideoContent={(v: any) => setEditLesson({...editLesson, video_content: v})}
+              />
+            </div>
+
+            <div className="p-6 bg-slate-50 border-t border-slate-200 flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setEditLessonOpen(false)}
+                className="h-10 flex-1 rounded-lg font-medium text-slate-600 border-slate-200"
+              >
+                Bekor qilish
+              </Button>
+              <Button
+                onClick={handleUpdateLesson}
+                disabled={isUpdatingLesson}
+                className="h-10 flex-[2] rounded-lg bg-[#0056d2] text-white font-medium hover:bg-[#00419e] transition-colors"
+              >
+                {isUpdatingLesson ? <Loader2 className="h-4 w-4 animate-spin" /> : "Saqlash"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   );
 };

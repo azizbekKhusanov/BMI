@@ -25,6 +25,7 @@ import TeacherAssignments from "./pages/TeacherAssignments";
 import TeacherMonitoring from "./pages/TeacherMonitoring";
 import TeacherSelfAssessments from "./pages/TeacherSelfAssessments";
 import TeacherCourseDetail from "./pages/TeacherCourseDetail";
+import TeacherMessages from "./pages/TeacherMessages";
 
 import StudentMyCourses from "./pages/StudentMyCourses";
 import StudentResults from "./pages/StudentResults";
@@ -71,6 +72,7 @@ const App = () => (
               <Route path="/teacher/reports" element={<TeacherReports />} />
               <Route path="/teacher/monitoring" element={<TeacherMonitoring />} />
               <Route path="/teacher/self-assessments" element={<TeacherSelfAssessments />} />
+              <Route path="/teacher/messages" element={<TeacherMessages />} />
             </Route>
 
             {/* Talaba (Student) maxsus */}

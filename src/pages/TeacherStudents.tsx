@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { 
   Search, Users, GraduationCap, Filter, 
   TrendingUp, BookOpen, Activity, Clock,
-  ClipboardList, Brain, MessageSquare, ArrowRight, UserCheck, Star
+  ClipboardList, Brain, MessageSquare, ArrowRight, UserCheck, Star, X
 } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -80,9 +80,17 @@ const TeacherStudents = () => {
   const [selectedCourse, setSelectedCourse] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState<"name" | "progress" | "date">("date");
+  const [sortBy, setSortBy] = useState<"name" | "progress" | "date" | "calibration" | "reflection">("date");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "attention" | "inactive">("all");
+  const [studentMetaCache, setStudentMetaCache] = useState<Record<string, {
+    testCount: number;
+    correctCount: number;
+    reflectionCount: number;
+    calibrationScore: number;
+  }>>({});
 
   const [selectedStudent, setSelectedStudent] = useState<Enrollment | null>(null);
   const [studentAnalytics, setStudentAnalytics] = useState<{ 
@@ -126,6 +134,65 @@ const TeacherStudents = () => {
           courses: (myCourses || []).find(c => c.id === e.course_id)
         }));
         setEnrollments(enriched);
+        
+        const uniqueUserIds = [...new Set(enriched.map(e => e.user_id))];
+        const fetchAllStudentMeta = async (userIds: string[]) => {
+          if (userIds.length === 0) return;
+          try {
+            const [testRes, reflectionRes, selfAssessRes] = await Promise.all([
+              supabase
+                .from("test_results")
+                .select("user_id, is_correct")
+                .in("user_id", userIds),
+              supabase
+                .from("self_assessments")
+                .select("user_id, rating")
+                .in("user_id", userIds),
+              supabase
+                .from("self_assessments")
+                .select("user_id, rating")
+                .in("user_id", userIds)
+            ]);
+
+            const tests = (testRes.data || []) as {
+              user_id: string; is_correct: boolean
+            }[];
+            const reflections = (reflectionRes.data || []) as {
+              user_id: string; rating: number
+            }[];
+
+            const cache: Record<string, {
+              testCount: number;
+              correctCount: number;
+              reflectionCount: number;
+              calibrationScore: number;
+            }> = {};
+
+            userIds.forEach(uid => {
+              const userTests = tests.filter(t => t.user_id === uid);
+              const userReflections = reflections.filter(r => r.user_id === uid);
+              const correctCount = userTests.filter(t => t.is_correct).length;
+              const totalTests = userTests.length;
+
+              const avgRating = userReflections.length > 0
+                ? userReflections.reduce((sum, r) => sum + r.rating, 0) / userReflections.length
+                : 0;
+              const calibrationScore = Math.round((avgRating / 5) * 100);
+
+              cache[uid] = {
+                testCount: totalTests,
+                correctCount,
+                reflectionCount: userReflections.length,
+                calibrationScore
+              };
+            });
+
+            setStudentMetaCache(cache);
+          } catch (error) {
+            console.error("Meta fetch error:", error);
+          }
+        };
+        fetchAllStudentMeta(uniqueUserIds);
       } else {
         setEnrollments([]);
       }
@@ -172,16 +239,42 @@ const TeacherStudents = () => {
     }
   };
 
+  const getStudentStatus = (enrollment: Enrollment) => {
+    const meta = studentMetaCache[enrollment.user_id];
+    if (!meta) return "inactive";
+    if (enrollment.progress === 0 && meta.testCount === 0) return "inactive";
+    if (meta.calibrationScore < 50 || enrollment.progress < 30) return "attention";
+    return "active";
+  };
+
+  const getStatusLabel = (status: string) => ({
+    active: { label: "Faol", bg: "bg-emerald-50", text: "text-emerald-700" },
+    attention: { label: "Diqqat talab etadi", bg: "bg-amber-50", text: "text-amber-700" },
+    inactive: { label: "Harakatsiz", bg: "bg-slate-100", text: "text-slate-500" },
+  }[status] || { label: "Noma'lum", bg: "bg-slate-100", text: "text-slate-500" });
+
   const sortedAndFiltered = enrollments
     .filter((e) => {
       const matchesCourse = selectedCourse === "all" || e.course_id === selectedCourse;
       const studentName = e.profiles?.full_name || "";
       const matchesSearch = studentName.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCourse && matchesSearch;
+      const status = getStudentStatus(e);
+      const matchesStatus = statusFilter === "all" || status === statusFilter;
+      return matchesCourse && matchesSearch && matchesStatus;
     })
     .sort((a, b) => {
       if (sortBy === "name") return (a.profiles?.full_name || "").localeCompare(b.profiles?.full_name || "");
       if (sortBy === "progress") return b.progress - a.progress;
+      if (sortBy === "calibration") {
+        const aScore = studentMetaCache[a.user_id]?.calibrationScore || 0;
+        const bScore = studentMetaCache[b.user_id]?.calibrationScore || 0;
+        return bScore - aScore;
+      }
+      if (sortBy === "reflection") {
+        const aCount = studentMetaCache[a.user_id]?.reflectionCount || 0;
+        const bCount = studentMetaCache[b.user_id]?.reflectionCount || 0;
+        return bCount - aCount;
+      }
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
 
@@ -229,60 +322,183 @@ const TeacherStudents = () => {
         </div>
 
         {/* Global Analytics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
            {[
-             { label: "Jami Talabalar", value: enrollments.length, icon: Users, color: "text-[#0056d2]", bg: "bg-blue-50" },
-             { label: "O'rtacha Progress", value: `${Math.round(enrollments.reduce((sum, e) => sum + e.progress, 0) / (enrollments.length || 1))}%`, icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
-             { label: "Progress boshlagan", value: enrollments.filter(e => e.progress > 0).length, icon: Star, color: "text-amber-500", bg: "bg-amber-50" },
+             {
+               label: "Jami Talabalar",
+               value: enrollments.length,
+               icon: Users,
+               color: "text-[#0056d2]",
+               bg: "bg-blue-50"
+             },
+             {
+               label: "Faol Talabalar",
+               value: enrollments.filter(e => getStudentStatus(e) === "active").length,
+               icon: UserCheck,
+               color: "text-emerald-600",
+               bg: "bg-emerald-50"
+             },
+             {
+               label: "Diqqat Talab Etadi",
+               value: enrollments.filter(e => getStudentStatus(e) === "attention").length,
+               icon: Activity,
+               color: "text-amber-500",
+               bg: "bg-amber-50"
+             },
+             {
+               label: "O'rtacha Kalibrlash",
+               value: (() => {
+                 const scores = Object.values(studentMetaCache)
+                   .map(m => m.calibrationScore)
+                   .filter(s => s > 0);
+                 return scores.length > 0
+                   ? `${Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)}%`
+                   : "—";
+               })(),
+               icon: Brain,
+               color: "text-purple-600",
+               bg: "bg-purple-50"
+             }
            ].map((s, i) => (
-             <Card key={i} className="rounded-xl border border-slate-200 shadow-sm bg-white overflow-hidden hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                   <div className="flex items-center justify-between mb-4">
-                      <div className={`h-12 w-12 rounded-lg ${s.bg} ${s.color} flex items-center justify-center`}>
-                         <s.icon className="h-6 w-6" />
-                      </div>
-                   </div>
-                   <div>
-                      <p className="text-3xl font-bold text-slate-900 leading-none">{s.value}</p>
-                      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-2">{s.label}</p>
-                   </div>
-                </CardContent>
+             <Card key={i} className="rounded-xl border border-slate-200 shadow-sm bg-white overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+               onClick={() => {
+                 if (i === 1) setStatusFilter("active");
+                 else if (i === 2) setStatusFilter("attention");
+                 else setStatusFilter("all");
+               }}
+             >
+               <CardContent className="p-6">
+                 <div className={`h-10 w-10 rounded-lg ${s.bg} ${s.color} flex items-center justify-center mb-4`}>
+                   <s.icon className="h-5 w-5" />
+                 </div>
+                 <p className="text-2xl font-bold text-slate-900 leading-none">{s.value}</p>
+                 <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-2">{s.label}</p>
+               </CardContent>
              </Card>
            ))}
         </div>
 
         {/* Filters and Search */}
-        <Card className="rounded-xl border border-slate-200 shadow-sm bg-white p-4 flex flex-col lg:flex-row items-center gap-4">
-           <div className="flex-1 relative w-full group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-[#0056d2]" />
-              <Input 
-                placeholder="Talaba ismini kiriting..." 
+        {/* Filters and Search */}
+        <Card className="rounded-xl border border-slate-200 shadow-sm bg-white p-4">
+          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+            {/* Qidiruv */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Talaba ismini kiriting..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-10 pl-10 rounded-lg border-slate-200 font-medium text-sm w-full focus-visible:ring-[#0056d2]"
+                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                className="h-10 pl-9 rounded-lg border-slate-200 font-medium text-sm w-full focus-visible:ring-[#0056d2]"
               />
-           </div>
-           <div className="flex gap-3 w-full lg:w-auto">
-              <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-                 <SelectTrigger className="h-10 rounded-lg border-slate-200 bg-white text-xs font-medium min-w-[180px]">
-                    <div className="flex items-center gap-2"><Filter className="h-3 w-3 text-slate-400" /><SelectValue placeholder="Barcha Kurslar" /></div>
-                 </SelectTrigger>
-                 <SelectContent className="rounded-lg border-slate-200">
-                    <SelectItem value="all">Barcha Kurslar</SelectItem>
-                    {courses.map(c => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
-                 </SelectContent>
+            </div>
+
+            {/* Filtrlar */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Kurs filtri */}
+              <Select value={selectedCourse} onValueChange={(v) => { setSelectedCourse(v); setCurrentPage(1); }}>
+                <SelectTrigger className="h-9 rounded-lg border-slate-200 bg-white text-xs font-medium min-w-[160px]">
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="h-3 w-3 text-slate-400" />
+                    <SelectValue placeholder="Barcha Kurslar" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent className="rounded-lg border-slate-200">
+                  <SelectItem value="all">Barcha Kurslar</SelectItem>
+                  {courses.map(c => (
+                    <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
+
+              {/* Holat filtri */}
+              <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
+                {[
+                  { value: "all", label: "Barchasi" },
+                  { value: "active", label: "Faol" },
+                  { value: "attention", label: "Diqqat" },
+                  { value: "inactive", label: "Harakat yo'q" },
+                ].map(({ value, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => { setStatusFilter(value as any); setCurrentPage(1); }}
+                    className={`h-7 px-3 rounded-md text-[11px] font-semibold transition-all ${
+                      statusFilter === value
+                        ? "bg-white text-[#0056d2] shadow-sm"
+                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Saralash */}
               <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-                 <SelectTrigger className="h-10 rounded-lg border-slate-200 bg-white text-xs font-medium min-w-[160px]">
-                    <div className="flex items-center gap-2"><TrendingUp className="h-3 w-3 text-slate-400" /><SelectValue placeholder="Tartiblash" /></div>
-                 </SelectTrigger>
-                 <SelectContent className="rounded-lg border-slate-200">
-                    <SelectItem value="date">Oxirgi qo'shilganlar</SelectItem>
-                    <SelectItem value="name">Ism (A-Z)</SelectItem>
-                    <SelectItem value="progress">Progress (Yuqori)</SelectItem>
-                 </SelectContent>
+                <SelectTrigger className="h-9 rounded-lg border-slate-200 bg-white text-xs font-medium min-w-[170px]">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-3 w-3 text-slate-400" />
+                    <SelectValue placeholder="Tartiblash" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent className="rounded-lg border-slate-200">
+                  <SelectItem value="date">Oxirgi qo'shilganlar</SelectItem>
+                  <SelectItem value="name">Ism (A-Z)</SelectItem>
+                  <SelectItem value="progress">Progress (Yuqori)</SelectItem>
+                  <SelectItem value="calibration">Kalibrlash (Yuqori)</SelectItem>
+                  <SelectItem value="reflection">Refleksiya soni</SelectItem>
+                </SelectContent>
               </Select>
-           </div>
+            </div>
+          </div>
+
+          {/* Faol filtrlar ko'rsatgichi */}
+          {(selectedCourse !== "all" || statusFilter !== "all" || searchQuery) && (
+            <div className="flex items-center gap-2 pt-3 mt-3 border-t border-slate-100">
+              <span className="text-xs text-slate-500 font-medium">Faol filtrlar:</span>
+              {selectedCourse !== "all" && (
+                <button
+                  onClick={() => setSelectedCourse("all")}
+                  className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1
+                             bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
+                >
+                  {courses.find(c => c.id === selectedCourse)?.title}
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+              {statusFilter !== "all" && (
+                <button
+                  onClick={() => setStatusFilter("all")}
+                  className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1
+                             bg-amber-50 text-amber-700 rounded-md hover:bg-amber-100 transition-colors"
+                >
+                  {getStatusLabel(statusFilter).label}
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1
+                             bg-slate-100 text-slate-600 rounded-md hover:bg-slate-200 transition-colors"
+                >
+                  "{searchQuery}"
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setSelectedCourse("all");
+                  setStatusFilter("all");
+                  setSearchQuery("");
+                  setCurrentPage(1);
+                }}
+                className="text-[11px] text-slate-400 hover:text-slate-600 font-medium ml-auto transition-colors"
+              >
+                Tozalash
+              </button>
+            </div>
+          )}
         </Card>
 
         {/* Student List */}
@@ -298,46 +514,117 @@ const TeacherStudents = () => {
               {loading ? (
                 Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
               ) : currentItems.length > 0 ? (
-                currentItems.map((e) => (
-                    <Card 
+                currentItems.map((e) => {
+                  const meta = studentMetaCache[e.user_id] || {
+                    testCount: 0, correctCount: 0,
+                    reflectionCount: 0, calibrationScore: 0
+                  };
+                  const status = getStudentStatus(e);
+                  const statusInfo = getStatusLabel(status);
+                
+                  return (
+                    <Card
                       key={e.id}
                       onClick={() => fetchStudentAnalytics(e)}
-                      className="rounded-xl border border-slate-200 shadow-sm hover:shadow-md bg-white p-4 cursor-pointer transition-shadow"
+                      className="rounded-xl border border-slate-200 shadow-sm hover:shadow-md
+                                 bg-white p-5 cursor-pointer transition-all hover:border-slate-300"
                     >
-                       <div className="flex flex-col md:flex-row items-center gap-6">
-                          <div className="relative">
-                             <Avatar className="h-14 w-14 border border-slate-100">
-                                <AvatarImage src={e.profiles?.avatar_url || undefined} />
-                                <AvatarFallback className="bg-slate-100 text-slate-600 font-bold">{e.profiles?.full_name?.[0]}</AvatarFallback>
-                             </Avatar>
+                      <div className="flex items-start gap-4">
+                
+                        {/* Avatar */}
+                        <Avatar className="h-12 w-12 border border-slate-100 flex-shrink-0">
+                          <AvatarImage src={e.profiles?.avatar_url || undefined} />
+                          <AvatarFallback className="bg-slate-100 text-slate-600 font-bold text-sm">
+                            {e.profiles?.full_name?.[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                
+                        {/* Asosiy ma'lumot */}
+                        <div className="flex-1 min-w-0">
+                
+                          {/* Ism + badge + holat */}
+                          <div className="flex items-center gap-3 flex-wrap mb-2">
+                            <h3 className="text-base font-semibold text-slate-800 truncate">
+                              {e.profiles?.full_name || "Noma'lum"}
+                            </h3>
+                            <span className="text-[10px] font-medium px-2.5 py-0.5 rounded-md
+                                             bg-slate-100 text-slate-500">
+                              {e.courses?.title}
+                            </span>
+                            <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-md
+                                             ${statusInfo.bg} ${statusInfo.text} ml-auto`}>
+                              {statusInfo.label}
+                            </span>
                           </div>
-                          
-                          <div className="flex-1 min-w-0 space-y-1 text-center md:text-left">
-                             <div className="flex flex-col md:flex-row md:items-center gap-2">
-                                <h3 className="text-base font-bold text-slate-900 truncate">{e.profiles?.full_name || "Noma'lum Talaba"}</h3>
-                                <Badge className="bg-slate-100 text-slate-600 border-none font-semibold text-[10px] uppercase tracking-wide w-fit mx-auto md:mx-0">{e.courses?.title}</Badge>
-                             </div>
-                             <p className="text-xs font-medium text-slate-500 flex items-center justify-center md:justify-start gap-1">
-                                <Clock className="h-3 w-3" /> Qo'shildi: {new Date(e.created_at).toLocaleDateString()}
-                             </p>
+                
+                          {/* Progress */}
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-[#185FA5] transition-all"
+                                style={{ width: `${e.progress}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-semibold text-slate-700 shrink-0">
+                              {Math.round(e.progress)}%
+                            </span>
                           </div>
-
-                          <div className="w-full md:w-48 space-y-2">
-                             <div className="flex items-center justify-between">
-                                <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">O'zlashtirish</span>
-                                <span className="text-sm font-bold text-slate-900">{Math.round(e.progress)}%</span>
-                             </div>
-                             <Progress value={e.progress} className="h-2 rounded-full bg-slate-100" />
+                
+                          {/* 3 ta metakognitiv ko'rsatkich */}
+                          <div className="grid grid-cols-3 gap-2">
+                
+                            <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-100">
+                              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
+                                Testlar
+                              </p>
+                              <p className="text-sm font-bold text-slate-900 mt-0.5">
+                                {meta.testCount > 0
+                                  ? `${meta.correctCount}/${meta.testCount}`
+                                  : "—"
+                                }
+                              </p>
+                            </div>
+                
+                            <div className={`rounded-lg p-2.5 border ${
+                              meta.calibrationScore >= 70
+                                ? "bg-emerald-50 border-emerald-100"
+                                : meta.calibrationScore >= 40
+                                  ? "bg-amber-50 border-amber-100"
+                                  : meta.calibrationScore > 0
+                                    ? "bg-red-50 border-red-100"
+                                    : "bg-slate-50 border-slate-100"
+                            }`}>
+                              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
+                                Kalibrlash
+                              </p>
+                              <p className={`text-sm font-bold mt-0.5 ${
+                                meta.calibrationScore >= 70
+                                  ? "text-emerald-700"
+                                  : meta.calibrationScore >= 40
+                                    ? "text-amber-700"
+                                    : meta.calibrationScore > 0
+                                      ? "text-red-700"
+                                      : "text-slate-400"
+                              }`}>
+                                {meta.calibrationScore > 0 ? `${meta.calibrationScore}%` : "—"}
+                              </p>
+                            </div>
+                
+                            <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-100">
+                              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
+                                Refleksiya
+                              </p>
+                              <p className="text-sm font-bold text-slate-900 mt-0.5">
+                                {meta.reflectionCount > 0 ? `${meta.reflectionCount} ta` : "—"}
+                              </p>
+                            </div>
+                
                           </div>
-
-                          <div className="flex items-center gap-2 justify-center mt-2 md:mt-0">
-                             <Button variant="ghost" className="h-10 w-10 p-0 rounded-lg text-slate-400 hover:text-[#0056d2] hover:bg-blue-50">
-                                <MessageSquare className="h-5 w-5" />
-                             </Button>
-                          </div>
-                       </div>
+                        </div>
+                      </div>
                     </Card>
-                ))
+                  );
+                })
               ) : (
                 <div className="py-24 text-center space-y-4 bg-white rounded-xl border border-slate-200">
                    <div className="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto text-slate-400"><Users className="h-8 w-8" /></div>

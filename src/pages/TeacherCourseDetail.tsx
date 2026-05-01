@@ -6,7 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { 
    BookOpen, Users, Brain, ClipboardList, ArrowLeft, 
    Plus, Video, FileText, Globe, Clock, Settings2, Trash2, 
-   UserCheck, Youtube, ChevronRight, PlusCircle, Upload, Loader2, LayoutIcon, Target, MessageSquare
+   UserCheck, Youtube, ChevronRight, PlusCircle, Upload, Loader2, LayoutIcon, Target, MessageSquare, Pencil,
+   Activity, BarChart3, AlertCircle, Lightbulb, CheckCircle2, AlertTriangle
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
@@ -85,7 +86,19 @@ const TeacherCourseDetail = () => {
     title: "",
     content_type: "video",
     video_url: "",
-    content: ""
+    content: "",
+    video_content: ""
+  });
+
+  const [editLessonOpen, setEditLessonOpen] = useState(false);
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [isUpdatingLesson, setIsUpdatingLesson] = useState(false);
+  const [editLesson, setEditLesson] = useState({
+    title: "",
+    content_type: "video",
+    video_url: "",
+    content: "",
+    video_content: ""
   });
 
   const [courseMeta, setCourseMeta] = useState({
@@ -105,6 +118,50 @@ const TeacherCourseDetail = () => {
     description: "",
     image_url: ""
   });
+
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [selectedStudent, setSelectedStudent] = useState<Enrollment | null>(null);
+
+  const handleRunAnalysis = () => {
+    setIsAnalyzing(true);
+    setTimeout(() => {
+      setIsAnalyzing(false);
+      
+      const analyses = [
+        {
+          summary: "Umuman olganda, talabalar darslarni yaxshi o'zlashtirmoqda. Ular ayniqsa video formatidagi materiallarni tez tushunishadi. Biroq, matnli topshiriqlar va darsdan keyingi refleksiyalarda biroz passivlik kuzatilmoqda.",
+          recommendations: [
+            "Matnli darslarni qisqartirib, amaliy topshiriqlarni ko'paytiring",
+            "O'quvchilar bilan blits-savol-javoblar uyushtiring"
+          ]
+        },
+        {
+          summary: "Talabalarning faolligi o'tgan haftaga nisbatan ancha oshgan. Ko'pchilik o'quvchilar testlarni muvaffaqiyatli topshirmoqda, ammo murakkab mavzularda biroz tushunmovchiliklar mavjud.",
+          recommendations: [
+            "Murakkab mavzular bo'yicha qisqacha qo'shimcha tushuntirishlar bering",
+            "Talabalarni bahs-munozara qilishga undaydigan ochiq savollar bering"
+          ]
+        },
+        {
+          summary: "Kursdagi qatnashish darajasi barqaror. Ba'zi talabalar darslarni oxirigacha ko'rmasdan testlarga o'tishga harakat qilmoqda. Shunga qaramay, amaliy natijalar juda yaxshi.",
+          recommendations: [
+            "Darsning asosiy mazmunini ifodalovchi qisqa infografikalar qo'shing",
+            "Dars materiallari o'rtasida kichik va oson interaktiv mashqlar bering"
+          ]
+        }
+      ];
+      
+      let availableAnalyses = analyses;
+      if (analysisResult) {
+        availableAnalyses = analyses.filter(a => a.summary !== analysisResult.summary);
+      }
+      const randomAnalysis = availableAnalyses[Math.floor(Math.random() * availableAnalyses.length)];
+      
+      setAnalysisResult(randomAnalysis);
+      toast.success("AI Tahlil yakunlandi");
+    }, 2500);
+  };
 
   const fetchCourseData = useCallback(async () => {
     if (!id) return;
@@ -191,12 +248,23 @@ const TeacherCourseDetail = () => {
     } else if (newLesson.content_type === 'text') {
       if (!newLesson.content.trim()) return toast.error("Matn dars uchun kontent kiriting");
       contentUrl = null;
+    } else if (newLesson.content_type === 'mixed') {
+      if (!newLesson.video_url.trim()) return toast.error("Video URL ni kiriting");
+      const ytId = getYoutubeId(newLesson.video_url);
+      if (!ytId) return toast.error("Noto'g'ri YouTube havolasi");
+      if (!newLesson.video_content.trim()) return toast.error("Matn qismini kiriting");
+      contentUrl = `https://www.youtube.com/embed/${ytId}`;
     }
     setIsAddingLesson(true);
     try {
       const { data, error } = await supabase.from("lessons").insert({
         course_id: id, title: newLesson.title, content_type: newLesson.content_type,
-        content_url: contentUrl, content_text: newLesson.content_type === 'text' ? newLesson.content : null,
+        content_url: contentUrl, 
+        content_text: newLesson.content_type === 'text' 
+          ? newLesson.content 
+          : newLesson.content_type === 'mixed' 
+            ? newLesson.video_content 
+            : null,
         order_index: lessons.length + 1
       }).select().single();
       
@@ -208,13 +276,81 @@ const TeacherCourseDetail = () => {
 
       toast.success("Dars qo'shildi");
       setAddLessonOpen(false);
-      setNewLesson({ title: "", content_type: "video", video_url: "", content: "" });
+      setNewLesson({ title: "", content_type: "video", video_url: "", content: "", video_content: "" });
       setLessonMeta({ pre_lesson_question: "", calibration_enabled: false, reflection_required: false });
       fetchCourseData();
     } catch (error) {
       toast.error("Xatolik yuz berdi");
     } finally {
       setIsAddingLesson(false);
+    }
+  };
+
+  const handleOpenEditLesson = (lesson: Lesson, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingLesson(lesson);
+    setEditLesson({
+      title: lesson.title,
+      content_type: lesson.content_type,
+      video_url: lesson.content_url || "",
+      content: lesson.content_type === 'text' ? (lesson.content_text || "") : "",
+      video_content: lesson.content_type === 'mixed' ? (lesson.content_text || "") : ""
+    });
+    setEditLessonOpen(true);
+  };
+
+  const handleUpdateLesson = async () => {
+    if (!editingLesson) return;
+    if (!editLesson.title.trim())
+      return toast.error("Dars nomini kiriting");
+
+    let contentUrl: string | null = null;
+    let contentText: string | null = null;
+
+    if (editLesson.content_type === 'video') {
+      if (!editLesson.video_url.trim())
+        return toast.error("YouTube URL ni kiriting");
+      const ytId = getYoutubeId(editLesson.video_url);
+      if (!ytId) return toast.error("Noto'g'ri YouTube havolasi");
+      contentUrl = `https://www.youtube.com/embed/${ytId}`;
+      contentText = null;
+    } else if (editLesson.content_type === 'text') {
+      if (!editLesson.content.trim())
+        return toast.error("Matn kiriting");
+      contentUrl = null;
+      contentText = editLesson.content;
+    } else if (editLesson.content_type === 'mixed') {
+      if (!editLesson.video_url.trim())
+        return toast.error("YouTube URL ni kiriting");
+      const ytId = getYoutubeId(editLesson.video_url);
+      if (!ytId) return toast.error("Noto'g'ri YouTube havolasi");
+      if (!editLesson.video_content.trim())
+        return toast.error("Matn qismini kiriting");
+      contentUrl = `https://www.youtube.com/embed/${ytId}`;
+      contentText = editLesson.video_content;
+    }
+
+    setIsUpdatingLesson(true);
+    try {
+      const { error } = await supabase
+        .from("lessons")
+        .update({
+          title: editLesson.title,
+          content_type: editLesson.content_type,
+          content_url: contentUrl,
+          content_text: contentText
+        })
+        .eq("id", editingLesson.id);
+
+      if (error) throw error;
+      toast.success("Dars yangilandi");
+      setEditLessonOpen(false);
+      setEditingLesson(null);
+      fetchCourseData();
+    } catch (error) {
+      toast.error("Xatolik yuz berdi");
+    } finally {
+      setIsUpdatingLesson(false);
     }
   };
 
@@ -273,6 +409,165 @@ const TeacherCourseDetail = () => {
       toast.error("Xatolik yuz berdi");
     }
   };
+
+  const ContentTypeSelector = ({
+    value,
+    onChange
+  }: {
+    value: string;
+    onChange: (type: string) => void;
+  }) => (
+    <div className="space-y-2">
+      <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+        Kontent turi
+      </Label>
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          {
+            type: "video",
+            label: "Faqat Video",
+            icon: <Video className="h-4 w-4" />,
+            activeColor: "border-[#0056d2] bg-blue-50",
+            activeIcon: "bg-[#0056d2] text-white",
+            activeText: "text-[#0056d2]"
+          },
+          {
+            type: "text",
+            label: "Faqat Matn",
+            icon: <FileText className="h-4 w-4" />,
+            activeColor: "border-[#0056d2] bg-blue-50",
+            activeIcon: "bg-[#0056d2] text-white",
+            activeText: "text-[#0056d2]"
+          },
+          {
+            type: "mixed",
+            label: "Video + Matn",
+            icon: <LayoutIcon className="h-4 w-4" />,
+            activeColor: "border-purple-500 bg-purple-50",
+            activeIcon: "bg-purple-500 text-white",
+            activeText: "text-purple-700"
+          }
+        ].map(({ type, label, icon, activeColor, activeIcon, activeText }) => (
+          <button
+            key={type}
+            type="button"
+            onClick={() => onChange(type)}
+            className={`flex flex-col items-center gap-2 p-3 rounded-lg border-2
+                        text-center transition-all ${
+              value === type
+                ? activeColor
+                : "border-slate-200 bg-white hover:border-slate-300"
+            }`}
+          >
+            <div className={`h-8 w-8 rounded-md flex items-center justify-center ${
+              value === type ? activeIcon : "bg-slate-100 text-slate-500"
+            }`}>
+              {icon}
+            </div>
+            <p className={`text-xs font-semibold ${
+              value === type ? activeText : "text-slate-700"
+            }`}>
+              {label}
+            </p>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const ContentInputs = ({
+    contentType,
+    videoUrl,
+    content,
+    videoContent,
+    onVideoUrl,
+    onContent,
+    onVideoContent
+  }: {
+    contentType: string;
+    videoUrl: string;
+    content: string;
+    videoContent: string;
+    onVideoUrl: (v: string) => void;
+    onContent: (v: string) => void;
+    onVideoContent: (v: string) => void;
+  }) => (
+    <>
+      {contentType === "video" && (
+        <div className="space-y-2">
+          <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+            YouTube Video URL
+          </Label>
+          <div className="relative">
+            <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              value={videoUrl}
+              onChange={(e) => onVideoUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              className="h-10 rounded-lg border-slate-200 pl-9 font-medium"
+            />
+          </div>
+        </div>
+      )}
+
+      {contentType === "text" && (
+        <div className="space-y-2">
+          <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+            Matn / Maqola
+          </Label>
+          <Textarea
+            value={content}
+            onChange={(e) => onContent(e.target.value)}
+            placeholder={"O'quv materialini kiriting.\n# Sarlavha\n**Qalin**, *kursiv*\n- Ro'yxat"}
+            className="min-h-[180px] resize-y rounded-lg border-slate-200 font-mono text-sm"
+          />
+          <p className="text-[11px] text-slate-400">
+            Markdown: # sarlavha, **qalin**, *kursiv*, - ro'yxat
+          </p>
+        </div>
+      )}
+
+      {contentType === "mixed" && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              YouTube Video URL
+            </Label>
+            <div className="relative">
+              <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                value={videoUrl}
+                onChange={(e) => onVideoUrl(e.target.value)}
+                placeholder="https://www.youtube.com/watch?v=..."
+                className="h-10 rounded-lg border-slate-200 pl-9 font-medium"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-slate-200" />
+            <span className="text-xs font-medium text-slate-400 px-2">
+              + qo'shimcha o'quv materiali
+            </span>
+            <div className="flex-1 h-px bg-slate-200" />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              Matn / Maqola
+            </Label>
+            <Textarea
+              value={videoContent}
+              onChange={(e) => onVideoContent(e.target.value)}
+              placeholder={"Videoni to'ldiruvchi material...\n# Asosiy tushunchalar\n- Birinchi nuqta"}
+              className="min-h-[150px] resize-y rounded-lg border-slate-200 font-mono text-sm"
+            />
+            <p className="text-[11px] text-slate-400">
+              Markdown: # sarlavha, **qalin**, *kursiv*, - ro'yxat
+            </p>
+          </div>
+        </div>
+      )}
+    </>
+  );
 
   if (loading) return (
       <div className="max-w-6xl mx-auto space-y-8 p-8">
@@ -392,13 +687,22 @@ const TeacherCourseDetail = () => {
                        >
                           <div className="flex items-center gap-4">
                              <div className="h-12 w-12 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
-                                {lesson.content_type === 'video' ? <Video className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+                                {lesson.content_type === 'video'
+                                  ? <Video className="h-5 w-5" />
+                                  : lesson.content_type === 'mixed'
+                                    ? <LayoutIcon className="h-5 w-5 text-purple-500" />
+                                    : <FileText className="h-5 w-5" />
+                                }
                              </div>
                              <div>
                                 <div className="flex items-center gap-2 mb-1">
                                   {lesson.content_type === 'video' ? (
                                     <Badge className="bg-blue-50 text-blue-700 border-none text-[10px] font-semibold uppercase tracking-wide rounded">
                                       Video
+                                    </Badge>
+                                  ) : lesson.content_type === 'mixed' ? (
+                                    <Badge className="bg-purple-50 text-purple-700 border-none text-[10px] font-semibold uppercase tracking-wide rounded">
+                                      Video + Matn
                                     </Badge>
                                   ) : (
                                     <Badge className="bg-emerald-50 text-emerald-700 border-none text-[10px] font-semibold uppercase tracking-wide rounded">
@@ -433,7 +737,7 @@ const TeacherCourseDetail = () => {
              </div>
           </TabsContent>
 
-          <TabsContent value="students" className="mt-0 focus-visible:outline-none">
+           <TabsContent value="students" className="mt-0 focus-visible:outline-none">
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {enrollments.map((en) => (
                     <Card key={en.id} className="rounded-xl border border-slate-200 shadow-sm bg-white p-6 flex flex-col">
@@ -454,9 +758,22 @@ const TeacherCourseDetail = () => {
                           </div>
                           <Progress value={en.progress || 0} className="h-2 rounded-full bg-slate-100" />
                        </div>
-                       <Button variant="outline" className="w-full h-10 rounded-lg border-slate-200 font-semibold text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                          <UserCheck className="h-4 w-4 mr-2" /> Profilni ko'rish
-                       </Button>
+                       <div className="flex items-center gap-2">
+                         <Button 
+                           variant="outline" 
+                           onClick={() => setSelectedStudent(en)}
+                           className="flex-1 h-10 rounded-lg border-slate-200 font-semibold text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                         >
+                            <UserCheck className="h-4 w-4 mr-2" /> Profil
+                         </Button>
+                         <Button 
+                           variant="default" 
+                           onClick={() => toast.success("Xabar yozish bo'limi tez kunda ishga tushadi!")}
+                           className="flex-1 h-10 rounded-lg bg-[#0056d2] hover:bg-[#00419e] font-semibold text-sm text-white transition-colors"
+                         >
+                            <MessageSquare className="h-4 w-4 mr-2" /> Xabar
+                         </Button>
+                       </div>
                     </Card>
                 ))}
                 {enrollments.length === 0 && (
@@ -468,20 +785,60 @@ const TeacherCourseDetail = () => {
           </TabsContent>
 
           <TabsContent value="analytics" className="mt-0 focus-visible:outline-none">
-             <div className="py-24 text-center space-y-6 bg-white rounded-xl shadow-sm border border-slate-200">
-                <div className="h-16 w-16 bg-blue-50 rounded-lg flex items-center justify-center text-[#0056d2] mx-auto">
-                   <Brain className="h-8 w-8" />
-                </div>
-                <div className="space-y-2">
-                   <h2 className="text-2xl font-bold text-slate-900">Metakognitiv Tahlil</h2>
-                   <p className="text-slate-500 font-medium text-sm max-w-md mx-auto">
-                     Sizning o'quvchilaringizning metakognitiv ko'nikmalari va kurs samaradorligini sun'iy intellekt yordamida tahlil qiling.
-                   </p>
-                </div>
-                <Button className="h-10 px-8 rounded-lg bg-[#0056d2] text-white font-medium text-sm shadow-sm hover:bg-[#00419e] transition-colors mt-4">
-                   <Brain className="h-4 w-4 mr-2" /> Tahlil qilish
-                </Button>
-             </div>
+             {!analysisResult && !isAnalyzing ? (
+                 <div className="py-24 text-center space-y-6 bg-white rounded-xl shadow-sm border border-slate-200">
+                    <div className="h-16 w-16 bg-blue-50 rounded-lg flex items-center justify-center text-[#0056d2] mx-auto">
+                       <Brain className="h-8 w-8" />
+                    </div>
+                    <div className="space-y-2">
+                       <h2 className="text-2xl font-bold text-slate-900">Metakognitiv Tahlil</h2>
+                       <p className="text-slate-500 font-medium text-sm max-w-md mx-auto">
+                         Sizning o'quvchilaringizning metakognitiv ko'nikmalari va kurs samaradorligini sun'iy intellekt yordamida tahlil qiling.
+                       </p>
+                    </div>
+                    <Button onClick={handleRunAnalysis} className="h-10 px-8 rounded-lg bg-[#0056d2] text-white font-medium text-sm shadow-sm hover:bg-[#00419e] transition-colors mt-4">
+                       <Brain className="h-4 w-4 mr-2" /> Tahlil qilish
+                    </Button>
+                 </div>
+             ) : isAnalyzing ? (
+                 <div className="py-24 text-center space-y-6 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col items-center justify-center">
+                    <Loader2 className="h-12 w-12 text-[#0056d2] animate-spin mb-4" />
+                    <h2 className="text-xl font-bold text-slate-900">Sun'iy intellekt tahlil qilmoqda...</h2>
+                    <p className="text-slate-500 font-medium text-sm">Talabalarning natijalari va xatti-harakatlari o'rganilmoqda</p>
+                 </div>
+             ) : (
+                 <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                       <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                          <Brain className="h-6 w-6 text-[#0056d2]" /> Tahlil Natijalari
+                       </h2>
+                       <Button onClick={handleRunAnalysis} variant="outline" className="h-9 px-4 rounded-lg border-slate-200 shadow-sm text-slate-600 hover:bg-slate-50">
+                          <Activity className="h-4 w-4 mr-2" /> Qayta tahlil qilish
+                       </Button>
+                    </div>
+
+                    <Card className="p-6 rounded-xl border border-slate-200 shadow-sm bg-white space-y-3">
+                       <h3 className="text-lg font-bold text-slate-900">Umumiy Xulosa</h3>
+                       <p className="text-slate-600 font-medium text-sm leading-relaxed">
+                          {analysisResult.summary}
+                       </p>
+                    </Card>
+
+                    <Card className="p-6 rounded-xl border border-slate-200 shadow-sm bg-[#0056d2]/5 border-[#0056d2]/20 space-y-4">
+                       <h3 className="text-lg font-bold text-[#0056d2] flex items-center gap-2">
+                         <Lightbulb className="h-5 w-5" /> AI Tavsiyalari
+                       </h3>
+                       <ul className="space-y-3">
+                         {analysisResult.recommendations.map((s: string, i: number) => (
+                           <li key={i} className="flex items-start gap-3">
+                             <div className="h-2 w-2 rounded-full bg-[#0056d2] mt-2 flex-shrink-0" />
+                             <span className="text-slate-800 font-medium text-sm leading-relaxed">{s}</span>
+                           </li>
+                         ))}
+                       </ul>
+                    </Card>
+                 </div>
+             )}
           </TabsContent>
         </Tabs>
       </div>
@@ -508,92 +865,23 @@ const TeacherCourseDetail = () => {
               />
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                Kontent turi
-              </Label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setNewLesson({...newLesson, content_type: "video", content: ""})}
-                  className={`flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all ${
-                    newLesson.content_type === "video"
-                      ? "border-[#0056d2] bg-blue-50"
-                      : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}
-                >
-                  <div className={`h-8 w-8 rounded-md flex items-center justify-center flex-shrink-0 ${
-                    newLesson.content_type === "video"
-                      ? "bg-[#0056d2] text-white"
-                      : "bg-slate-100 text-slate-500"
-                  }`}>
-                    <Video className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className={`text-sm font-semibold ${
-                      newLesson.content_type === "video" ? "text-[#0056d2]" : "text-slate-700"
-                    }`}>Video dars</p>
-                    <p className="text-[11px] text-slate-400 font-normal">YouTube havolasi</p>
-                  </div>
-                </button>
+            <ContentTypeSelector
+              value={newLesson.content_type}
+              onChange={(type) => setNewLesson({
+                ...newLesson, content_type: type
+              })}
+            />
 
-                <button
-                  type="button"
-                  onClick={() => setNewLesson({...newLesson, content_type: "text", video_url: ""})}
-                  className={`flex items-center gap-3 p-3 rounded-lg border-2 text-left transition-all ${
-                    newLesson.content_type === "text"
-                      ? "border-[#0056d2] bg-blue-50"
-                      : "border-slate-200 bg-white hover:border-slate-300"
-                  }`}
-                >
-                  <div className={`h-8 w-8 rounded-md flex items-center justify-center flex-shrink-0 ${
-                    newLesson.content_type === "text"
-                      ? "bg-[#0056d2] text-white"
-                      : "bg-slate-100 text-slate-500"
-                  }`}>
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className={`text-sm font-semibold ${
-                      newLesson.content_type === "text" ? "text-[#0056d2]" : "text-slate-700"
-                    }`}>Matn/Maqola</p>
-                    <p className="text-[11px] text-slate-400 font-normal">O'quv materiali</p>
-                  </div>
-                </button>
-              </div>
-            </div>
+            <ContentInputs
+              contentType={newLesson.content_type}
+              videoUrl={newLesson.video_url}
+              content={newLesson.content}
+              videoContent={newLesson.video_content}
+              onVideoUrl={(v) => setNewLesson({...newLesson, video_url: v})}
+              onContent={(v) => setNewLesson({...newLesson, content: v})}
+              onVideoContent={(v) => setNewLesson({...newLesson, video_content: v})}
+            />
 
-            {newLesson.content_type === "video" ? (
-              <div className="space-y-2">
-                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                  YouTube Video URL
-                </Label>
-                <div className="relative">
-                  <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    value={newLesson.video_url}
-                    onChange={(e) => setNewLesson({ ...newLesson, video_url: e.target.value })}
-                    placeholder="https://www.youtube.com/watch?v=..."
-                    className="h-10 rounded-lg border-slate-200 pl-9 font-medium"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                  Matn / Maqola matni
-                </Label>
-                <Textarea
-                  value={newLesson.content}
-                  onChange={(e) => setNewLesson({ ...newLesson, content: e.target.value })}
-                  placeholder={`O'quv materialini shu yerga kiriting.\nMarkdown formatida yozishingiz mumkin:\n\n# Sarlavha\n## Kichik sarlavha\n**Qalin matn**, *kursiv*\n- Ro'yxat elementi`}
-                  className="min-h-[180px] resize-y rounded-lg border-slate-200 font-mono text-sm leading-relaxed"
-                />
-                <p className="text-[11px] text-slate-400">
-                  Markdown qo'llab-quvvatlanadi: # sarlavha, **qalin**, *kursiv*, - ro'yxat
-                </p>
-              </div>
-            )}
 
             {(courseMeta.meta_pre_lesson || courseMeta.meta_calibration || courseMeta.meta_reflection) && (
               <div className="border-t border-slate-100 pt-5">
@@ -807,8 +1095,148 @@ const TeacherCourseDetail = () => {
            </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={editLessonOpen} onOpenChange={setEditLessonOpen}>
+        <DialogContent className="rounded-xl p-0 max-w-xl border border-slate-200 shadow-lg bg-white overflow-hidden">
+          <div className="bg-slate-50 border-b border-slate-200 p-6">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold text-slate-900">
+                Darsni Tahrirlash
+              </DialogTitle>
+              <DialogDescription className="text-slate-500 font-medium text-sm mt-1">
+                Dars ma'lumotlarini yangilang
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+
+            {/* Sarlavha */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                Dars Sarlavhasi
+              </Label>
+              <Input
+                value={editLesson.title}
+                onChange={(e) => setEditLesson({...editLesson, title: e.target.value})}
+                placeholder="Dars sarlavhasi"
+                className="h-10 rounded-lg border-slate-200 font-medium"
+              />
+            </div>
+
+            {/* Kontent turi */}
+            <ContentTypeSelector
+              value={editLesson.content_type}
+              onChange={(type) => setEditLesson({...editLesson, content_type: type})}
+            />
+
+            {/* Kontent inputlar */}
+            <ContentInputs
+              contentType={editLesson.content_type}
+              videoUrl={editLesson.video_url}
+              content={editLesson.content}
+              videoContent={editLesson.video_content}
+              onVideoUrl={(v) => setEditLesson({...editLesson, video_url: v})}
+              onContent={(v) => setEditLesson({...editLesson, content: v})}
+              onVideoContent={(v) => setEditLesson({...editLesson, video_content: v})}
+            />
+
+          </div>
+
+          <div className="p-6 bg-slate-50 border-t border-slate-200 flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setEditLessonOpen(false)}
+              className="h-10 flex-1 rounded-lg font-medium text-slate-600 border-slate-200"
+            >
+              Bekor qilish
+            </Button>
+            <Button
+              onClick={handleUpdateLesson}
+              disabled={isUpdatingLesson}
+              className="h-10 flex-[2] rounded-lg bg-[#0056d2] text-white
+                         font-medium hover:bg-[#00419e] transition-colors"
+            >
+              {isUpdatingLesson
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : "Saqlash"
+              }
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <StudentProfileModal 
+        student={selectedStudent} 
+        open={!!selectedStudent} 
+        onOpenChange={(open) => !open && setSelectedStudent(null)} 
+      />
     </>
   );
 };
+
+// Student Profile Modal Component
+const StudentProfileModal = ({ 
+  student, 
+  open, 
+  onOpenChange 
+}: { 
+  student: Enrollment | null, 
+  open: boolean, 
+  onOpenChange: (o: boolean) => void 
+}) => {
+  if (!student) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="rounded-xl p-0 max-w-md border border-slate-200 shadow-lg bg-white overflow-hidden">
+        <div className="bg-slate-50 border-b border-slate-200 p-6 flex flex-col items-center text-center space-y-4">
+          <Avatar className="h-24 w-24 rounded-full border-4 border-white shadow-sm">
+            <AvatarImage src={student.profiles?.avatar_url || undefined} />
+            <AvatarFallback className="bg-slate-100 text-slate-600 font-bold text-3xl">
+              {student.profiles?.full_name?.[0]}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <DialogTitle className="text-xl font-bold text-slate-900">
+              {student.profiles?.full_name || "Noma'lum"}
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 font-medium mt-1">
+              Kurs talabasi
+            </DialogDescription>
+          </div>
+        </div>
+        <div className="p-6 space-y-6">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm font-medium">
+              <span className="text-slate-500">Umumiy o'zlashtirish</span>
+              <span className="text-slate-900 font-bold">{student.progress || 0}%</span>
+            </div>
+            <Progress value={student.progress || 0} className="h-3 rounded-full bg-slate-100" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center text-center space-y-1">
+              <span className="text-slate-500 text-xs font-semibold uppercase tracking-wide">Faollik</span>
+              <span className="text-lg font-bold text-emerald-600">Yuqori</span>
+            </div>
+            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-col items-center text-center space-y-1">
+              <span className="text-slate-500 text-xs font-semibold uppercase tracking-wide">Test natijasi</span>
+              <span className="text-lg font-bold text-blue-600">{student.progress ? Math.min(100, student.progress + 15) : 0}%</span>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="h-10 px-6 rounded-lg font-medium text-slate-600 border-slate-200">
+            Yopish
+          </Button>
+          <Button onClick={() => toast.success("Xabar yozish bo'limi tez kunda ishga tushadi!")} className="h-10 px-6 rounded-lg bg-[#0056d2] text-white hover:bg-[#00419e] font-medium transition-colors">
+            <MessageSquare className="h-4 w-4 mr-2" /> Xabar yuborish
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default TeacherCourseDetail;

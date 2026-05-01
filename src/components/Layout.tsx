@@ -60,6 +60,7 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
           { path: "/teacher/courses", label: "Kurslar", icon: BookOpen },
           { path: "/teacher/students", label: "Talabalar", icon: Users },
           { path: "/teacher/assignments", label: "Vazifalar", icon: ClipboardList },
+          { path: "/teacher/messages", label: "Xabarlar", icon: MessageSquare },
         ]},
         { group: "NEURAL ANALYTICS", links: [
           { path: "/teacher/reports", label: "Analytics", icon: BarChart },
