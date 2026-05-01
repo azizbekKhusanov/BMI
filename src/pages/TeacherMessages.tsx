@@ -49,20 +49,34 @@ const TeacherMessages = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // O'qituvchiga tegishli kurslardagi talabalarni ol
-      const { data: enrollments } = await supabase
+      // 1. O'qituvchiga tegishli kurslardagi talabalarni ol
+      const { data: enrollments, error: enrollError } = await supabase
         .from("enrollments")
-        .select("user_id, profiles(user_id, full_name, avatar_url), courses!inner(teacher_id)")
+        .select("user_id, courses!inner(teacher_id)")
         .eq("courses.teacher_id", user.id);
 
-      if (!enrollments) return;
+      if (enrollError || !enrollments) {
+        console.error("Enrollments error:", enrollError);
+        return;
+      }
 
-      // Har bir talaba bilan oxirgi xabar va o'qilmagan sonini ol
+      // 2. Talabalar profillarini alohida ol (chunki relationship yo'q)
+      const studentIds = [...new Set(enrollments.map(e => e.user_id))];
+      const { data: profiles, error: profileError } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, avatar_url")
+        .in("user_id", studentIds);
+
+      if (profileError || !profiles) {
+        console.error("Profiles error:", profileError);
+        return;
+      }
+
+      // 3. Har bir talaba bilan oxirgi xabar va o'qilmagan sonini ol
       const convList: Conversation[] = await Promise.all(
-        enrollments
-          .filter((e: any) => e.profiles && e.user_id !== user.id)
-          .map(async (e: any) => {
-            const student = e.profiles as unknown as Profile;
+        profiles
+          .filter(p => p.user_id !== user.id)
+          .map(async (student) => {
 
             const { data: lastMsgs } = await supabase
               .from("messages")

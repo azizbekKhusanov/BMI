@@ -39,6 +39,7 @@ const StudentNotifications = () => {
   const [isSending, setIsSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
+  const [enrollments, setEnrollments] = useState<any[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const fetchMessages = useCallback(async () => {
@@ -69,15 +70,30 @@ const StudentNotifications = () => {
     }
   }, [user]);
 
+  const fetchEnrollments = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from("enrollments")
+        .select("course_id, courses(teacher_id, title)")
+        .eq("user_id", user.id);
+      if (error) throw error;
+      setEnrollments(data || []);
+    } catch (error) {
+      console.error("Enrollments fetch error:", error);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (user) {
       fetchMessages();
+      fetchEnrollments();
       const channel = supabase.channel('student-messages').on('postgres_changes', { 
         event: 'INSERT', schema: 'public', table: 'messages', filter: `recipient_id=eq.${user.id}` 
       }, () => fetchMessages()).subscribe();
       return () => { supabase.removeChannel(channel); };
     }
-  }, [user, fetchMessages]);
+  }, [user, fetchMessages, fetchEnrollments]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -106,6 +122,15 @@ const StudentNotifications = () => {
   };
 
   const lastTeacherMessage = messages.filter(m => m.sender_id !== user?.id).reverse()[0];
+  const defaultRecipient = !lastTeacherMessage && enrollments.length > 0 ? {
+    recipient_id: enrollments[0].courses.teacher_id,
+    course_id: enrollments[0].course_id
+  } : null;
+
+  const currentRecipient = lastTeacherMessage ? {
+    recipient_id: lastTeacherMessage.sender_id,
+    course_id: lastTeacherMessage.course_id
+  } : defaultRecipient;
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -356,13 +381,13 @@ const StudentNotifications = () => {
                    
                    <input 
                      type="text" 
-                     placeholder="Intellektual muloqotni boshlang..." 
+                     placeholder={currentRecipient ? "Intellektual muloqotni boshlang..." : "Siz hech qanday kursga a'zo emassiz..."}
                      className="flex-1 bg-transparent border-none focus:ring-0 text-base font-bold px-4 h-14 placeholder:text-slate-300" 
                      value={newMessage}
                      onChange={(e) => setNewMessage(e.target.value)}
                      onKeyDown={(e) => {
-                       if (e.key === 'Enter' && lastTeacherMessage) {
-                         handleSendMessage(lastTeacherMessage.sender_id, lastTeacherMessage.course_id);
+                       if (e.key === 'Enter' && currentRecipient) {
+                         handleSendMessage(currentRecipient.recipient_id, currentRecipient.course_id);
                        }
                      }}
                    />
@@ -370,8 +395,8 @@ const StudentNotifications = () => {
                    <div className="flex items-center gap-3 shrink-0 pr-2">
                       <Button variant="ghost" size="icon" className="h-12 w-12 rounded-full hover:bg-white text-slate-400"><Mic className="h-6 w-6" /></Button>
                       <Button 
-                        onClick={() => lastTeacherMessage && handleSendMessage(lastTeacherMessage.sender_id, lastTeacherMessage.course_id)}
-                        disabled={isSending || !newMessage.trim() || !lastTeacherMessage}
+                        onClick={() => currentRecipient && handleSendMessage(currentRecipient.recipient_id, currentRecipient.course_id)}
+                        disabled={isSending || !newMessage.trim() || !currentRecipient}
                         className="h-16 px-10 rounded-[2.5rem] bg-slate-900 text-white font-black uppercase text-[10px] tracking-[0.2em] shadow-[0_20px_40px_rgba(15,23,42,0.3)] gap-4 group/btn hover:bg-primary transition-all duration-500"
                       >
                          Yuborish <Send className="h-4 w-4 group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
@@ -380,7 +405,7 @@ const StudentNotifications = () => {
                 </motion.div>
                 
                 <AnimatePresence>
-                  {!lastTeacherMessage && (
+                  {!currentRecipient && (
                     <motion.div 
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -388,7 +413,7 @@ const StudentNotifications = () => {
                     >
                        <Info className="h-5 w-5 text-primary" />
                        <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic">
-                          Faqat o'qituvchi muloqotni boshlagandan so'ng javob qaytara olasiz.
+                          Xabar yuborish uchun kamida bitta kursga a'zo bo'lishingiz kerak.
                        </p>
                     </motion.div>
                   )}
