@@ -120,9 +120,20 @@ const TeacherMonitoring = () => {
 
   useEffect(() => {
     fetchMonitoring();
+    
     const channel = supabase
       .channel('monitoring_updates')
-      .on('postgres_changes' as never, { event: 'INSERT', table: 'self_assessments' } as unknown as never, fetchMonitoring)
+      .on(
+        'postgres_changes' as any, 
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'self_assessments' 
+        }, 
+        () => {
+          fetchMonitoring();
+        }
+      )
       .subscribe();
 
     return () => {
