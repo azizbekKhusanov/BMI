@@ -98,7 +98,7 @@ const TeacherReports = () => {
                  </Badge>
               </div>
               <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 leading-tight">
-                 Hisobotlar & Statistika
+                 Hisobotlar va statistika
               </h1>
               <p className="text-slate-500 font-medium text-sm max-w-xl">
                  Kurslaringiz samaradorligi va o'quvchilaringizning o'zlashtirish darajasini chuqur tahlil qiling.
@@ -121,10 +121,10 @@ const TeacherReports = () => {
         {/* Summary Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
            {[
-             { label: "Jami O'quvchilar", value: summary.totalStudents, icon: Users, color: "text-[#0056d2]", bg: "bg-blue-50" },
-             { label: "O'rtacha Progress", value: `${summary.avgProgress}%`, icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
+             { label: "Jami o'quvchilar", value: summary.totalStudents, icon: Users, color: "text-[#0056d2]", bg: "bg-blue-50" },
+             { label: "O'rtacha o'zlashtirish", value: `${summary.avgProgress}%`, icon: TrendingUp, color: "text-emerald-600", bg: "bg-emerald-50" },
              { label: "Tugallash darajasi", value: `${summary.completionRate}%`, icon: CheckCircle2, color: "text-amber-500", bg: "bg-amber-50" },
-             { label: "Faol Kurslar", value: summary.totalCourses, icon: BookOpen, color: "text-indigo-500", bg: "bg-indigo-50" }
+             { label: "Faol kurslar", value: summary.totalCourses, icon: BookOpen, color: "text-indigo-500", bg: "bg-indigo-50" }
            ].map((stat, i) => (
              <Card key={i} className="border border-slate-200 shadow-sm bg-white rounded-xl p-6 relative overflow-hidden hover:shadow-md transition-shadow">
                 <div className="relative z-10 flex flex-col gap-3">
@@ -147,7 +147,7 @@ const TeacherReports = () => {
             <div className="flex flex-col gap-1 mb-6">
                <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                     <Users className="h-5 w-5 text-[#0056d2]" /> Kurslar Qiziqishi
+                     <Users className="h-5 w-5 text-[#0056d2]" /> Kurslarga qiziqish
                   </h3>
                   <Badge className="bg-blue-50 text-[#0056d2] border-none px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded">Jonli ma'lumotlar</Badge>
                </div>
@@ -189,7 +189,7 @@ const TeacherReports = () => {
             <div className="flex flex-col gap-1 mb-6">
                <div className="flex items-center justify-between">
                   <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                     <Target className="h-5 w-5 text-emerald-600" /> Mastery Darajasi
+                     <Target className="h-5 w-5 text-emerald-600" /> O'zlashtirish darajasi
                   </h3>
                   <Badge className="bg-emerald-50 text-emerald-700 border-none px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded">Maqsadli: 80%</Badge>
                </div>
@@ -230,7 +230,7 @@ const TeacherReports = () => {
                  <Sparkles className="h-7 w-7" />
               </div>
               <div className="space-y-3">
-                <h3 className="text-xl font-bold">AI Tavsiyasi</h3>
+                <h3 className="text-xl font-bold">AI tavsiyasi</h3>
                 <p className="text-slate-300 font-medium text-sm leading-relaxed">
                   Sizning <strong>"{courseData.sort((a,b) => b.students - a.students)[0]?.name || '---'}"</strong> kursingiz eng yuqori dinamikaga ega. Ushbu kursning metakognitiv savollarini boshqa kurslarga ham tatbiq etishni maslahat beramiz.
                 </p>
@@ -244,7 +244,7 @@ const TeacherReports = () => {
                  <AlertCircle className="h-7 w-7" />
               </div>
               <div className="space-y-3">
-                <h3 className="text-xl font-bold text-slate-900">Diqqat Qiling</h3>
+                <h3 className="text-xl font-bold text-slate-900">Diqqat qiling</h3>
                 <p className="text-slate-600 font-medium text-sm leading-relaxed">
                   Tugallash ko'rsatkichi past bo'lgan kurslar aniqlandi. O'quvchilarga motivatsion bildirishnomalar yuborish orqali faollikni oshirish mumkin.
                 </p>

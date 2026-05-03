@@ -310,7 +310,7 @@ const TeacherStudents = () => {
                  <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center text-[#0056d2]">
                     <Users className="h-5 w-5" />
                  </div>
-                 <h1 className="text-2xl font-bold text-slate-900 leading-tight">Talabalar Ro'yxati</h1>
+                 <h1 className="text-2xl font-bold text-slate-900 leading-tight">Talabalar ro'yxati</h1>
               </div>
               <p className="text-slate-500 text-sm font-medium">
                  Talabalarning o'quv jarayonini kuzatib boring va muloqot qiling.
@@ -325,28 +325,28 @@ const TeacherStudents = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
            {[
              {
-               label: "Jami Talabalar",
+               label: "Jami talabalar",
                value: enrollments.length,
                icon: Users,
                color: "text-[#0056d2]",
                bg: "bg-blue-50"
              },
              {
-               label: "Faol Talabalar",
+               label: "Faol talabalar",
                value: enrollments.filter(e => getStudentStatus(e) === "active").length,
                icon: UserCheck,
                color: "text-emerald-600",
                bg: "bg-emerald-50"
              },
              {
-               label: "Diqqat Talab Etadi",
+               label: "Diqqat talab etadi",
                value: enrollments.filter(e => getStudentStatus(e) === "attention").length,
                icon: Activity,
                color: "text-amber-500",
                bg: "bg-amber-50"
              },
              {
-               label: "O'rtacha Kalibrlash",
+               label: "O'rtacha kalibrlash",
                value: (() => {
                  const scores = Object.values(studentMetaCache)
                    .map(m => m.calibrationScore)
@@ -400,11 +400,11 @@ const TeacherStudents = () => {
                 <SelectTrigger className="h-9 rounded-lg border-slate-200 bg-white text-xs font-medium min-w-[160px]">
                   <div className="flex items-center gap-2">
                     <BookOpen className="h-3 w-3 text-slate-400" />
-                    <SelectValue placeholder="Barcha Kurslar" />
+                    <SelectValue placeholder="Barcha kurslar" />
                   </div>
                 </SelectTrigger>
                 <SelectContent className="rounded-lg border-slate-200">
-                  <SelectItem value="all">Barcha Kurslar</SelectItem>
+                  <SelectItem value="all">Barcha kurslar</SelectItem>
                   {courses.map(c => (
                     <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
                   ))}
@@ -446,7 +446,7 @@ const TeacherStudents = () => {
                   <SelectItem value="name">Ism (A-Z)</SelectItem>
                   <SelectItem value="progress">Progress (Yuqori)</SelectItem>
                   <SelectItem value="calibration">Kalibrlash (Yuqori)</SelectItem>
-                  <SelectItem value="reflection">Refleksiya soni</SelectItem>
+                  <SelectItem value="reflection">Refleksiyalar soni</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -505,7 +505,7 @@ const TeacherStudents = () => {
         <div className="space-y-4">
            <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                 <GraduationCap className="h-5 w-5 text-[#0056d2]" /> Talabalar Ro'yxati
+                 <GraduationCap className="h-5 w-5 text-[#0056d2]" /> Talabalar ro'yxati
               </h2>
               <Badge className="bg-slate-100 text-slate-500 border-none font-semibold text-xs px-2 py-0.5 rounded">{sortedAndFiltered.length} Talaba</Badge>
            </div>
@@ -726,7 +726,7 @@ const TeacherStudents = () => {
                   {/* Reflections List */}
                   <div className="space-y-4">
                      <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <Brain className="h-4 w-4 text-[#0056d2]" /> Metakognitiv Mulohazalar
+                        <Brain className="h-4 w-4 text-[#0056d2]" /> Metakognitiv mulohazalar
                      </h3>
                      <div className="space-y-3">
                         {studentAnalytics.reflections.length > 0 ? studentAnalytics.reflections.map((ref) => (

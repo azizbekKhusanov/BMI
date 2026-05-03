@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,14 +29,15 @@ interface SelfAssessment {
   };
   lessons: {
     title: string;
+    course_id: string;
     courses: {
       title: string;
-      teacher_id: string;
     };
   };
 }
 
 const TeacherSelfAssessments = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [assessments, setAssessments] = useState<SelfAssessment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,23 +47,49 @@ const TeacherSelfAssessments = () => {
     if (!user) return;
     setLoading(true);
     try {
+      // 1. O'qituvchi kurslarini olamiz
+      const { data: teacherCourses } = await supabase
+        .from("courses")
+        .select("id")
+        .eq("teacher_id", user.id);
+      
+      const courseIds = teacherCourses?.map(c => c.id) || [];
+      if (courseIds.length === 0) {
+        setAssessments([]);
+        setLoading(false);
+        return;
+      }
+
+      // 2. Shu kurslarga tegishli darslarni olamiz
+      const { data: lessonsData } = await supabase
+        .from("lessons")
+        .select("id")
+        .in("course_id", courseIds);
+      
+      const lessonIds = lessonsData?.map(l => l.id) || [];
+      if (lessonIds.length === 0) {
+        setAssessments([]);
+        setLoading(false);
+        return;
+      }
+
+      // 3. Shu darslarga tegishli assessmentlarni olamiz
       const { data, error } = await supabase
         .from("self_assessments")
         .select(`
           *,
-          profiles (full_name, avatar_url),
-          lessons (
+          profiles:user_id (full_name, avatar_url),
+          lessons:lesson_id (
             title,
-            courses (title, teacher_id)
+            course_id,
+            courses:course_id (title)
           )
         `)
+        .in("lesson_id", lessonIds)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const filtered = (data as any || []).filter((a: any) => a.lessons?.courses?.teacher_id === user.id);
-      setAssessments(filtered);
+      setAssessments((data as any) || []);
     } catch (error) {
       console.error("Error fetching assessments:", error);
     } finally {
@@ -75,13 +103,24 @@ const TeacherSelfAssessments = () => {
 
   const parseReflection = (text: string | null) => {
     if (!text) return ["Fikr bildirilmagan", "", ""];
-    const parts = text.split('|');
-    return parts.map(p => p.split(':')[1]?.trim() || p.trim());
+
+    // | belgisi bilan ajratilgan format
+    if (text.includes('|')) {
+      const parts = text.split('|');
+      return [
+        parts[0]?.split(':')[1]?.trim() || parts[0]?.trim() || "",
+        parts[1]?.split(':')[1]?.trim() || parts[1]?.trim() || "",
+        parts[2]?.split(':')[1]?.trim() || parts[2]?.trim() || ""
+      ];
+    }
+
+    // Oddiy matn — hammasini birinchi qutiga qo'y
+    return [text.trim(), "", ""];
   };
 
   const filteredAssessments = assessments.filter(a =>
-    a.profiles.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.lessons.title.toLowerCase().includes(searchTerm.toLowerCase())
+    a.profiles?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.lessons?.title?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -95,11 +134,11 @@ const TeacherSelfAssessments = () => {
                     <Brain className="h-5 w-5" />
                  </div>
                  <Badge className="bg-blue-50 text-[#0056d2] border-none font-semibold text-[10px] uppercase tracking-wide px-2 py-0.5 rounded">
-                    Metakognitiv Tahlillar
+                    Metakognitiv tahlillar
                  </Badge>
               </div>
               <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 leading-tight">
-                 Self-Assessment Tahlili
+                 O'z-o'zini baholash tahlili
               </h1>
               <p className="text-slate-500 font-medium text-sm max-w-xl">
                  Talabalarning o'z o'rganish jarayoniga bergan baholari va chuqur refleksiyalarini ko'rib chiqing.
@@ -145,11 +184,11 @@ const TeacherSelfAssessments = () => {
                             <div className="lg:w-1/4 flex flex-col space-y-6 border-b lg:border-b-0 lg:border-r border-slate-100 pb-6 lg:pb-0 lg:pr-8 shrink-0">
                                <div className="flex items-center lg:flex-col lg:items-start gap-4">
                                   <Avatar className="h-16 w-16 lg:h-20 lg:w-20 rounded-xl border border-slate-200 shadow-sm">
-                                     <AvatarImage src={a.profiles.avatar_url || ""} />
-                                     <AvatarFallback className="bg-slate-100 text-slate-600 font-bold text-xl">{a.profiles.full_name[0]}</AvatarFallback>
+                                     <AvatarImage src={a.profiles?.avatar_url || ""} />
+                                     <AvatarFallback className="bg-slate-100 text-slate-600 font-bold text-xl">{a.profiles?.full_name?.[0] || "U"}</AvatarFallback>
                                   </Avatar>
                                   <div>
-                                     <h4 className="font-bold text-base lg:text-lg text-slate-900 leading-tight">{a.profiles.full_name}</h4>
+                                     <h4 className="font-bold text-base lg:text-lg text-slate-900 leading-tight">{a.profiles?.full_name || "Noma'lum talaba"}</h4>
                                      <div className="flex items-center gap-1.5 text-slate-500 font-medium text-xs mt-1">
                                         <Calendar className="h-3 w-3" /> {new Date(a.created_at).toLocaleDateString('uz-UZ')}
                                      </div>
@@ -158,7 +197,7 @@ const TeacherSelfAssessments = () => {
 
                                <div className="space-y-4">
                                   <div className="space-y-1.5">
-                                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Talaba Bahosi</p>
+                                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Talaba bahosi</p>
                                      <div className="flex items-center gap-1.5">
                                         {Array(5).fill(0).map((_, i) => (
                                           <Star key={i} className={`h-4 w-4 ${i < a.rating ? "text-amber-400 fill-amber-400" : "text-slate-200 fill-slate-50"}`} />
@@ -182,12 +221,12 @@ const TeacherSelfAssessments = () => {
                             <div className="flex-1 space-y-6">
                                <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                                   <div className="space-y-1">
-                                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{a.lessons.courses.title}</p>
+                                     <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{a.lessons?.courses?.title || "Kurs topilmadi"}</p>
                                      <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                                        {a.lessons.title} <ChevronRight className="h-4 w-4 text-slate-300" />
+                                        {a.lessons?.title || "Mavzu topilmadi"} <ChevronRight className="h-4 w-4 text-slate-300" />
                                      </h3>
                                   </div>
-                                  <Badge className="bg-slate-100 text-slate-700 rounded px-3 py-1 font-semibold text-[10px] uppercase tracking-wide border-none self-start">Tahliliy Refleksiya</Badge>
+                                  <Badge className="bg-slate-100 text-slate-700 rounded px-3 py-1 font-semibold text-[10px] uppercase tracking-wide border-none self-start">Tahliliy refleksiya</Badge>
                                </div>
 
                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -220,8 +259,11 @@ const TeacherSelfAssessments = () => {
                                        <p className="text-slate-500 font-medium text-xs">Refleksiya bo'yicha shaxsiy tavsiyalar bering.</p>
                                     </div>
                                   </div>
-                                  <Button className="w-full sm:w-auto bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs px-4 h-9 rounded-md transition-colors shadow-sm">
-                                     Xabar yuborish <Sparkles className="h-3 w-3 ml-2 text-amber-500" />
+                                  <Button 
+                                    onClick={() => navigate("/teacher/messages")}
+                                    className="w-full sm:w-auto bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold text-xs px-4 h-9 rounded-md transition-colors shadow-sm"
+                                  >
+                                     Xabar yuborish
                                   </Button>
                                </div>
                             </div>
@@ -232,7 +274,7 @@ const TeacherSelfAssessments = () => {
                 })
               ) : (
                 <div className="text-center py-24 bg-white rounded-xl shadow-sm border border-slate-200 flex flex-col items-center gap-4">
-                   <div className="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center text-slate-300">
+                   <div className="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto text-slate-300">
                       <Brain className="h-8 w-8" />
                    </div>
                    <div className="space-y-1">
@@ -241,7 +283,7 @@ const TeacherSelfAssessments = () => {
                          Hozircha hech qanday talaba refleksiya yubormagan yoki qidiruvingiz bo'yicha natija yo'q.
                       </p>
                    </div>
-                   <Button onClick={() => setSearchTerm("")} variant="link" className="text-[#0056d2] font-semibold text-sm mt-2">Filterni tozalash</Button>
+                   <Button onClick={() => setSearchTerm("")} variant="link" className="text-[#0056d2] font-semibold text-sm mt-2">Filtrni tozalash</Button>
                 </div>
               )}
         </div>
