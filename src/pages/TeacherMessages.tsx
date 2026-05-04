@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 interface Profile {
@@ -235,8 +236,36 @@ const TeacherMessages = () => {
     return date.toLocaleDateString("uz-UZ");
   };
 
+  if (loading) return (
+    <div className="w-full pt-8 px-8 space-y-8">
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-48 rounded-lg" />
+        <Skeleton className="h-4 w-64 rounded-lg" />
+      </div>
+      <div className="grid grid-cols-3 gap-0 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm" style={{ height: "calc(100vh - 200px)" }}>
+        <div className="border-r border-slate-200 p-4 space-y-4">
+          <Skeleton className="h-10 w-full rounded-lg" />
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="flex items-center gap-3 p-2">
+              <Skeleton className="h-10 w-10 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3 w-2/3" />
+                <Skeleton className="h-2 w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="col-span-2 p-8 flex flex-col items-center justify-center space-y-4">
+          <Skeleton className="h-16 w-16 rounded-full" />
+          <Skeleton className="h-4 w-48 rounded-lg" />
+          <Skeleton className="h-3 w-64 rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="w-full pt-8 px-8 space-y-8 pb-20">
       {/* Sarlavha */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
@@ -270,19 +299,7 @@ const TeacherMessages = () => {
 
           {/* Suhbatlar ro'yxati */}
           <ScrollArea className="flex-1">
-            {loading ? (
-              <div className="p-4 space-y-3">
-                {[1,2,3].map(i => (
-                  <div key={i} className="flex items-center gap-3 p-3 animate-pulse">
-                    <div className="h-10 w-10 rounded-full bg-slate-100" />
-                    <div className="flex-1 space-y-2">
-                      <div className="h-3 bg-slate-100 rounded w-2/3" />
-                      <div className="h-2 bg-slate-100 rounded w-1/2" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : conversations.length === 0 ? (
+            {conversations.length === 0 ? (
               <div className="p-8 text-center">
                 <Users className="h-10 w-10 text-slate-300 mx-auto mb-3" />
                 <p className="text-sm font-medium text-slate-500">

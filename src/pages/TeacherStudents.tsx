@@ -114,90 +114,80 @@ const TeacherStudents = () => {
     try {
       const { data: myCourses } = await supabase.from("courses").select("id, title").eq("teacher_id", user.id);
       const courseIds = (myCourses || []).map(c => c.id);
+      
       if (courseIds.length === 0) {
         setEnrollments([]);
+        setLoading(false);
         return;
       }
+
+      // 1. Fetch Enrollments
       const { data: enrollmentsData, error: enrollError } = await supabase
         .from("enrollments")
-        .select("*")
+        .select(`
+          *,
+          courses:course_id (id, title)
+        `)
         .in("course_id", courseIds)
         .order("created_at", { ascending: false });
+
       if (enrollError) throw enrollError;
-      const safeEnrollments = (enrollmentsData as Enrollment[]) || [];
-      const userIds = [...new Set(safeEnrollments.map(e => e.user_id))];
+      
+      const enrolls = (enrollmentsData as any[]) || [];
+      const userIds = [...new Set(enrolls.map(e => e.user_id))];
+
       if (userIds.length > 0) {
-        const { data: profilesData } = await supabase.from("profiles").select("*").in("user_id", userIds);
-        const enriched = safeEnrollments.map(e => ({
+        // 2. Fetch Profiles, Tests and Reflections in Parallel
+        const [profilesRes, testRes, reflectionRes] = await Promise.all([
+          supabase.from("profiles").select("*").in("user_id", userIds),
+          supabase.from("test_results").select("user_id, is_correct").in("user_id", userIds),
+          supabase.from("self_assessments").select("user_id, rating").in("user_id", userIds)
+        ]);
+
+        const profilesData = profilesRes.data || [];
+        const tests = (testRes.data || []) as { user_id: string; is_correct: boolean }[];
+        const reflections = (reflectionRes.data || []) as { user_id: string; rating: number }[];
+
+        // Enriched enrollment data
+        const enriched = enrolls.map(e => ({
           ...e,
-          profiles: (profilesData as Profile[] || []).find(p => p.user_id === e.user_id),
-          courses: (myCourses || []).find(c => c.id === e.course_id)
+          profiles: profilesData.find(p => p.user_id === e.user_id)
         }));
-        setEnrollments(enriched);
-        
-        const uniqueUserIds = [...new Set(enriched.map(e => e.user_id))];
-        const fetchAllStudentMeta = async (userIds: string[]) => {
-          if (userIds.length === 0) return;
-          try {
-            const [testRes, reflectionRes, selfAssessRes] = await Promise.all([
-              supabase
-                .from("test_results")
-                .select("user_id, is_correct")
-                .in("user_id", userIds),
-              supabase
-                .from("self_assessments")
-                .select("user_id, rating")
-                .in("user_id", userIds),
-              supabase
-                .from("self_assessments")
-                .select("user_id, rating")
-                .in("user_id", userIds)
-            ]);
 
-            const tests = (testRes.data || []) as {
-              user_id: string; is_correct: boolean
-            }[];
-            const reflections = (reflectionRes.data || []) as {
-              user_id: string; rating: number
-            }[];
+        setEnrollments(enriched as Enrollment[]);
 
-            const cache: Record<string, {
-              testCount: number;
-              correctCount: number;
-              reflectionCount: number;
-              calibrationScore: number;
-            }> = {};
+        // 3. Build Metadata Cache
+        const cache: Record<string, {
+          testCount: number;
+          correctCount: number;
+          reflectionCount: number;
+          calibrationScore: number;
+        }> = {};
 
-            userIds.forEach(uid => {
-              const userTests = tests.filter(t => t.user_id === uid);
-              const userReflections = reflections.filter(r => r.user_id === uid);
-              const correctCount = userTests.filter(t => t.is_correct).length;
-              const totalTests = userTests.length;
+        userIds.forEach(uid => {
+          const userTests = tests.filter(t => t.user_id === uid);
+          const userReflections = reflections.filter(r => r.user_id === uid);
+          const correctCount = userTests.filter(t => t.is_correct).length;
+          const totalTests = userTests.length;
 
-              const avgRating = userReflections.length > 0
-                ? userReflections.reduce((sum, r) => sum + r.rating, 0) / userReflections.length
-                : 0;
-              const calibrationScore = Math.round((avgRating / 5) * 100);
+          const avgRating = userReflections.length > 0
+            ? userReflections.reduce((sum, r) => sum + r.rating, 0) / userReflections.length
+            : 0;
+          const calibrationScore = Math.round((avgRating / 5) * 100);
 
-              cache[uid] = {
-                testCount: totalTests,
-                correctCount,
-                reflectionCount: userReflections.length,
-                calibrationScore
-              };
-            });
+          cache[uid] = {
+            testCount: totalTests,
+            correctCount,
+            reflectionCount: userReflections.length,
+            calibrationScore
+          };
+        });
 
-            setStudentMetaCache(cache);
-          } catch (error) {
-            console.error("Meta fetch error:", error);
-          }
-        };
-        fetchAllStudentMeta(uniqueUserIds);
-      } else {
-        setEnrollments([]);
+        setStudentMetaCache(cache);
       }
     } catch (error) {
-      toast.error("Xatolik yuz berdi");
+      console.error("Error fetching enrollments:", error);
+      toast.error("Ma'lumotlarni yuklashda xatolik yuz berdi");
     } finally {
       setLoading(false);
     }
@@ -299,193 +289,250 @@ const TeacherStudents = () => {
     }
   };
 
+  if (loading) return (
+    <div className="w-full pt-8 px-8 space-y-8 pb-20">
+      <div className="flex justify-between items-center mb-8">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48 rounded-lg" />
+          <Skeleton className="h-4 w-64 rounded-lg" />
+        </div>
+        <Skeleton className="h-10 w-32 rounded-lg" />
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}
+      </div>
+      <Skeleton className="h-20 w-full rounded-xl mb-6" />
+      <div className="space-y-4">
+        {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}
+      </div>
+    </div>
+  );
+
   return (
     <>
-      <div className="max-w-7xl mx-auto py-8 px-6 space-y-8 pb-20">
+      <div className="w-full pb-8 pt-8 px-8 space-y-8 pb-20">
         
-        {/* Header Section */}
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
-           <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                 <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center text-[#0056d2]">
-                    <Users className="h-5 w-5" />
-                 </div>
-                 <h1 className="text-2xl font-bold text-slate-900 leading-tight">Talabalar ro'yxati</h1>
+        {/* 1. Header Section */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              Talabalar
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              {enrollments.length} ta talaba · 
+              {enrollments.filter(e => getStudentStatus(e) === "attention").length} ta 
+              diqqat talab etadi
+            </p>
+          </div>
+          <Button
+            onClick={fetchEnrollments}
+            variant="outline"
+            className="h-9 px-4 rounded-lg border-slate-200 font-medium 
+                       text-slate-600 text-sm gap-2 bg-white"
+          >
+            <Activity className="h-4 w-4" /> Yangilash
+          </Button>
+        </div>
+
+        {/* 2. Stat Kartalar */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+
+          {/* 1 — Jami talabalar */}
+          <div
+            onClick={() => setStatusFilter("all")}
+            className={`bg-white rounded-xl border p-5 cursor-pointer 
+                        transition-all hover:shadow-md ${
+              statusFilter === "all" 
+                ? "border-[#0056d2] ring-1 ring-[#0056d2]" 
+                : "border-slate-200"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-9 w-9 rounded-lg bg-blue-50 
+                              flex items-center justify-center">
+                <Users className="h-4 w-4 text-[#0056d2]" />
               </div>
-              <p className="text-slate-500 text-sm font-medium">
-                 Talabalarning o'quv jarayonini kuzatib boring va muloqot qiling.
-              </p>
-           </div>
-           <Button onClick={fetchEnrollments} variant="outline" className="h-10 px-4 rounded-lg border-slate-200 font-medium text-slate-600 gap-2 bg-white">
-              <Activity className="h-4 w-4 text-[#0056d2]" /> Yangilash
-           </Button>
+              <span className="text-[10px] font-medium text-slate-400 
+                               uppercase tracking-wide">Jami</span>
+            </div>
+            <p className="text-3xl font-bold text-slate-900 leading-none">
+              {enrollments.length}
+            </p>
+            <p className="text-xs text-slate-500 font-medium mt-1.5">
+              ta talaba
+            </p>
+          </div>
+
+          {/* 2 — Faol */}
+          <div
+            onClick={() => setStatusFilter("active")}
+            className={`bg-white rounded-xl border p-5 cursor-pointer 
+                        transition-all hover:shadow-md ${
+              statusFilter === "active"
+                ? "border-emerald-500 ring-1 ring-emerald-500"
+                : "border-slate-200"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-9 w-9 rounded-lg bg-emerald-50 
+                              flex items-center justify-center">
+                <UserCheck className="h-4 w-4 text-emerald-600" />
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 
+                                animate-pulse" />
+                <span className="text-[10px] font-medium text-emerald-600">
+                  Faol
+                </span>
+              </div>
+            </div>
+            <p className="text-3xl font-bold text-slate-900 leading-none">
+              {enrollments.filter(e => getStudentStatus(e) === "active").length}
+            </p>
+            <p className="text-xs text-slate-500 font-medium mt-1.5">
+              ta faol talaba
+            </p>
+          </div>
+
+          {/* 3 — Diqqat talab etadi */}
+          <div
+            onClick={() => setStatusFilter("attention")}
+            className={`bg-white rounded-xl border p-5 cursor-pointer 
+                        transition-all hover:shadow-md ${
+              statusFilter === "attention"
+                ? "border-amber-500 ring-1 ring-amber-500"
+                : "border-slate-200"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-9 w-9 rounded-lg bg-amber-50 
+                              flex items-center justify-center">
+                <Activity className="h-4 w-4 text-amber-500" />
+              </div>
+              <span className="text-[10px] font-medium text-amber-600 
+                               uppercase tracking-wide">Diqqat</span>
+            </div>
+            <p className="text-3xl font-bold text-slate-900 leading-none">
+              {enrollments.filter(e => getStudentStatus(e) === "attention").length}
+            </p>
+            <p className="text-xs text-slate-500 font-medium mt-1.5">
+              ta talaba
+            </p>
+          </div>
+
+          {/* 4 — O'rtacha kalibrlash */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="h-9 w-9 rounded-lg bg-purple-50 
+                              flex items-center justify-center">
+                <Brain className="h-4 w-4 text-purple-600" />
+              </div>
+              <span className="text-[10px] font-medium text-slate-400 
+                               uppercase tracking-wide">Kalibrlash</span>
+            </div>
+            <p className="text-3xl font-bold text-slate-900 leading-none">
+              {(() => {
+                const scores = Object.values(studentMetaCache)
+                  .map(m => m.calibrationScore).filter(s => s > 0);
+                return scores.length > 0
+                  ? `${Math.round(scores.reduce((a,b) => a+b,0) / scores.length)}%`
+                  : "—";
+              })()}
+            </p>
+            <p className="text-xs text-slate-500 font-medium mt-1.5">
+              o'rtacha aniqlik
+            </p>
+          </div>
+
         </div>
 
-        {/* Global Analytics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-           {[
-             {
-               label: "Jami talabalar",
-               value: enrollments.length,
-               icon: Users,
-               color: "text-[#0056d2]",
-               bg: "bg-blue-50"
-             },
-             {
-               label: "Faol talabalar",
-               value: enrollments.filter(e => getStudentStatus(e) === "active").length,
-               icon: UserCheck,
-               color: "text-emerald-600",
-               bg: "bg-emerald-50"
-             },
-             {
-               label: "Diqqat talab etadi",
-               value: enrollments.filter(e => getStudentStatus(e) === "attention").length,
-               icon: Activity,
-               color: "text-amber-500",
-               bg: "bg-amber-50"
-             },
-             {
-               label: "O'rtacha kalibrlash",
-               value: (() => {
-                 const scores = Object.values(studentMetaCache)
-                   .map(m => m.calibrationScore)
-                   .filter(s => s > 0);
-                 return scores.length > 0
-                   ? `${Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)}%`
-                   : "—";
-               })(),
-               icon: Brain,
-               color: "text-purple-600",
-               bg: "bg-purple-50"
-             }
-           ].map((s, i) => (
-             <Card key={i} className="rounded-xl border border-slate-200 shadow-sm bg-white overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-               onClick={() => {
-                 if (i === 1) setStatusFilter("active");
-                 else if (i === 2) setStatusFilter("attention");
-                 else setStatusFilter("all");
-               }}
-             >
-               <CardContent className="p-6">
-                 <div className={`h-10 w-10 rounded-lg ${s.bg} ${s.color} flex items-center justify-center mb-4`}>
-                   <s.icon className="h-5 w-5" />
-                 </div>
-                 <p className="text-2xl font-bold text-slate-900 leading-none">{s.value}</p>
-                 <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-2">{s.label}</p>
-               </CardContent>
-             </Card>
-           ))}
-        </div>
+        {/* 3. Filter Paneli */}
+        <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-3">
 
-        {/* Filters and Search */}
-        {/* Filters and Search */}
-        <Card className="rounded-xl border border-slate-200 shadow-sm bg-white p-4">
-          <div className="flex flex-col lg:flex-row lg:items-center gap-4">
             {/* Qidiruv */}
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 
+                                 h-4 w-4 text-slate-400" />
               <Input
                 placeholder="Talaba ismini kiriting..."
                 value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-                className="h-10 pl-9 rounded-lg border-slate-200 font-medium text-sm w-full focus-visible:ring-[#0056d2]"
+                className="h-10 pl-9 rounded-lg border-slate-200 text-sm 
+                           font-medium focus-visible:ring-[#0056d2]"
               />
             </div>
 
-            {/* Filtrlar */}
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Kurs filtri */}
-              <Select value={selectedCourse} onValueChange={(v) => { setSelectedCourse(v); setCurrentPage(1); }}>
-                <SelectTrigger className="h-9 rounded-lg border-slate-200 bg-white text-xs font-medium min-w-[160px]">
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="h-3 w-3 text-slate-400" />
-                    <SelectValue placeholder="Barcha kurslar" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent className="rounded-lg border-slate-200">
-                  <SelectItem value="all">Barcha kurslar</SelectItem>
-                  {courses.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              {/* Holat filtri */}
-              <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200">
-                {[
-                  { value: "all", label: "Barchasi" },
-                  { value: "active", label: "Faol" },
-                  { value: "attention", label: "Diqqat" },
-                  { value: "inactive", label: "Harakat yo'q" },
-                ].map(({ value, label }) => (
-                  <button
-                    key={value}
-                    onClick={() => { setStatusFilter(value as any); setCurrentPage(1); }}
-                    className={`h-7 px-3 rounded-md text-[11px] font-semibold transition-all ${
-                      statusFilter === value
-                        ? "bg-white text-[#0056d2] shadow-sm"
-                        : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-                    }`}
-                  >
-                    {label}
-                  </button>
+            {/* Kurs filtri */}
+            <Select value={selectedCourse}
+              onValueChange={(v) => { setSelectedCourse(v); setCurrentPage(1); }}>
+              <SelectTrigger className="h-10 rounded-lg border-slate-200 
+                                        bg-white text-sm font-medium w-full sm:w-48">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-3.5 w-3.5 text-slate-400" />
+                  <SelectValue placeholder="Barcha kurslar" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Barcha kurslar</SelectItem>
+                {courses.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
                 ))}
-              </div>
+              </SelectContent>
+            </Select>
 
-              {/* Saralash */}
-              <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-                <SelectTrigger className="h-9 rounded-lg border-slate-200 bg-white text-xs font-medium min-w-[170px]">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-3 w-3 text-slate-400" />
-                    <SelectValue placeholder="Tartiblash" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent className="rounded-lg border-slate-200">
-                  <SelectItem value="date">Oxirgi qo'shilganlar</SelectItem>
-                  <SelectItem value="name">Ism (A-Z)</SelectItem>
-                  <SelectItem value="progress">Progress (Yuqori)</SelectItem>
-                  <SelectItem value="calibration">Kalibrlash (Yuqori)</SelectItem>
-                  <SelectItem value="reflection">Refleksiyalar soni</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            {/* Saralash */}
+            <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+              <SelectTrigger className="h-10 rounded-lg border-slate-200 
+                                        bg-white text-sm font-medium w-full sm:w-52">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-3.5 w-3.5 text-slate-400" />
+                  <SelectValue placeholder="Tartiblash" />
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date">Oxirgi qo'shilganlar</SelectItem>
+                <SelectItem value="name">Ism (A-Z)</SelectItem>
+                <SelectItem value="progress">Progress (Yuqori)</SelectItem>
+                <SelectItem value="calibration">Kalibrlash (Yuqori)</SelectItem>
+                <SelectItem value="reflection">Refleksiya soni</SelectItem>
+              </SelectContent>
+            </Select>
+
           </div>
 
-          {/* Faol filtrlar ko'rsatgichi */}
-          {(selectedCourse !== "all" || statusFilter !== "all" || searchQuery) && (
-            <div className="flex items-center gap-2 pt-3 mt-3 border-t border-slate-100">
-              <span className="text-xs text-slate-500 font-medium">Faol filtrlar:</span>
-              {selectedCourse !== "all" && (
-                <button
-                  onClick={() => setSelectedCourse("all")}
-                  className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1
-                             bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors"
-                >
-                  {courses.find(c => c.id === selectedCourse)?.title}
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-              {statusFilter !== "all" && (
-                <button
-                  onClick={() => setStatusFilter("all")}
-                  className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1
-                             bg-amber-50 text-amber-700 rounded-md hover:bg-amber-100 transition-colors"
-                >
-                  {getStatusLabel(statusFilter).label}
-                  <X className="h-3 w-3" />
-                </button>
-              )}
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery("")}
-                  className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1
-                             bg-slate-100 text-slate-600 rounded-md hover:bg-slate-200 transition-colors"
-                >
-                  "{searchQuery}"
-                  <X className="h-3 w-3" />
-                </button>
-              )}
+          {/* Holat filtri — chip uslubida */}
+          <div className="flex items-center gap-2 mt-3 pt-3 
+                          border-t border-slate-100 flex-wrap">
+            <span className="text-xs text-slate-400 font-medium">Holat:</span>
+            {[
+              { value: "all", label: "Barchasi" },
+              { value: "active", label: "Faol", 
+                on: "bg-emerald-100 text-emerald-700 border-emerald-200",
+                off: "bg-white text-slate-600 border-slate-200" },
+              { value: "attention", label: "Diqqat talab etadi",
+                on: "bg-amber-100 text-amber-700 border-amber-200",
+                off: "bg-white text-slate-600 border-slate-200" },
+              { value: "inactive", label: "Harakatsiz",
+                on: "bg-slate-200 text-slate-700 border-slate-300",
+                off: "bg-white text-slate-600 border-slate-200" },
+            ].map(({ value, label, on, off }) => (
+              <button
+                key={value}
+                onClick={() => { setStatusFilter(value as any); setCurrentPage(1); }}
+                className={`h-7 px-3 rounded-full text-[11px] font-semibold 
+                            border transition-all ${
+                  statusFilter === value
+                    ? (on || "bg-[#0056d2] text-white border-[#0056d2]")
+                    : (off || "bg-white text-slate-600 border-slate-200 hover:border-slate-300")
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+
+            {/* Faol filtrlar tozalash */}
+            {(selectedCourse !== "all" || statusFilter !== "all" || searchQuery) && (
               <button
                 onClick={() => {
                   setSelectedCourse("all");
@@ -493,267 +540,382 @@ const TeacherStudents = () => {
                   setSearchQuery("");
                   setCurrentPage(1);
                 }}
-                className="text-[11px] text-slate-400 hover:text-slate-600 font-medium ml-auto transition-colors"
+                className="ml-auto text-[11px] text-slate-400 
+                           hover:text-slate-600 font-medium flex items-center gap-1"
               >
-                Tozalash
+                <X className="h-3 w-3" /> Tozalash
               </button>
-            </div>
-          )}
-        </Card>
+            )}
+          </div>
+        </div>
 
-        {/* Student List */}
+        {/* 4. Talabalar Ro'yxati */}
         <div className="space-y-4">
-           <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                 <GraduationCap className="h-5 w-5 text-[#0056d2]" /> Talabalar ro'yxati
-              </h2>
-              <Badge className="bg-slate-100 text-slate-500 border-none font-semibold text-xs px-2 py-0.5 rounded">{sortedAndFiltered.length} Talaba</Badge>
-           </div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4 text-slate-400" />
+              <span className="text-sm font-semibold text-slate-700">
+                {sortedAndFiltered.length} ta talaba
+              </span>
+            </div>
+          </div>
 
-           <div className="grid gap-4">
-              {loading ? (
-                Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
-              ) : currentItems.length > 0 ? (
-                currentItems.map((e) => {
-                  const meta = studentMetaCache[e.user_id] || {
-                    testCount: 0, correctCount: 0,
-                    reflectionCount: 0, calibrationScore: 0
-                  };
-                  const status = getStudentStatus(e);
-                  const statusInfo = getStatusLabel(status);
-                
-                  return (
-                    <Card
-                      key={e.id}
-                      onClick={() => fetchStudentAnalytics(e)}
-                      className="rounded-xl border border-slate-200 shadow-sm hover:shadow-md
-                                 bg-white p-5 cursor-pointer transition-all hover:border-slate-300"
-                    >
-                      <div className="flex items-start gap-4">
-                
-                        {/* Avatar */}
-                        <Avatar className="h-12 w-12 border border-slate-100 flex-shrink-0">
+          <div className="grid gap-4">
+            {loading ? (
+              Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
+            ) : currentItems.length > 0 ? (
+              currentItems.map((e) => {
+                const meta = studentMetaCache[e.user_id] || {
+                  testCount: 0, correctCount: 0,
+                  reflectionCount: 0, calibrationScore: 0
+                };
+                const status = getStudentStatus(e);
+                const statusInfo = getStatusLabel(status);
+
+                return (
+                  <div
+                    key={e.id}
+                    onClick={() => fetchStudentAnalytics(e)}
+                    className="bg-white rounded-xl border border-slate-200 
+                               hover:border-[#0056d2] hover:shadow-md 
+                               cursor-pointer transition-all duration-200 p-5"
+                  >
+                    <div className="flex items-center gap-4">
+
+                      {/* Avatar + holat dot */}
+                      <div className="relative flex-shrink-0">
+                        <Avatar className="h-11 w-11 border-2 border-white 
+                                           shadow-sm ring-1 ring-slate-100">
                           <AvatarImage src={e.profiles?.avatar_url || undefined} />
-                          <AvatarFallback className="bg-slate-100 text-slate-600 font-bold text-sm">
-                            {e.profiles?.full_name?.[0]}
+                          <AvatarFallback className="bg-[#0056d2] text-white 
+                                                      font-bold text-sm">
+                            {e.profiles?.full_name?.[0] || "?"}
                           </AvatarFallback>
                         </Avatar>
-                
-                        {/* Asosiy ma'lumot */}
-                        <div className="flex-1 min-w-0">
-                
-                          {/* Ism + badge + holat */}
-                          <div className="flex items-center gap-3 flex-wrap mb-2">
-                            <h3 className="text-base font-semibold text-slate-800 truncate">
-                              {e.profiles?.full_name || "Noma'lum"}
-                            </h3>
-                            <span className="text-[10px] font-medium px-2.5 py-0.5 rounded-md
-                                             bg-slate-100 text-slate-500">
-                              {e.courses?.title}
-                            </span>
-                            <span className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-md
-                                             ${statusInfo.bg} ${statusInfo.text} ml-auto`}>
-                              {statusInfo.label}
-                            </span>
-                          </div>
-                
-                          {/* Progress */}
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-[#185FA5] transition-all"
-                                style={{ width: `${e.progress}%` }}
-                              />
-                            </div>
-                            <span className="text-xs font-semibold text-slate-700 shrink-0">
-                              {Math.round(e.progress)}%
-                            </span>
-                          </div>
-                
-                          {/* 3 ta metakognitiv ko'rsatkich */}
-                          <div className="grid grid-cols-3 gap-2">
-                
-                            <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-100">
-                              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
-                                Testlar
-                              </p>
-                              <p className="text-sm font-bold text-slate-900 mt-0.5">
-                                {meta.testCount > 0
-                                  ? `${meta.correctCount}/${meta.testCount}`
-                                  : "—"
-                                }
-                              </p>
-                            </div>
-                
-                            <div className={`rounded-lg p-2.5 border ${
-                              meta.calibrationScore >= 70
-                                ? "bg-emerald-50 border-emerald-100"
-                                : meta.calibrationScore >= 40
-                                  ? "bg-amber-50 border-amber-100"
-                                  : meta.calibrationScore > 0
-                                    ? "bg-red-50 border-red-100"
-                                    : "bg-slate-50 border-slate-100"
-                            }`}>
-                              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
-                                Kalibrlash
-                              </p>
-                              <p className={`text-sm font-bold mt-0.5 ${
-                                meta.calibrationScore >= 70
-                                  ? "text-emerald-700"
-                                  : meta.calibrationScore >= 40
-                                    ? "text-amber-700"
-                                    : meta.calibrationScore > 0
-                                      ? "text-red-700"
-                                      : "text-slate-400"
-                              }`}>
-                                {meta.calibrationScore > 0 ? `${meta.calibrationScore}%` : "—"}
-                              </p>
-                            </div>
-                
-                            <div className="bg-slate-50 rounded-lg p-2.5 border border-slate-100">
-                              <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">
-                                Refleksiya
-                              </p>
-                              <p className="text-sm font-bold text-slate-900 mt-0.5">
-                                {meta.reflectionCount > 0 ? `${meta.reflectionCount} ta` : "—"}
-                              </p>
-                            </div>
-                
-                          </div>
-                        </div>
+                        {/* Holat indikatori */}
+                        <div className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 
+                                         rounded-full border-2 border-white ${
+                          status === "active" ? "bg-emerald-500" :
+                          status === "attention" ? "bg-amber-400" : "bg-slate-300"
+                        }`} />
                       </div>
-                    </Card>
-                  );
-                })
-              ) : (
-                <div className="py-24 text-center space-y-4 bg-white rounded-xl border border-slate-200">
-                   <div className="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mx-auto text-slate-400"><Users className="h-8 w-8" /></div>
-                   <h3 className="text-lg font-bold text-slate-900">Talabalar topilmadi</h3>
-                   <p className="text-slate-500 text-sm font-medium">Qidiruv parametrlarini o'zgartirib ko'ring.</p>
+
+                      {/* Ism va kurs */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <p className="text-sm font-bold text-slate-900 truncate">
+                            {e.profiles?.full_name || "Noma'lum"}
+                          </p>
+                          <span className={`text-[10px] font-semibold px-2 py-0.5 
+                                           rounded-full flex-shrink-0 ${statusInfo.bg} ${statusInfo.text}`}>
+                            {statusInfo.label}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 font-medium truncate">
+                          {e.courses?.title}
+                        </p>
+                      </div>
+
+                      {/* Progress */}
+                      <div className="hidden sm:flex flex-col items-end gap-1.5 
+                                      flex-shrink-0 w-32">
+                        <div className="flex items-center gap-1.5 w-full">
+                          <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                e.progress >= 70 ? "bg-emerald-500" :
+                                e.progress >= 30 ? "bg-[#0056d2]" : "bg-slate-300"
+                              }`}
+                              style={{ width: `${e.progress}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-bold text-slate-700 w-8 text-right">
+                            {Math.round(e.progress)}%
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          O'zlashtirish
+                        </span>
+                      </div>
+
+                      {/* 3 ta metakognitiv ko'rsatkich */}
+                      <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+
+                        {/* Testlar */}
+                        <div className="text-center min-w-[48px]">
+                          <p className="text-sm font-bold text-slate-900">
+                            {meta.testCount > 0
+                              ? `${meta.correctCount}/${meta.testCount}`
+                              : "—"}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                            Test
+                          </p>
+                        </div>
+
+                        <div className="w-px h-8 bg-slate-100" />
+
+                        {/* Kalibrlash */}
+                        <div className="text-center min-w-[52px]">
+                          <p className={`text-sm font-bold ${
+                            meta.calibrationScore >= 70 ? "text-emerald-600" :
+                            meta.calibrationScore >= 40 ? "text-amber-600" :
+                            meta.calibrationScore > 0 ? "text-red-500" : "text-slate-400"
+                          }`}>
+                            {meta.calibrationScore > 0 
+                              ? `${meta.calibrationScore}%` : "—"}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                            Kalibr
+                          </p>
+                        </div>
+
+                        <div className="w-px h-8 bg-slate-100" />
+
+                        {/* Refleksiya */}
+                        <div className="text-center min-w-[48px]">
+                          <p className="text-sm font-bold text-slate-900">
+                            {meta.reflectionCount > 0 
+                              ? `${meta.reflectionCount}` : "—"}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                            Refleks
+                          </p>
+                        </div>
+
+                      </div>
+
+                      {/* O'q */}
+                      <ArrowRight className="h-4 w-4 text-slate-300 flex-shrink-0" />
+                    </div>
+
+                    {/* Mobile uchun progress va metakognitiv */}
+                    <div className="sm:hidden mt-3 pt-3 border-t border-slate-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-[#0056d2]"
+                            style={{ width: `${e.progress}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-slate-700">
+                          {Math.round(e.progress)}%
+                        </span>
+                      </div>
+                      <div className="flex gap-4">
+                        <span className="text-xs text-slate-500">
+                          Test: <strong className="text-slate-900">
+                            {meta.testCount > 0 ? `${meta.correctCount}/${meta.testCount}` : "—"}
+                          </strong>
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          Kalibrlash: <strong className={
+                            meta.calibrationScore >= 70 ? "text-emerald-600" :
+                            meta.calibrationScore >= 40 ? "text-amber-600" : "text-slate-400"
+                          }>
+                            {meta.calibrationScore > 0 ? `${meta.calibrationScore}%` : "—"}
+                          </strong>
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          Refleksiya: <strong className="text-slate-900">
+                            {meta.reflectionCount || "—"}
+                          </strong>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="py-20 text-center bg-white rounded-xl 
+                              border border-dashed border-slate-200">
+                <div className="h-14 w-14 rounded-full bg-slate-50 
+                                flex items-center justify-center mx-auto mb-4">
+                  <Users className="h-7 w-7 text-slate-300" />
                 </div>
-              )}
-           </div>
+                <p className="text-sm font-semibold text-slate-600">
+                  Talabalar topilmadi
+                </p>
+                <p className="text-xs text-slate-400 mt-1">
+                  Qidiruv yoki filtr parametrlarini o'zgartiring
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Pagination */}
+          {sortedAndFiltered.length > itemsPerPage && (
+            <div className="flex items-center justify-between pt-4">
+              <p className="text-xs text-slate-500 font-medium">
+                {sortedAndFiltered.length} ta dan {(currentPage-1)*itemsPerPage+1}–
+                {Math.min(currentPage*itemsPerPage, sortedAndFiltered.length)} ko'rsatilmoqda
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(p => Math.max(1, p-1))}
+                  disabled={currentPage === 1}
+                  className="h-8 px-3 rounded-lg border-slate-200 text-xs font-medium"
+                >
+                  Oldingi
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(p => p+1)}
+                  disabled={currentPage * itemsPerPage >= sortedAndFiltered.length}
+                  className="h-8 px-3 rounded-lg border-slate-200 text-xs font-medium"
+                >
+                  Keyingi
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Student Analytics Sidebar */}
+      {/* 5. Yon Panel (Sheet) */}
       <Sheet open={!!selectedStudent} onOpenChange={(open) => !open && setSelectedStudent(null)}>
         <SheetContent className="sm:max-w-md md:max-w-lg rounded-l-xl border-l border-slate-200 shadow-xl p-0 overflow-hidden bg-white flex flex-col">
-           {selectedStudent && (
-             <>
-               {/* Sidebar Header */}
-               <div className="bg-slate-50 border-b border-slate-200 p-8">
-                  <div className="flex items-center gap-6">
-                     <Avatar className="h-20 w-20 border border-slate-200 shadow-sm bg-white">
-                        <AvatarImage src={selectedStudent.profiles?.avatar_url || undefined} />
-                        <AvatarFallback className="bg-slate-100 text-slate-600 text-2xl font-bold">{selectedStudent.profiles?.full_name?.[0]}</AvatarFallback>
-                     </Avatar>
-                     <div className="space-y-1">
-                        <h2 className="text-2xl font-bold text-slate-900">{selectedStudent.profiles?.full_name}</h2>
-                        <div className="flex items-center gap-2 text-slate-500 text-xs font-medium uppercase tracking-wide">
-                           <BookOpen className="h-3 w-3" /> {selectedStudent.courses?.title}
-                        </div>
-                     </div>
+          {selectedStudent && (
+            <>
+              {/* Sheet header */}
+              <div className="p-6 border-b border-slate-100 bg-slate-50/30">
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-14 w-14 ring-2 ring-slate-100">
+                    <AvatarImage src={selectedStudent.profiles?.avatar_url || undefined} />
+                    <AvatarFallback className="bg-[#0056d2] text-white text-xl font-bold">
+                      {selectedStudent.profiles?.full_name?.[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-lg font-bold text-slate-900 truncate">
+                      {selectedStudent.profiles?.full_name}
+                    </h2>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5 truncate">
+                      {selectedStudent.courses?.title}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <div className={`h-2 w-2 rounded-full ${
+                        getStudentStatus(selectedStudent) === "active" 
+                          ? "bg-emerald-500" 
+                          : getStudentStatus(selectedStudent) === "attention"
+                            ? "bg-amber-400" : "bg-slate-300"
+                      }`} />
+                      <span className="text-[11px] font-medium text-slate-500">
+                        {getStatusLabel(getStudentStatus(selectedStudent)).label}
+                      </span>
+                    </div>
                   </div>
-               </div>
+                </div>
+              </div>
 
-               <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-                  
-                  {/* Stats Grid */}
-                  <div className="grid grid-cols-2 gap-4">
-                     <Card className="rounded-lg bg-slate-50 border border-slate-200 p-4 space-y-2">
-                        <div className="flex items-center gap-2">
-                           <TrendingUp className="h-4 w-4 text-slate-400" />
-                           <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">O'zlashtirish</p>
-                        </div>
-                        <h4 className="text-2xl font-bold text-slate-900">{Math.round(selectedStudent.progress)}%</h4>
-                     </Card>
-                     <Card className="rounded-lg bg-slate-50 border border-slate-200 p-4 space-y-2">
-                        <div className="flex items-center gap-2">
-                           <ClipboardList className="h-4 w-4 text-slate-400" />
-                           <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Testlar</p>
-                        </div>
-                        <h4 className="text-2xl font-bold text-slate-900">{studentAnalytics.tests.length} ta</h4>
-                     </Card>
+              {/* Sheet stat kartalar */}
+              <div className="grid grid-cols-2 gap-3 p-5">
+                {[
+                  { label: "O'zlashtirish", value: `${Math.round(selectedStudent.progress)}%`, icon: TrendingUp, color: "text-[#0056d2]", bg: "bg-blue-50" },
+                  { label: "Testlar", value: `${studentAnalytics.tests.length} ta`, icon: ClipboardList, color: "text-purple-600", bg: "bg-purple-50" },
+                  { label: "Kalibrlash", value: studentMetaCache[selectedStudent.user_id]?.calibrationScore > 0 ? `${studentMetaCache[selectedStudent.user_id].calibrationScore}%` : "—", icon: Brain, color: "text-amber-600", bg: "bg-amber-50" },
+                  { label: "Refleksiya", value: `${studentAnalytics.reflections.length} ta`, icon: Star, color: "text-emerald-600", bg: "bg-emerald-50" },
+                ].map((s, i) => (
+                  <div key={i} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                    <div className={`h-7 w-7 rounded-md ${s.bg} ${s.color} 
+                                     flex items-center justify-center mb-2`}>
+                      <s.icon className="h-3.5 w-3.5" />
+                    </div>
+                    <p className="text-lg font-bold text-slate-900">{s.value}</p>
+                    <p className="text-[10px] text-slate-400 font-medium uppercase 
+                                 tracking-wide mt-0.5">{s.label}</p>
                   </div>
+                ))}
+              </div>
 
-                  {/* Chat Section */}
-                  <div className="space-y-4">
-                     <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4 text-[#0056d2]" /> Xabarlar
-                     </h3>
-                     <Card className="rounded-lg bg-white border border-slate-200 shadow-sm flex flex-col h-[400px]">
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 custom-scrollbar">
-                           {messages.length > 0 ? messages.map((msg) => (
-                             <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`max-w-[85%] p-3 rounded-lg text-sm font-medium ${
-                                  msg.sender_id === user?.id 
-                                    ? 'bg-[#0056d2] text-white' 
-                                    : 'bg-white text-slate-800 border border-slate-200'
-                                }`}>
-                                   {msg.content}
-                                   <div className={`text-[10px] mt-1 text-right ${msg.sender_id === user?.id ? 'text-blue-200' : 'text-slate-400'}`}>
-                                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                   </div>
-                                </div>
-                             </div>
-                           )) : (
-                             <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 space-y-2">
-                                <MessageSquare className="h-8 w-8 mb-2 opacity-20" />
-                                <p className="text-xs font-medium">Hozircha xabarlar yo'q</p>
-                             </div>
-                           )}
-                        </div>
-                        <div className="p-3 bg-white border-t border-slate-200 flex gap-2">
-                           <Input 
-                             placeholder="Xabaringizni yozing..." 
-                             className="h-10 rounded-md border-slate-200 text-sm focus-visible:ring-[#0056d2]"
-                             value={newMessage}
-                             onChange={(e) => setNewMessage(e.target.value)}
-                             onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                           />
-                           <Button 
-                             onClick={sendMessage}
-                             disabled={isSending || !newMessage.trim()}
-                             className="h-10 px-4 rounded-md bg-[#0056d2] text-white hover:bg-[#00419e] transition-colors"
-                           >
-                              <ArrowRight className="h-4 w-4" />
-                           </Button>
-                        </div>
-                     </Card>
-                  </div>
+              {/* Chat va refleksiyalar wrapper */}
+              <div className="flex-1 overflow-y-auto px-5 space-y-6 pb-8 custom-scrollbar">
 
-                  {/* Reflections List */}
-                  <div className="space-y-4">
-                     <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                        <Brain className="h-4 w-4 text-[#0056d2]" /> Metakognitiv mulohazalar
-                     </h3>
-                     <div className="space-y-3">
-                        {studentAnalytics.reflections.length > 0 ? studentAnalytics.reflections.map((ref) => (
-                          <Card key={ref.id} className="rounded-lg border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
-                             <div className="flex items-center justify-between">
-                                <Badge className="bg-slate-100 text-slate-600 border-none font-semibold text-[10px] uppercase tracking-wide">
-                                   {ref.lessons?.title || "Dars"}
-                                </Badge>
-                                <div className="flex gap-1">
-                                   {Array(5).fill(0).map((_, i) => <div key={i} className={`h-1.5 w-1.5 rounded-full ${i < ref.rating ? 'bg-[#0056d2]' : 'bg-slate-200'}`} />)}
-                                </div>
-                             </div>
-                             <p className="text-sm text-slate-700">
-                                "{ref.reflection}"
-                             </p>
-                          </Card>
-                        )) : (
-                          <div className="py-8 text-center border border-dashed border-slate-200 rounded-lg text-slate-500 font-medium text-sm">
-                             Refleksiya mavjud emas
+                {/* Xabarlar */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-900 mb-3 
+                                 flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-[#0056d2]" /> Xabarlar
+                  </h3>
+                  <Card className="rounded-lg bg-white border border-slate-200 shadow-sm flex flex-col h-[350px]">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 custom-scrollbar">
+                      {messages.length > 0 ? messages.map((msg) => (
+                        <div key={msg.id} className={`flex ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}>
+                          <div className={`max-w-[85%] p-3 rounded-lg text-sm font-medium ${
+                            msg.sender_id === user?.id 
+                              ? 'bg-[#0056d2] text-white' 
+                              : 'bg-white text-slate-800 border border-slate-200'
+                          }`}>
+                            {msg.content}
+                            <div className={`text-[10px] mt-1 text-right ${msg.sender_id === user?.id ? 'text-blue-200' : 'text-slate-400'}`}>
+                              {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
                           </div>
-                        )}
-                     </div>
-                  </div>
+                        </div>
+                      )) : (
+                        <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 space-y-2">
+                          <MessageSquare className="h-8 w-8 mb-2 opacity-20" />
+                          <p className="text-xs font-medium">Hozircha xabarlar yo'q</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 bg-white border-t border-slate-200 flex gap-2">
+                      <Input 
+                        placeholder="Xabaringizni yozing..." 
+                        className="h-10 rounded-md border-slate-200 text-sm focus-visible:ring-[#0056d2]"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                      />
+                      <Button 
+                        onClick={sendMessage}
+                        disabled={isSending || !newMessage.trim()}
+                        className="h-10 px-4 rounded-md bg-[#0056d2] text-white hover:bg-[#00419e] transition-colors"
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </Card>
+                </div>
 
-               </div>
-             </>
-           )}
+                {/* Refleksiyalar */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-slate-900 mb-3 
+                                 flex items-center gap-2">
+                    <Brain className="h-4 w-4 text-purple-600" /> Refleksiyalar
+                  </h3>
+                  <div className="space-y-3">
+                    {studentAnalytics.reflections.length > 0 ? studentAnalytics.reflections.map((ref) => (
+                      <Card key={ref.id} className="rounded-lg border border-slate-200 bg-white p-4 space-y-3 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <Badge className="bg-slate-100 text-slate-600 border-none font-semibold text-[10px] uppercase tracking-wide">
+                            {ref.lessons?.title || "Dars"}
+                          </Badge>
+                          <div className="flex gap-1">
+                            {Array(5).fill(0).map((_, i) => (
+                              <div key={i} className={`h-1.5 w-1.5 rounded-full ${i < ref.rating ? 'bg-[#0056d2]' : 'bg-slate-200'}`} />
+                            ))}
+                          </div>
+                        </div>
+                        <p className="text-sm text-slate-700 leading-relaxed">
+                          "{ref.reflection}"
+                        </p>
+                        <p className="text-[10px] text-slate-400 font-medium text-right">
+                          {new Date(ref.created_at).toLocaleDateString()}
+                        </p>
+                      </Card>
+                    )) : (
+                      <div className="py-8 text-center border border-dashed border-slate-200 rounded-lg text-slate-500 font-medium text-sm">
+                        Refleksiya mavjud emas
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </>
+          )}
         </SheetContent>
       </Sheet>
     </>

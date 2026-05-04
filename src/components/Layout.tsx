@@ -57,7 +57,7 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
       return [
         { group: "ASOSIY BO'LIM", links: [
           { path: "/teacher", label: "Bosh sahifa", icon: LayoutDashboard },
-          { path: "/teacher/courses", label: "Kurslar", icon: BookOpen },
+          { path: "/teacher/courses", label: "Mening kurslarim", icon: BookOpen },
           { path: "/teacher/students", label: "Talabalar", icon: Users },
           { path: "/teacher/assignments", label: "Vazifalar", icon: ClipboardList },
           { path: "/teacher/messages", label: "Xabarlar", icon: MessageSquare },
@@ -72,7 +72,7 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
     return [
       { group: "O'QUV BO'LIMI", links: [
         { path: "/student/dashboard", label: "Bosh sahifa", icon: LayoutDashboard },
-        { path: "/student/courses", label: "Barcha Kurslar", icon: BookOpen },
+        { path: "/student/courses", label: "Mening kurslarim", icon: BookOpen },
         { path: "/student/my-courses", label: "Mening Kurslarim", icon: GraduationCap },
       ]},
       { group: "BILIMLAR BAZASI", links: [
@@ -244,15 +244,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         </AnimatePresence>
 
         {/* Main Content Area */}
-        <main className="flex-1 relative overflow-x-hidden pt-0 md:pt-4 px-4 md:px-8 pb-10">
-          <div className="max-w-7xl mx-auto min-h-full flex flex-col">
+        <main className="flex-1 relative overflow-x-hidden bg-[#f8fafc]">
+          <div className="w-full min-h-full flex flex-col">
             
             {/* Global Desktop Topbar */}
-            <div className="hidden md:flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
-              <div className="text-[10px] font-bold text-slate-400 tracking-[0.2em] uppercase">
-                {isAdmin ? "ADMIN PORTALI" : isTeacher ? "O'QITUVCHI PORTALI" : "TALABA PORTALI"}
-              </div>
-              <div className="flex-1 max-w-xl mx-12">
+            <div className="hidden md:flex items-center justify-between px-8 pt-6 mb-1 pb-3 border-b border-slate-100">
+              <div className="flex-1 max-w-xl">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <input 

@@ -85,7 +85,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           currentUserRef.current = session?.user?.id ?? null;
           
           if (session?.user) {
-            await fetchProfileAndRoles(session.user.id);
+            // Profile orqa fonda yuklanadi, loadingni bloklamaydi
+            fetchProfileAndRoles(session.user.id);
           }
         }
       } catch (err) {
@@ -104,7 +105,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const newUserId = newUser?.id ?? null;
       
       if (newUserId !== currentUserRef.current && (event === 'SIGNED_IN' || newUser)) {
-        setLoading(true);
+        // Hozirgi holatda loadingni true qilish shart emas, chunki backgroundda yuklaymiz
+        // Lekin ba'zi hollarda bu kerak bo'lishi mumkin. Foydalanuvchi so'roviga ko'ra o'zgartiramiz.
       }
       
       currentUserRef.current = newUserId;
@@ -113,7 +115,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       try {
         if (newUser) {
-          await fetchProfileAndRoles(newUser.id);
+          // Profile orqa fonda yuklanadi
+          fetchProfileAndRoles(newUser.id);
         } else {
           setProfile(null);
           setRoles([]);

@@ -165,7 +165,7 @@ const TeacherMonitoring = () => {
   );
 
   return (
-      <div className="max-w-7xl mx-auto py-8 px-6 lg:px-8 space-y-8 pb-20">
+      <div className="max-w-full mx-auto py-8 px-6 lg:px-8 space-y-8 pb-20">
         
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">

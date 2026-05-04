@@ -11,7 +11,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 
 interface Course {
   id: string;
@@ -50,7 +50,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [recentResults, setRecentResults] = useState<TestResult[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   useEffect(() => {
     if (roles && roles.length > 0) {
@@ -66,61 +67,39 @@ const Dashboard = () => {
     if (!user) return;
     setLoading(true);
     try {
-      // 1. Fetch enrollments
-      const { data: enrollData, error: enrollError } = await supabase
-        .from("enrollments")
-        .select("*")
-        .eq("user_id", user.id);
-      
-      if (enrollError) throw enrollError;
+      // Parallel fetching for performance
+      const [enrollRes, resultsRes] = await Promise.all([
+        supabase
+          .from("enrollments")
+          .select("*, courses(*)")
+          .eq("user_id", user.id),
+        supabase
+          .from("test_results")
+          .select("*, tests(id, question)")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(5)
+      ]);
 
-      if (enrollData && enrollData.length > 0) {
-        const courseIds = enrollData.map(e => e.course_id);
-        const { data: coursesData } = await supabase
-          .from("courses")
-          .select("*")
-          .in("id", courseIds);
-        
-        const mappedEnrollments = enrollData.map(enroll => ({
-          ...enroll,
-          courses: coursesData?.find(c => c.id === enroll.course_id)
-        })) as Enrollment[];
-        setEnrollments(mappedEnrollments);
-      }
+      if (enrollRes.error) throw enrollRes.error;
+      if (resultsRes.error) throw resultsRes.error;
 
-      // 2. Fetch recent test results
-      const { data: resultsData, error: resultsError } = await supabase
-        .from("test_results")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
+      setEnrollments((enrollRes.data as Enrollment[]) || []);
+      setRecentResults((resultsRes.data as TestResult[]) || []);
 
-      if (resultsError) throw resultsError;
-
-      if (resultsData && resultsData.length > 0) {
-        const testIds = resultsData.map(r => r.test_id);
-        const { data: testsData } = await supabase
-          .from("tests")
-          .select("id, question")
-          .in("id", testIds);
-        
-        const mappedResults = resultsData.map(res => ({
-          ...res,
-          tests: testsData?.find(t => t.id === res.test_id)
-        })) as TestResult[];
-        setRecentResults(mappedResults);
-      }
     } catch (error) {
       console.error("Dashboard yuklashda xatolik:", error);
     } finally {
       setLoading(false);
+      setInitialLoad(false);
     }
   }, [user]);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]);
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user, fetchDashboardData]);
 
   const avgProgress = enrollments.length
     ? Math.round(enrollments.reduce((sum, e) => sum + Number(e.progress), 0) / enrollments.length)
@@ -144,11 +123,13 @@ const Dashboard = () => {
       {enrollments.map((enrollment) => (
         <Card key={enrollment.id} className="rounded-3xl border-slate-100 shadow-sm overflow-hidden hover:shadow-md transition-all group flex flex-col bg-white">
           <div className="h-48 bg-slate-100 relative overflow-hidden flex items-center justify-center">
-             {enrollment.courses?.image_url ? (
-               <img src={enrollment.courses.image_url} alt={enrollment.courses.title} className="absolute inset-0 w-full h-full object-cover" />
-             ) : (
-               <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 opacity-40" />
-             )}
+             <ImageWithFallback 
+               src={enrollment.courses?.image_url || undefined} 
+               alt={enrollment.courses?.title || "Kurs"} 
+               containerClassName="absolute inset-0 w-full h-full"
+               className="w-full h-full object-cover"
+               fallback={<div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 to-purple-500 opacity-40" />}
+             />
              <Badge className="absolute top-4 left-4 bg-white/90 text-indigo-600 hover:bg-white border-none font-bold rounded-full">
                {enrollment.courses?.category || "Fan"}
              </Badge>
@@ -195,12 +176,17 @@ const Dashboard = () => {
           <p className="text-slate-600">Sizning o'quv jarayoningiz haqida qisqacha ma'lumotlar.</p>
         </div>
         
-        <Button onClick={fetchDashboardData} variant="outline" className="h-11 px-6 rounded-full bg-white border-slate-200 text-slate-600 hover:bg-slate-50 transition-all font-semibold shadow-sm">
-          <RefreshCcw className="h-4 w-4 mr-2" /> Yangilash
-        </Button>
+        <div className="flex items-center gap-3">
+          {loading && !initialLoad && (
+            <div className="h-5 w-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          )}
+          <Button onClick={fetchDashboardData} variant="outline" className="h-11 px-6 rounded-full bg-white border-slate-200 text-slate-600 hover:bg-slate-50 transition-all font-semibold shadow-sm">
+            <RefreshCcw className="h-4 w-4 mr-2" /> Yangilash
+          </Button>
+        </div>
       </div>
 
-      {loading ? (
+      {initialLoad && loading ? (
         <div className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Skeleton className="h-32 rounded-3xl" />

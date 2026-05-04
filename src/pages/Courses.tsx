@@ -7,13 +7,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { 
-  BookOpen, Search, Filter, 
+  BookOpen, Search, 
   ArrowRight, Star, Clock, 
-  Users, LayoutGrid, List, Sparkles, Zap, Palette, Flame, Activity, ChevronDown
+  Users
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface Course {
@@ -31,19 +32,10 @@ interface Course {
   };
 }
 
-const CATEGORIES = [
-  { name: "Barchasi", icon: LayoutGrid },
-  { name: "Sun'iy Intellekt", icon: Sparkles },
-  { name: "Dasturlash", icon: Zap },
-  { name: "Dizayn", icon: Palette },
-  { name: "Biznes", icon: Flame }
-];
-
 const Courses = () => {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("Barchasi");
-
   const { data: { courses = [], enrolledIds = [] } = {}, isLoading: loading } = useQuery({
     queryKey: ['all-courses', user?.id],
     queryFn: async () => {
@@ -100,22 +92,25 @@ const Courses = () => {
     }
   };
 
-  const filtered = courses.filter((c) =>
-    (c.title.toLowerCase().includes(search.toLowerCase()) ||
-    c.description?.toLowerCase().includes(search.toLowerCase())) &&
-    (activeCategory === "Barchasi" || c.description?.includes(activeCategory) || c.category === activeCategory)
-  );
+  const filtered = courses.filter((c) => {
+    const matchesSearch = (c.title.toLowerCase().includes(search.toLowerCase()) ||
+      c.description?.toLowerCase().includes(search.toLowerCase()));
+    const matchesCategory = activeCategory === "Barchasi" || c.category === activeCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const categories = ["Barchasi", ...new Set(courses.map(c => c.category).filter(Boolean))] as string[];
 
   return (
     <>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10 mt-2">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-1 tracking-tight">Barcha kurslar</h1>
+          <h1 className="text-3xl font-bold text-slate-900 mb-1 tracking-tight">Mening kurslarim</h1>
           <p className="text-slate-500 font-medium">Platformadagi barcha mavjud kurslarni kashf eting va o'rganishni boshlang.</p>
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-3 mb-8">
+      <div className="flex flex-col md:flex-row gap-4 mb-8">
         <div className="relative flex-1">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input 
@@ -126,26 +121,22 @@ const Courses = () => {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button variant="outline" className="h-[46px] rounded-lg px-6 bg-white border-slate-200 text-slate-600 hover:bg-slate-50 font-bold">
-          <Filter className="h-4 w-4 mr-2" /> Filterlar
-        </Button>
-      </div>
-
-      <div className="flex overflow-x-auto pb-4 mb-6 gap-2 no-scrollbar">
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat.name}
-            onClick={() => setActiveCategory(cat.name)}
-            className={`whitespace-nowrap px-6 py-2 rounded-full text-sm font-bold flex items-center gap-2 transition-all ${
-              activeCategory === cat.name 
-                ? "bg-[#0056d2] text-white shadow-md shadow-blue-100" 
-                : "bg-white text-slate-600 border border-slate-200 hover:border-slate-300"
-            }`}
-          >
-            <cat.icon className="h-3.5 w-3.5" />
-            {cat.name}
-          </button>
-        ))}
+        <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+          {categories.map((cat) => (
+            <Button
+              key={cat}
+              variant={activeCategory === cat ? "default" : "outline"}
+              onClick={() => setActiveCategory(cat)}
+              className={`rounded-lg px-6 h-11 text-sm font-bold whitespace-nowrap transition-all ${
+                activeCategory === cat 
+                ? "bg-[#0056d2] hover:bg-[#00419e] text-white" 
+                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900"
+              }`}
+            >
+              {cat}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {loading ? (
@@ -172,15 +163,13 @@ const Courses = () => {
             return (
               <Card key={course.id} className="rounded-xl border-slate-200 shadow-none overflow-hidden hover:shadow-xl hover:border-slate-300 transition-all group flex flex-col bg-white">
                 <div className="h-44 relative overflow-hidden bg-slate-100">
-                  {course.image_url ? (
-                    <img 
-                      src={course.image_url} 
-                      alt={course.title} 
-                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 bg-gradient-to-tr from-slate-200 to-slate-100" />
-                  )}
+                  <ImageWithFallback 
+                    src={course.image_url} 
+                    alt={course.title} 
+                    containerClassName="absolute inset-0 w-full h-full"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                    fallback={<div className="absolute inset-0 bg-gradient-to-tr from-slate-200 to-slate-100" />}
+                  />
                   <div className="absolute top-3 left-3 flex gap-2">
                     <Badge className="bg-[#0056d2] text-white hover:bg-[#0056d2] border-none font-bold rounded-md px-3 py-1 shadow-sm">
                       {course.category || "Fan"}

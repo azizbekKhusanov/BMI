@@ -185,8 +185,23 @@ const TeacherCourses = () => {
     (course.description && course.description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  if (loading) return (
+    <div className="w-full pt-8 px-8 space-y-8 pb-20">
+      <div className="flex justify-between items-center mb-8">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48 rounded-lg" />
+          <Skeleton className="h-4 w-64 rounded-lg" />
+        </div>
+        <Skeleton className="h-10 w-44 rounded-lg" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {[1, 2, 3].map(i => <Skeleton key={i} className="h-80 w-full rounded-2xl" />)}
+      </div>
+    </div>
+  );
+
   return (
-      <div className="max-w-[1400px] mx-auto py-8 px-6 space-y-8 pb-20">
+      <div className="w-full py-8 px-8 space-y-8 pb-20">
         
         {/* Header Section */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">

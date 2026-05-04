@@ -104,7 +104,7 @@ const TeacherDashboard = () => {
   }, [fetchDashboardData]);
 
   if (loading) return (
-      <div className="max-w-[1400px] mx-auto py-8 px-6 space-y-8">
+      <div className="w-full pt-8 px-8 space-y-8">
         <div className="flex justify-between items-center">
           <Skeleton className="h-10 w-64 rounded-xl" />
           <div className="flex gap-4">
@@ -123,7 +123,7 @@ const TeacherDashboard = () => {
   );
 
   return (
-      <div className="max-w-[1400px] mx-auto py-8 px-6 space-y-8 pb-20">
+      <div className="w-full py-8 px-8 space-y-8 pb-20">
         
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">

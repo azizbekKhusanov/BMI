@@ -30,38 +30,13 @@ const Index = () => {
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 overflow-x-hidden selection:bg-primary/20 selection:text-primary">
       
-      {/* Navbar */}
-      <header className="fixed top-0 left-0 right-0 z-50 h-20 flex items-center bg-white border-b border-slate-200">
-        <div className="container mx-auto px-6 lg:px-12 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3">
-            <img src="/logo.png" alt="IDROK Logo" className="h-10 w-10 object-contain rounded-lg shadow-md" />
-            <span className="text-2xl font-bold text-slate-900 tracking-tight">IDROK</span>
-          </Link>
-          
-          <nav className="hidden lg:flex items-center gap-8">
-            {["Kurslar", "Metakognitsiya", "O'qituvchilar", "Narxlar"].map((item) => (
-              <Link key={item} to="#" className="font-medium text-sm text-slate-600 hover:text-primary transition-colors">{item}</Link>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-4">
-            <Link to="/login">
-              <Button variant="ghost" className="font-medium text-slate-600 hover:text-primary rounded-lg px-6 h-10">Kirish</Button>
-            </Link>
-            <Link to="/register">
-              <Button className="font-semibold rounded-lg px-6 h-10 bg-slate-900 text-white hover:bg-primary transition-all">Boshlash</Button>
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 mt-20">
+      <main className="flex-1">
         {/* Hero Section */}
         <section className="relative pt-32 pb-24 lg:pt-40 lg:pb-32 overflow-hidden bg-slate-50">
           {/* Subtle Glow Background */}
           <div className="absolute left-0 right-0 top-0 -z-10 m-auto h-[310px] w-[310px] rounded-full bg-primary/20 opacity-20 blur-[100px]"></div>
           
-          <div className="container relative mx-auto px-6 lg:px-12 z-10">
+          <div className="max-w-[1400px] relative mx-auto px-6 lg:px-12 z-10">
             <div className="flex flex-col items-center text-center space-y-8 max-w-4xl mx-auto">
               
               <div className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-sm font-medium text-primary mb-2">
@@ -96,7 +71,7 @@ const Index = () => {
 
         {/* Features Section */}
         <section className="py-24 bg-white">
-          <div className="container mx-auto px-6 lg:px-12">
+          <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
             <div className="flex flex-col items-center text-center gap-4 mb-16 max-w-2xl mx-auto">
               <h2 className="text-3xl md:text-4xl font-bold text-slate-900">Nega aynan IDROK?</h2>
               <p className="text-slate-600 font-normal text-lg">
@@ -161,7 +136,7 @@ const Index = () => {
 
         {/* Stats / Value Prop Section */}
         <section className="py-24 bg-slate-50 border-y border-slate-200">
-          <div className="container mx-auto px-6 lg:px-12">
+          <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
             <div className="flex flex-col items-center text-center gap-4 mb-16 max-w-2xl mx-auto">
               <h2 className="text-3xl md:text-4xl font-bold text-slate-900">Platforma afzalliklari</h2>
               <p className="text-slate-600 font-normal text-lg">
@@ -202,7 +177,7 @@ const Index = () => {
         </section>
 
         {/* CTA Section */}
-        <section className="container mx-auto px-6 lg:px-12 py-24">
+        <section className="max-w-[1400px] mx-auto px-6 lg:px-12 py-24">
           <div className="rounded-3xl bg-slate-900 p-12 lg:p-20 text-center shadow-xl relative overflow-hidden">
             {/* CTA Background Decorative */}
             <div className="absolute -top-24 -right-24 w-96 h-96 bg-primary/20 rounded-full blur-[100px]"></div>
@@ -235,7 +210,7 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 pt-16 pb-10">
-        <div className="container mx-auto px-6 lg:px-12">
+        <div className="max-w-[1400px] mx-auto px-6 lg:px-12">
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-12 mb-12">
             <div className="lg:col-span-2 space-y-6">
               <Link to="/" className="flex items-center gap-3">
