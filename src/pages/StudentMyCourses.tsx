@@ -152,16 +152,18 @@ const StudentMyCourses = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             onClick={() => navigate(`/student/courses/${enrollments[0].course_id}`)}
-            className="flex items-center gap-4 bg-blue-50/50 border border-blue-100 rounded-xl px-6 py-4 cursor-pointer hover:bg-blue-50 transition-all shadow-sm group"
+            className="flex items-center gap-4 bg-blue-50/80 border border-blue-100 rounded-2xl px-5 py-3 cursor-pointer hover:bg-blue-100/50 transition-all shadow-sm group border-l-4 border-l-[#0056d2]"
           >
-            <div className="h-10 w-10 rounded-lg bg-[#0056d2] text-white flex items-center justify-center shadow-md shadow-blue-100">
+            <div className="h-10 w-10 rounded-xl bg-[#0056d2] text-white flex items-center justify-center shadow-md shrink-0">
               <Sparkles className="h-5 w-5" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 pr-2">
               <div className="text-[10px] font-black text-[#0056d2] uppercase tracking-[0.2em] mb-0.5">AI Tavsiyasi</div>
-              <div className="text-sm font-bold text-slate-700 truncate max-w-[200px]">"{enrollments[0]?.courses?.title}" bo'yicha darsni davom ettiring</div>
+              <div className="text-sm font-bold text-slate-700 leading-tight">
+                "{enrollments[0]?.courses?.title}" bo'yicha darsni davom ettiring
+              </div>
             </div>
-            <ArrowRight className="h-4 w-4 text-[#0056d2] ml-2 group-hover:translate-x-1 transition-transform" />
+            <ArrowRight className="h-4 w-4 text-[#0056d2] shrink-0 group-hover:translate-x-1 transition-transform" />
           </motion.div>
         )}
       </div>

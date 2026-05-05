@@ -148,44 +148,49 @@ const CourseDetail = () => {
 
   return (
     <>
-      <div className="flex items-center gap-2 text-sm text-slate-500 mb-6 mt-4">
+      <div className="flex items-center gap-2 text-sm text-slate-400 mb-4 mt-2">
         <Link to="/student/courses" className="hover:text-indigo-600 transition-colors">Kurslar</Link>
-        <ArrowRight className="h-4 w-4" />
-        <span className="text-slate-900 font-semibold">{course.title}</span>
+        <ArrowRight className="h-3.5 w-3.5" />
+        <span className="text-slate-600 font-medium truncate">{course.title}</span>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden mb-8">
-        <div className="h-64 md:h-96 relative bg-slate-100">
+      <div className="relative rounded-[2rem] overflow-hidden mb-10 shadow-xl shadow-slate-200/50">
+        <div className="h-48 md:h-64 lg:h-72 relative bg-slate-900">
           <img 
             src={course.image_url || "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=60"} 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover opacity-60"
             alt={course.title}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
-          <div className="absolute bottom-0 left-0 p-8 w-full text-white">
-            <div className="flex gap-3 mb-4">
-              <Badge className="bg-indigo-600 hover:bg-indigo-700 text-white border-none font-semibold px-4 py-1.5 rounded-full">
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/20 to-transparent" />
+          
+          <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-10">
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+              <Badge className="bg-indigo-600 hover:bg-indigo-600 text-white border-none font-bold px-3 py-1 rounded-lg text-[10px] uppercase tracking-wider">
                 {course.category || "Fan"}
               </Badge>
-              <Badge className="bg-white/20 backdrop-blur-md text-white border-none font-semibold px-4 py-1.5 rounded-full">
-                Bepul
+              <Badge className="bg-white/10 backdrop-blur-md text-white border border-white/20 font-bold px-3 py-1 rounded-lg text-[10px] uppercase tracking-wider">
+                Bepul kurs
               </Badge>
             </div>
-            <h1 className="text-3xl md:text-5xl font-bold mb-4 leading-tight max-w-3xl">
+            
+            <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-white mb-4 leading-tight tracking-tight max-w-4xl">
               {course.title}
             </h1>
-            <div className="flex flex-wrap items-center gap-6 text-sm font-medium">
+
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-[11px] md:text-xs font-bold text-slate-300 uppercase tracking-widest">
               <div className="flex items-center gap-2">
-                <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
-                <span>4.9 (2.4k sharhlar)</span>
+                <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
+                <span className="text-white">4.9</span>
+                <span className="opacity-60">(2.4k sharh)</span>
               </div>
               <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-indigo-300" />
-                <span>{studentCount.toLocaleString()} ta talaba</span>
+                <Users className="h-4 w-4 text-indigo-400" />
+                <span className="text-white">{studentCount.toLocaleString()}</span>
+                <span className="opacity-60">talaba</span>
               </div>
               <div className="flex items-center gap-2">
-                <Globe className="h-5 w-5 text-emerald-300" />
-                <span>O'zbek tili</span>
+                <Globe className="h-4 w-4 text-emerald-400" />
+                <span className="text-white">O'zbek tili</span>
               </div>
             </div>
           </div>

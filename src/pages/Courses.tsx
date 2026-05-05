@@ -105,7 +105,7 @@ const Courses = () => {
     <>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10 mt-2">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-1 tracking-tight">Mening kurslarim</h1>
+          <h1 className="text-3xl font-bold text-slate-900 mb-1 tracking-tight">Barcha kurslar</h1>
           <p className="text-slate-500 font-medium">Platformadagi barcha mavjud kurslarni kashf eting va o'rganishni boshlang.</p>
         </div>
       </div>

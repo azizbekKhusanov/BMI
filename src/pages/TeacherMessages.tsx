@@ -16,6 +16,9 @@ interface Profile {
   user_id: string;
   full_name: string | null;
   avatar_url: string | null;
+  courseName?: string;
+  courseId?: string;
+  progress?: number;
 }
 
 interface Message {
@@ -53,7 +56,11 @@ const TeacherMessages = () => {
       // 1. O'qituvchiga tegishli kurslardagi talabalarni ol
       const { data: enrollments, error: enrollError } = await supabase
         .from("enrollments")
-        .select("user_id, courses!inner(teacher_id)")
+        .select(`
+          user_id,
+          progress,
+          courses!inner(id, title, teacher_id)
+        `)
         .eq("courses.teacher_id", user.id);
 
       if (enrollError || !enrollments) {
@@ -93,8 +100,18 @@ const TeacherMessages = () => {
               .eq("recipient_id", user.id)
               .eq("is_read", false);
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const enrollment = (enrollments as any[]).find(
+              e => e.user_id === student.user_id
+            );
+
             return {
-              student,
+              student: {
+                ...student,
+                courseName: enrollment?.courses?.title || null,
+                courseId: enrollment?.courses?.id || null,
+                progress: enrollment?.progress || 0,
+              },
               lastMessage: lastMsgs?.[0] || null,
               unreadCount: unreadCount || 0
             };
@@ -313,6 +330,8 @@ const TeacherMessages = () => {
               conversations
                 .filter(c =>
                   c.student.full_name?.toLowerCase()
+                    .includes(searchQuery.toLowerCase()) ||
+                  c.student.courseName?.toLowerCase()
                     .includes(searchQuery.toLowerCase())
                 )
                 .map((conv) => (
@@ -343,7 +362,7 @@ const TeacherMessages = () => {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between mb-0.5">
                         <p className="text-sm font-semibold text-slate-900 truncate">
                           {conv.student.full_name}
                         </p>
@@ -353,7 +372,16 @@ const TeacherMessages = () => {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-500 truncate mt-0.5">
+                      {conv.student.courseName && (
+                        <div className="flex items-center gap-1 mb-1">
+                          <span className="text-[10px] font-medium px-1.5 py-0.5
+                                           rounded bg-slate-100 text-slate-500 truncate
+                                           max-w-[120px]">
+                            {conv.student.courseName}
+                          </span>
+                        </div>
+                      )}
+                      <p className="text-xs text-slate-400 truncate">
                         {conv.lastMessage?.content || "Hozircha xabar yo'q"}
                       </p>
                     </div>
@@ -366,25 +394,65 @@ const TeacherMessages = () => {
         {/* O'NG PANEL — Chat */}
         <div className="col-span-2 flex flex-col">
           {selectedStudent ? (
-            <>
+            <div className="flex flex-col h-full">
               {/* Chat header */}
-              <div className="flex items-center gap-3 p-4 border-b border-slate-100 bg-slate-50">
-                <Avatar className="h-9 w-9">
-                  <AvatarImage src={selectedStudent.avatar_url || undefined} />
-                  <AvatarFallback className="bg-slate-100 text-slate-600 font-bold text-sm">
-                    {selectedStudent.full_name?.[0]}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <p className="text-sm font-bold text-slate-900">
-                    {selectedStudent.full_name}
-                  </p>
-                  <p className="text-xs text-slate-400 font-medium">Talaba</p>
+              <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
+                <div className="flex items-center gap-3">
+                  <Avatar className="h-9 w-9">
+                    <AvatarImage src={selectedStudent.avatar_url || undefined} />
+                    <AvatarFallback className="bg-[#0056d2] text-white font-bold text-sm">
+                      {selectedStudent.full_name?.[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">
+                      {selectedStudent.full_name}
+                    </p>
+                    {selectedStudent.courseName && (
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-slate-500 font-medium">
+                          {selectedStudent.courseName}
+                        </span>
+                        {selectedStudent.progress !== undefined && (
+                          <>
+                            <span className="text-slate-300">·</span>
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    selectedStudent.progress >= 70
+                                      ? "bg-emerald-500"
+                                      : selectedStudent.progress >= 30
+                                        ? "bg-[#0056d2]"
+                                        : "bg-slate-300"
+                                  }`}
+                                  style={{ width: `${selectedStudent.progress}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-semibold text-slate-600">
+                                {Math.round(selectedStudent.progress)}%
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => window.location.href = '/teacher/students'}
+                  className="h-8 px-3 rounded-lg text-xs font-medium
+                             text-slate-500 hover:text-[#0056d2] hover:bg-blue-50 gap-1.5"
+                >
+                  <ChevronRight className="h-3.5 w-3.5" />
+                  Profilni ko'rish
+                </Button>
               </div>
 
               {/* Xabarlar */}
-              <ScrollArea className="flex-1 p-4">
+              <ScrollArea className="flex-1 min-h-0 p-4">
                 {messages.length === 0 ? (
                   <div className="h-full flex items-center justify-center text-center py-12">
                     <div>
@@ -399,6 +467,14 @@ const TeacherMessages = () => {
                   </div>
                 ) : (
                   <div className="space-y-3">
+                    {messages.length > 0 && selectedStudent.courseName && (
+                      <div className="flex justify-center mb-4">
+                        <span className="text-[10px] font-medium text-slate-400
+                                         bg-slate-100 px-3 py-1 rounded-full">
+                          {selectedStudent.courseName} kursi bo'yicha suhbat
+                        </span>
+                      </div>
+                    )}
                     {messages.map((msg) => {
                       const isOwn = msg.sender_id === user?.id;
                       return (
@@ -452,7 +528,7 @@ const TeacherMessages = () => {
                   </Button>
                 </div>
               </div>
-            </>
+            </div>
           ) : (
             /* Talaba tanlanmagan holat */
             <div className="flex-1 flex items-center justify-center text-center p-8">

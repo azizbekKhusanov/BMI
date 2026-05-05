@@ -158,6 +158,8 @@ export type Database = {
           created_at: string
           id: string
           lesson_id: string
+          predicted_score: number | null
+          actual_score: number | null
           rating: number
           reflection: string | null
           user_id: string
@@ -166,6 +168,8 @@ export type Database = {
           created_at?: string
           id?: string
           lesson_id: string
+          predicted_score?: number | null
+          actual_score?: number | null
           rating: number
           reflection?: string | null
           user_id: string
@@ -174,6 +178,8 @@ export type Database = {
           created_at?: string
           id?: string
           lesson_id?: string
+          predicted_score?: number | null
+          actual_score?: number | null
           rating?: number
           reflection?: string | null
           user_id?: string

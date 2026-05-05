@@ -35,6 +35,7 @@ const StudentResults = lazy(() => import("./pages/StudentResults"));
 const StudentNotifications = lazy(() => import("./pages/StudentNotifications"));
 const StudentMetacognition = lazy(() => import("./pages/StudentMetacognition"));
 const StudentSettings = lazy(() => import("./pages/StudentSettings"));
+const StudentMessages = lazy(() => import("@/pages/StudentMessages"));
 
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
@@ -97,6 +98,7 @@ const App = () => (
                   <Route path="/lessons/:id" element={<LessonPage />} />
                   <Route path="/student/my-courses" element={<StudentMyCourses />} />
                   <Route path="/student/results" element={<StudentResults />} />
+                  <Route path="/student/messages" element={<StudentMessages />} />
                   <Route path="/student/notifications" element={<StudentNotifications />} />
                   <Route path="/student/metacognition" element={<StudentMetacognition />} />
                   <Route path="/student/settings" element={<StudentSettings />} />

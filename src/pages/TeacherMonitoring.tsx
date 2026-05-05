@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
@@ -34,6 +35,7 @@ interface StatsData {
 
 const TeacherMonitoring = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [data, setData] = useState<MonitoringData[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"activity" | "reflections">("activity");
@@ -45,8 +47,9 @@ const TeacherMonitoring = () => {
   });
 
   const fetchMonitoring = useCallback(async () => {
+    if (!user) return;
     try {
-      // 1 — self_assessments dan real ma'lumot
+      // 1 â€” Faqat o'qituvchiga tegishli kurslar bo'yicha self_assessments
       const { data: assessments, error } = await supabase
         .from("self_assessments")
         .select(`
@@ -58,10 +61,14 @@ const TeacherMonitoring = () => {
           reflection,
           created_at,
           profiles (full_name, avatar_url),
-          lessons (title)
+          lessons!inner (
+            title,
+            courses!inner (teacher_id)
+          )
         `)
+        .eq("lessons.courses.teacher_id", user.id)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(50);
 
       if (error) throw error;
 
@@ -85,7 +92,7 @@ const TeacherMonitoring = () => {
 
       setData(formatted);
 
-      // 2 — Statistikani hisoblash
+      // 2 â€” Statistikani hisoblash
       const uniqueUsers = new Set(formatted.map(f => f.user_id)).size;
       const calibrations = formatted.filter(
         f => f.predicted > 0 && f.actual > 0
@@ -104,8 +111,15 @@ const TeacherMonitoring = () => {
         f => f.reflection && f.reflection.trim().length > 10
       ).length;
 
+      // 3 — Online talabalarni aniqlash (oxirgi 2 daqiqada faol bo'lganlar)
+      const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      const { count: onlineCount } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true })
+        .gt("updated_at", twoMinutesAgo);
+
       setStats({
-        totalStudents: uniqueUsers,
+        totalStudents: onlineCount || 0,
         avgCalibration: avgCalib,
         criticalCount: criticals,
         reflectionCount: withReflection
@@ -116,7 +130,7 @@ const TeacherMonitoring = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchMonitoring();
@@ -124,15 +138,14 @@ const TeacherMonitoring = () => {
     const channel = supabase
       .channel('monitoring_updates')
       .on(
-        'postgres_changes' as any, 
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'self_assessments' 
-        }, 
-        () => {
-          fetchMonitoring();
-        }
+        'postgres_changes' as any,
+        { event: 'INSERT', schema: 'public', table: 'self_assessments' },
+        () => { fetchMonitoring(); }
+      )
+      .on(
+        'postgres_changes' as any,
+        { event: 'UPDATE', schema: 'public', table: 'self_assessments' },
+        () => { fetchMonitoring(); }
       )
       .subscribe();
 
@@ -212,7 +225,7 @@ const TeacherMonitoring = () => {
           />
           <StatsCard
             title="O'rtacha kalibrlash"
-            value={stats.avgCalibration > 0 ? `${stats.avgCalibration}%` : "—"}
+            value={stats.avgCalibration > 0 ? `${stats.avgCalibration}%` : "â€”"}
             icon={Activity}
             color="text-amber-500"
             bg="bg-amber-50"
@@ -373,7 +386,7 @@ const TeacherMonitoring = () => {
                              </td>
                              <td className="px-6 py-4 max-w-xs">
                                <p className="text-sm text-slate-700 leading-relaxed line-clamp-2">
-                                 "{item.reflection}"
+                                 {item.reflection}
                                </p>
                                <div className="flex items-center gap-1 mt-2">
                                  {[1,2,3,4,5].map(star => (
@@ -495,3 +508,4 @@ const TeacherMonitoring = () => {
 };
 
 export default TeacherMonitoring;
+

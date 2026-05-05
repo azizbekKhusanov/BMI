@@ -125,3 +125,57 @@ export const generateLessonTests = async (topic: string, courseName: string, cou
     return null;
   }
 };
+
+export const analyzeReflection = async (
+  studentName: string,
+  lessonTitle: string,
+  courseName: string,
+  reflection: string,
+  rating: number,
+  calibration: number | null
+): Promise<string> => {
+  if (!apiKey) return "API kalit topilmadi.";
+
+  try {
+    const chatCompletion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: `Siz IDROK platformasining metakognitiv tahlil ekspertisiz.
+Vazifangiz: talabaning refleksiyasini o'qib, o'qituvchiga qisqa va aniq tahlil berish.
+
+Javob FAQAT quyidagi JSON formatida bo'lsin:
+{
+  "depth": "sirtaki" | "o'rtacha" | "chuqur",
+  "mainIssue": "talabaning asosiy muammosi 1 gapda",
+  "recommendation": "o'qituvchiga tavsiya 1-2 gapda",
+  "positives": "refleksiyaning kuchli tomoni 1 gapda"
+}
+
+Qoidalar:
+- Faqat JSON qaytaring, boshqa matn yo'q
+- O'zbek tilida yozing
+- Qisqa va aniq bo'ling`
+        },
+        {
+          role: "user",
+          content: `Talaba: ${studentName}
+Kurs: ${courseName}
+Dars: ${lessonTitle}
+Baho (1-5): ${rating}
+Aniqlik farqi: ${calibration !== null ? calibration : "Ma'lumot yo'q"}
+Refleksiya matni: ${reflection}`
+        }
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.3,
+      max_tokens: 400,
+      response_format: { type: "json_object" }
+    });
+
+    return chatCompletion.choices[0]?.message?.content || "{}";
+  } catch (error) {
+    console.error("Reflection analysis error:", error);
+    return "{}";
+  }
+};

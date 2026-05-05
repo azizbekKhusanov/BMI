@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
-import { 
-  BookOpen, LayoutDashboard, LogOut, User, Menu, X, GraduationCap, 
+import {
+  BookOpen, LayoutDashboard, LogOut, User, Menu, X, GraduationCap,
   TrendingUp, Settings, ClipboardList, Brain, Activity, MessageSquare,
   BarChart, Users, ChevronRight, Sparkles, ShieldCheck, Zap,
   Search, Bell
@@ -45,42 +45,52 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
   const getNavLinks = () => {
     if (isAdmin) {
       return [
-        { group: "TIZIM ADMINI", links: [
-          { path: "/admin", label: "Tizim Holati", icon: LayoutDashboard },
-          { path: "/admin/users", label: "Foydalanuvchilar", icon: Users },
-          { path: "/admin/courses", label: "Kurslar Nazorati", icon: BookOpen },
-          { path: "/admin/settings", label: "Sozlamalar", icon: Settings },
-        ]}
+        {
+          group: "TIZIM ADMINI", links: [
+            { path: "/admin", label: "Tizim Holati", icon: LayoutDashboard },
+            { path: "/admin/users", label: "Foydalanuvchilar", icon: Users },
+            { path: "/admin/courses", label: "Kurslar Nazorati", icon: BookOpen },
+            { path: "/admin/settings", label: "Sozlamalar", icon: Settings },
+          ]
+        }
       ];
     }
     if (isTeacher) {
       return [
-        { group: "ASOSIY BO'LIM", links: [
-          { path: "/teacher", label: "Bosh sahifa", icon: LayoutDashboard },
-          { path: "/teacher/courses", label: "Mening kurslarim", icon: BookOpen },
-          { path: "/teacher/students", label: "Talabalar", icon: Users },
-          { path: "/teacher/assignments", label: "Vazifalar", icon: ClipboardList },
-          { path: "/teacher/messages", label: "Xabarlar", icon: MessageSquare },
-        ]},
-        { group: "ANALITIKA", links: [
-          { path: "/teacher/reports", label: "Tahlillar", icon: BarChart },
-          { path: "/teacher/monitoring", label: "Kuzatuv", icon: Activity },
-          { path: "/teacher/self-assessments", label: "Baholash", icon: Brain },
-        ]}
+        {
+          group: "ASOSIY BO'LIM", links: [
+            { path: "/teacher", label: "Bosh sahifa", icon: LayoutDashboard },
+            { path: "/teacher/courses", label: "Mening kurslarim", icon: BookOpen },
+            { path: "/teacher/students", label: "Talabalar", icon: Users },
+            { path: "/teacher/assignments", label: "Vazifalar", icon: ClipboardList },
+            { path: "/teacher/messages", label: "Xabarlar", icon: MessageSquare },
+          ]
+        },
+        {
+          group: "ANALITIKA", links: [
+            { path: "/teacher/reports", label: "Tahlillar", icon: BarChart },
+            { path: "/teacher/monitoring", label: "Kuzatuv", icon: Activity },
+            { path: "/teacher/self-assessments", label: "Baholash", icon: Brain },
+          ]
+        }
       ];
     }
     return [
-      { group: "O'QUV BO'LIMI", links: [
-        { path: "/student/dashboard", label: "Bosh sahifa", icon: LayoutDashboard },
-        { path: "/student/courses", label: "Mening kurslarim", icon: BookOpen },
-        { path: "/student/my-courses", label: "Mening Kurslarim", icon: GraduationCap },
-      ]},
-      { group: "BILIMLAR BAZASI", links: [
-        { path: "/student/metacognition", label: "Metakognitiv tahlil", icon: Brain },
-        { path: "/student/results", label: "Natijalarim", icon: TrendingUp },
-        { path: "/student/notifications", label: "Xabarlar", icon: MessageSquare },
-        { path: "/student/settings", label: "Sozlamalar", icon: Settings },
-      ]}
+      {
+        group: "O'QUV BO'LIMI", links: [
+          { path: "/student/dashboard", label: "Bosh sahifa", icon: LayoutDashboard },
+          { path: "/student/courses", label: "Barcha kurslar", icon: BookOpen },
+          { path: "/student/my-courses", label: "Mening kurslarim", icon: GraduationCap },
+        ]
+      },
+      {
+        group: "BILIMLAR BAZASI", links: [
+          { path: "/student/metacognition", label: "Metakognitiv tahlil", icon: Brain },
+          { path: "/student/results", label: "Natijalarim", icon: TrendingUp },
+          { path: "/student/messages", label: "Xabarlar", icon: MessageSquare },
+          { path: "/student/settings", label: "Sozlamalar", icon: Settings },
+        ]
+      }
     ];
   };
 
@@ -95,7 +105,7 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
           <span className="text-xl font-bold text-slate-900 tracking-tight">IDROK</span>
         </Link>
       </div>
-      
+
       {/* Navigation */}
       <nav className="flex-1 px-4 space-y-6 overflow-y-auto custom-scrollbar py-2">
         {authLoading ? (
@@ -119,11 +129,10 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
                     key={link.path}
                     to={link.path}
                     onClick={() => setMobileOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-semibold transition-all ${
-                      isActive(link.path)
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-semibold transition-all ${isActive(link.path)
                         ? "bg-blue-50 text-[#0056d2] border-l-4 border-[#0056d2]"
                         : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                    }`}
+                      }`}
                   >
                     <link.icon className={`h-5 w-5 ${isActive(link.path) ? "text-[#0056d2]" : "text-slate-400"}`} />
                     <span>{link.label}</span>
@@ -138,37 +147,37 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
       {/* Profile Section */}
       <div className="p-4 mt-auto border-t border-slate-100 bg-slate-50/50">
         <div className="flex items-center gap-3 px-2 py-3">
-           <Avatar className="h-9 w-9 border border-slate-200">
-             <AvatarImage src={profile?.avatar_url || ""} />
-             <AvatarFallback className="bg-blue-100 text-[#0056d2] font-bold text-xs">
-               {profile?.full_name?.[0]?.toUpperCase() || "A"}
-             </AvatarFallback>
-           </Avatar>
-           <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-sm font-bold text-slate-900 truncate">{profile?.full_name || "Foydalanuvchi"}</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                 {isTeacher ? "O'qituvchi" : isAdmin ? "Admin" : "Talaba"}
-              </span>
-           </div>
-           <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="h-8 w-8 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors">
-                   <Settings className="h-4 w-4" />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" side="top" className="w-56">
-                 <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer font-medium">
-                    <User className="mr-2 h-4 w-4" /> Mening Profilim
-                 </DropdownMenuItem>
-                 <DropdownMenuItem onClick={() => navigate(isAdmin ? "/admin/settings" : isTeacher ? "/profile" : "/student/settings")} className="cursor-pointer font-medium">
-                    <ShieldCheck className="mr-2 h-4 w-4" /> Xavfsizlik
-                 </DropdownMenuItem>
-                 <DropdownMenuSeparator />
-                 <DropdownMenuItem onClick={signOut} className="cursor-pointer text-rose-500 focus:text-rose-500 font-bold">
-                    <LogOut className="mr-2 h-4 w-4" /> Tizimdan Chiqish
-                 </DropdownMenuItem>
-              </DropdownMenuContent>
-           </DropdownMenu>
+          <Avatar className="h-9 w-9 border border-slate-200">
+            <AvatarImage src={profile?.avatar_url || ""} />
+            <AvatarFallback className="bg-blue-100 text-[#0056d2] font-bold text-xs">
+              {profile?.full_name?.[0]?.toUpperCase() || "A"}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col min-w-0 flex-1">
+            <span className="text-sm font-bold text-slate-900 truncate">{profile?.full_name || "Foydalanuvchi"}</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              {isTeacher ? "O'qituvchi" : isAdmin ? "Admin" : "Talaba"}
+            </span>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="h-8 w-8 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors">
+                <Settings className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" side="top" className="w-56">
+              <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer font-medium">
+                <User className="mr-2 h-4 w-4" /> Mening Profilim
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate(isAdmin ? "/admin/settings" : isTeacher ? "/profile" : "/student/settings")} className="cursor-pointer font-medium">
+                <ShieldCheck className="mr-2 h-4 w-4" /> Xavfsizlik
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={signOut} className="cursor-pointer text-rose-500 focus:text-rose-500 font-bold">
+                <LogOut className="mr-2 h-4 w-4" /> Tizimdan Chiqish
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>
@@ -186,7 +195,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     <div className="min-h-screen flex bg-slate-50 text-slate-900 font-sans">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-[260px] flex-col fixed inset-y-0 z-50">
-        <SidebarContent 
+        <SidebarContent
           profile={profile}
           roles={roles}
           signOut={signOut}
@@ -200,8 +209,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         {/* Mobile Header */}
         <header className="md:hidden sticky top-0 z-40 bg-white border-b border-slate-200 text-slate-900 flex items-center justify-between h-16 px-4">
           <Link to="/" className="flex items-center gap-2">
-             <img src="/logo.png" alt="IDROK Logo" className="h-8 w-8 object-contain rounded-lg" />
-             <span className="text-lg font-bold">IDROK</span>
+            <img src="/logo.png" alt="IDROK Logo" className="h-8 w-8 object-contain rounded-lg" />
+            <span className="text-lg font-bold">IDROK</span>
           </Link>
           <Button variant="ghost" size="icon" onClick={() => setMobileOpen(true)}>
             <Menu className="h-6 w-6" />
@@ -212,26 +221,26 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         <AnimatePresence>
           {mobileOpen && (
             <div className="md:hidden fixed inset-0 z-[100] flex">
-              <motion.div 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }} 
-                exit={{ opacity: 0 }} 
-                className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm" 
-                onClick={() => setMobileOpen(false)} 
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm"
+                onClick={() => setMobileOpen(false)}
               />
-              <motion.aside 
-                initial={{ x: "-100%" }} 
-                animate={{ x: 0 }} 
+              <motion.aside
+                initial={{ x: "-100%" }}
+                animate={{ x: 0 }}
                 exit={{ x: "-100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
                 className="relative w-[80%] max-w-sm bg-white h-full flex flex-col shadow-2xl"
               >
                 <div className="absolute top-4 right-4 z-[110]">
-                   <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)}>
-                      <X className="h-6 w-6" />
-                   </Button>
+                  <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)}>
+                    <X className="h-6 w-6" />
+                  </Button>
                 </div>
-                <SidebarContent 
+                <SidebarContent
                   profile={profile}
                   roles={roles}
                   signOut={signOut}
@@ -246,15 +255,15 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         {/* Main Content Area */}
         <main className="flex-1 relative overflow-x-hidden bg-[#f8fafc]">
           <div className="w-full min-h-full flex flex-col">
-            
+
             {/* Global Desktop Topbar */}
             <div className="hidden md:flex items-center justify-between px-8 pt-6 mb-1 pb-3 border-b border-slate-100">
               <div className="flex-1 max-w-xl">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <input 
-                    type="text" 
-                    placeholder="Kurslar, mavzular yoki bilimlar bo'yicha qidirish..." 
+                  <input
+                    type="text"
+                    placeholder="Kurslar, mavzular yoki bilimlar bo'yicha qidirish..."
                     className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-100 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/10 focus:border-[#0056d2] focus:bg-white outline-none transition-all font-medium"
                   />
                 </div>
@@ -280,8 +289,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 </div>
               </div>
             </div>
-
-            {children}
+            {/* Main Page Content Container */}
+            <div className="flex-1 px-4 sm:px-6 lg:px-10 pt-2 pb-10">
+              <div className="max-w-[1600px] mx-auto w-full h-full">
+                {children}
+              </div>
+            </div>
           </div>
         </main>
       </div>
