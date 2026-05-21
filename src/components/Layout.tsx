@@ -50,7 +50,7 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
             { path: "/admin", label: "Tizim Holati", icon: LayoutDashboard },
             { path: "/admin/users", label: "Foydalanuvchilar", icon: Users },
             { path: "/admin/courses", label: "Kurslar Nazorati", icon: BookOpen },
-            { path: "/admin/settings", label: "Sozlamalar", icon: Settings },
+
           ]
         }
       ];
@@ -88,7 +88,7 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
           { path: "/student/metacognition", label: "Metakognitiv tahlil", icon: Brain },
           { path: "/student/results", label: "Natijalarim", icon: TrendingUp },
           { path: "/student/messages", label: "Xabarlar", icon: MessageSquare },
-          { path: "/student/settings", label: "Sozlamalar", icon: Settings },
+
         ]
       }
     ];
@@ -118,29 +118,22 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
             </div>
           </div>
         ) : (
-          navLinks.map((item, idx) => (
-            <div key={idx} className="space-y-2">
-              <div className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-[0.1em]">
-                {item.group}
-              </div>
-              <div className="space-y-1">
-                {item.links.map((link) => (
-                  <Link
-                    key={link.path}
-                    to={link.path}
-                    onClick={() => setMobileOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-semibold transition-all ${isActive(link.path)
-                        ? "bg-blue-50 text-[#0056d2] border-l-4 border-[#0056d2]"
-                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                      }`}
-                  >
-                    <link.icon className={`h-5 w-5 ${isActive(link.path) ? "text-[#0056d2]" : "text-slate-400"}`} />
-                    <span>{link.label}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          ))
+          <div className="space-y-1">
+            {navLinks.flatMap(group => group.links).map((link) => (
+              <Link
+                key={link.path}
+                to={link.path}
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-semibold transition-all ${isActive(link.path)
+                    ? "bg-blue-50 text-[#0056d2] border-l-4 border-[#0056d2]"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                  }`}
+              >
+                <link.icon className={`h-5 w-5 ${isActive(link.path) ? "text-[#0056d2]" : "text-slate-400"}`} />
+                <span>{link.label}</span>
+              </Link>
+            ))}
+          </div>
         )}
       </nav>
 
@@ -161,16 +154,11 @@ const SidebarContent = ({ profile, roles, signOut, authLoading, setMobileOpen }:
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="h-8 w-8 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-colors">
-                <Settings className="h-4 w-4" />
-              </button>
+                <Menu className="h-4 w-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" side="top" className="w-56">
               <DropdownMenuItem onClick={() => navigate("/profile")} className="cursor-pointer font-medium">
                 <User className="mr-2 h-4 w-4" /> Mening Profilim
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate(isAdmin ? "/admin/settings" : isTeacher ? "/profile" : "/student/settings")} className="cursor-pointer font-medium">
-                <ShieldCheck className="mr-2 h-4 w-4" /> Xavfsizlik
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={signOut} className="cursor-pointer text-rose-500 focus:text-rose-500 font-bold">
@@ -269,10 +257,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 </div>
               </div>
               <div className="flex items-center gap-6">
-                <button className="text-slate-400 hover:text-[#0056d2] relative transition-colors">
-                  <Bell className="h-5 w-5" />
-                  <span className="absolute -top-1 -right-1 h-2 w-2 bg-rose-500 rounded-full border-2 border-white"></span>
-                </button>
+
                 <div className="flex items-center gap-3 pl-6 border-l border-slate-100">
                   <div className="text-right hidden sm:block">
                     <div className="text-sm font-bold text-slate-900 leading-none mb-1">{profile?.full_name || "Foydalanuvchi"}</div>

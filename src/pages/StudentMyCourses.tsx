@@ -38,7 +38,7 @@ interface Enrollment {
   id: string;
   course_id: string;
   progress: number;
-  last_accessed: string;
+  created_at: string;
   courses: Course;
 }
 
@@ -74,53 +74,37 @@ const StudentMyCourses = () => {
   };
 
   const { data: enrollments = [], isLoading: loading } = useQuery({
-    queryKey: ['my-courses', user?.id],
+    queryKey: ['student-my-courses', user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data: enrollData, error: enrollError } = await supabase
+      const { data, error } = await supabase
         .from("enrollments")
-        .select("*")
-        .eq("user_id", user.id);
+        .select("*, courses(*)")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
-      if (enrollError) throw enrollError;
+      if (error) throw error;
       
-      if (enrollData && enrollData.length > 0) {
-        const courseIds = enrollData.map(e => e.course_id);
+      const enrollmentsData = data || [];
+      
+      // Fetch teacher profiles separately to avoid complex join issues
+      if (enrollmentsData.length > 0) {
+        const teacherIds = [...new Set(enrollmentsData.map((e: any) => e.courses?.teacher_id).filter(Boolean))];
+        const { data: profiles } = await supabase.from("profiles").select("user_id, full_name").in("user_id", teacherIds);
         
-        const { data: coursesData, error: coursesError } = await supabase
-          .from("courses")
-          .select("*")
-          .in("id", courseIds);
-          
-        if (coursesError) throw coursesError;
-
-        let profilesData: any[] = [];
-        if (coursesData && coursesData.length > 0) {
-          const teacherIds = [...new Set(coursesData.map(c => c.teacher_id).filter(Boolean))];
-          if (teacherIds.length > 0) {
-            const { data: pData } = await supabase.from("profiles").select("user_id, full_name").in("user_id", teacherIds);
-            if (pData) profilesData = pData;
+        return enrollmentsData.map((e: any) => ({
+          ...e,
+          courses: {
+            ...e.courses,
+            profiles: profiles?.find(p => p.user_id === e.courses?.teacher_id)
           }
-        }
-
-        const completeEnrollments = enrollData.map(e => {
-          const course = coursesData?.find(c => c.id === e.course_id);
-          if (course) {
-            const teacherProfile = profilesData.find(p => p.user_id === course.teacher_id);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (course as any).profiles = { full_name: teacherProfile?.full_name || "O'qituvchi" };
-          }
-          return {
-            ...e,
-            courses: course || {}
-          };
-        });
-
-        return completeEnrollments as unknown as Enrollment[];
+        })) as Enrollment[];
       }
-      return [];
+
+      return enrollmentsData as Enrollment[];
     },
     enabled: !!user,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
 
   const filteredEnrollments = enrollments.filter((enrollment) => {
@@ -129,9 +113,10 @@ const StudentMyCourses = () => {
     
     let matchesTab = true;
     if (activeTab === "faol") {
-      matchesTab = enrollment.progress < 100 && !isArchived;
+      // Show courses that are not archived AND (either not finished OR explicitly started)
+      matchesTab = !isArchived && enrollment.progress < 100;
     } else if (activeTab === "tamomlangan") {
-      matchesTab = enrollment.progress >= 100 && !isArchived;
+      matchesTab = !isArchived && enrollment.progress >= 100;
     } else if (activeTab === "arxiv") {
       matchesTab = isArchived;
     }
@@ -143,7 +128,7 @@ const StudentMyCourses = () => {
     <>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10 mt-2 animate-fade-in">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-1 tracking-tight">Mening kurslarim</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-1 tracking-tight">Mening kurslarim</h1>
           <p className="text-slate-500 font-medium">Jami {enrollments.length} ta kursda o'qiyapsiz. O'qishda davom eting!</p>
         </div>
         
@@ -245,24 +230,9 @@ const StudentMyCourses = () => {
           <p className="text-slate-500">Qidiruv natijasida kurslar topilmadi. Boshqa so'z bilan urinib ko'ring.</p>
         </div>
       ) : (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab + viewMode}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-            className={`grid gap-8 mb-12 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}
-          >
-            {filteredEnrollments.map((enrollment) => (
-              <motion.div
-                key={enrollment.id}
-                layout
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.2 }}
-                className="h-full"
-              >
+        <div className={`grid gap-8 mb-12 ${viewMode === "grid" ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "grid-cols-1"}`}>
+          {filteredEnrollments.map((enrollment) => (
+            <div key={enrollment.id} className="h-full">
                 {viewMode === "grid" ? (
                   <Card className="rounded-xl border-slate-200 shadow-none overflow-hidden hover:shadow-xl hover:border-slate-300 transition-all group flex flex-col bg-white h-full">
                     <div className="h-44 bg-slate-100 relative overflow-hidden flex items-center justify-center">
@@ -271,14 +241,12 @@ const StudentMyCourses = () => {
                       ) : (
                         <div className="absolute inset-0 bg-gradient-to-tr from-slate-200 to-slate-100 opacity-40 group-hover:scale-105 transition-transform duration-700" />
                       )}
-                      <Badge className="absolute top-3 left-3 bg-[#0056d2] text-white border-none font-bold rounded-md px-3 py-1 shadow-sm">
-                        {enrollment.courses?.category || "Fan"}
-                      </Badge>
+
                     </div>
                     
                     <CardContent className="p-6 flex-1 flex flex-col bg-white">
                       <div className="flex justify-between items-start mb-2">
-                        <h3 className="text-xl font-bold text-slate-900 line-clamp-2 pr-4 tracking-tight leading-snug group-hover:text-[#0056d2] transition-colors">
+                        <h3 className="text-lg font-bold text-slate-900 line-clamp-2 pr-4 tracking-tight leading-snug group-hover:text-[#0056d2] transition-colors">
                           {enrollment.courses?.title || "Nomsiz Kurs"}
                         </h3>
                         <DropdownMenu>
@@ -311,7 +279,7 @@ const StudentMyCourses = () => {
                         
                         <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
                           <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> Oxirgi faollik:</span>
-                          <span>{enrollment.last_accessed ? new Date(enrollment.last_accessed).toLocaleDateString() : "Bugun"}</span>
+                          <span>{enrollment.created_at ? new Date(enrollment.created_at).toLocaleDateString() : "Bugun"}</span>
                         </div>
                         
                         <Link to={`/student/courses/${enrollment.course_id}`} className="block pt-2">
@@ -330,14 +298,12 @@ const StudentMyCourses = () => {
                       ) : (
                         <div className="absolute inset-0 bg-gradient-to-tr from-slate-200 to-slate-100 opacity-40 group-hover:scale-105 transition-transform duration-700" />
                       )}
-                      <Badge className="absolute top-3 left-3 bg-[#0056d2] text-white border-none font-bold rounded-md px-3 py-1 shadow-sm">
-                        {enrollment.courses?.category || "Fan"}
-                      </Badge>
+
                     </div>
                     
                     <CardContent className="p-8 flex-1 flex flex-col md:flex-row md:items-center justify-between gap-8">
                       <div className="space-y-3 flex-1">
-                        <h3 className="text-2xl font-bold text-slate-900 tracking-tight group-hover:text-[#0056d2] transition-colors">
+                        <h3 className="text-xl font-bold text-slate-900 tracking-tight group-hover:text-[#0056d2] transition-colors">
                           {enrollment.courses?.title || "Nomsiz Kurs"}
                         </h3>
                         <p className="text-sm font-bold text-slate-500">O'qituvchi: {enrollment.courses?.profiles?.full_name}</p>
@@ -350,7 +316,7 @@ const StudentMyCourses = () => {
                               <Progress value={enrollment.progress} className="h-2 bg-slate-100 [&>div]:bg-[#0056d2] rounded-full" />
                            </div>
                            <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold uppercase tracking-wider whitespace-nowrap pt-4">
-                             <Clock className="h-3.5 w-3.5" /> Oxirgi: {enrollment.last_accessed ? new Date(enrollment.last_accessed).toLocaleDateString() : "Bugun"}
+                             <Clock className="h-3.5 w-3.5" /> Oxirgi: {enrollment.created_at ? new Date(enrollment.created_at).toLocaleDateString() : "Bugun"}
                            </div>
                         </div>
                       </div>
@@ -381,10 +347,9 @@ const StudentMyCourses = () => {
                     </CardContent>
                   </Card>
                 )}
-              </motion.div>
-            ))}
-          </motion.div>
-        </AnimatePresence>
+            </div>
+          ))}
+        </div>
       )}
 
       <div className="relative rounded-2xl bg-white border border-slate-200 p-8 md:p-12 flex flex-col sm:flex-row items-center justify-between gap-8 overflow-hidden mt-12">
@@ -392,7 +357,7 @@ const StudentMyCourses = () => {
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl -ml-32 -mb-32 opacity-60" />
         
         <div className="relative z-10 space-y-3 max-w-xl text-center sm:text-left">
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Yangi bilimlar olamiga sho'ng'ing</h2>
+          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Yangi bilimlar olamiga sho'ng'ing</h2>
           <p className="text-slate-500 font-medium leading-relaxed">
             IDROK AI sizning qiziqishlaringizga mos keladigan professional kurslarni tavsiya qiladi. Bilimingizni keyingi bosqichga olib chiqing.
           </p>

@@ -105,7 +105,7 @@ const Courses = () => {
     <>
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-10 mt-2">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-1 tracking-tight">Barcha kurslar</h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-1 tracking-tight">Barcha kurslar</h1>
           <p className="text-slate-500 font-medium">Platformadagi barcha mavjud kurslarni kashf eting va o'rganishni boshlang.</p>
         </div>
       </div>
@@ -150,7 +150,7 @@ const Courses = () => {
            <div className="h-16 w-16 rounded-full bg-slate-50 flex items-center justify-center mb-6">
              <BookOpen className="h-8 w-8 text-slate-300" />
            </div>
-           <h3 className="text-xl font-bold text-slate-900 mb-2">Kurslar topilmadi</h3>
+           <h3 className="text-lg font-bold text-slate-900 mb-2">Kurslar topilmadi</h3>
            <p className="text-slate-500 mb-8 max-w-sm">Qidiruv natijasida hech qanday kurs topilmadi. Iltimos, boshqa kalit so'zdan foydalanib ko'ring.</p>
            <Button onClick={() => { setSearch(""); setActiveCategory("Barchasi"); }} className="bg-[#0056d2] hover:bg-[#00419e] text-white rounded-md px-10 h-12 font-bold transition-all">
              Barchasini ko'rsatish
@@ -170,23 +170,16 @@ const Courses = () => {
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                     fallback={<div className="absolute inset-0 bg-gradient-to-tr from-slate-200 to-slate-100" />}
                   />
-                  <div className="absolute top-3 left-3 flex gap-2">
-                    <Badge className="bg-[#0056d2] text-white hover:bg-[#0056d2] border-none font-bold rounded-md px-3 py-1 shadow-sm">
-                      {course.category || "Fan"}
-                    </Badge>
-                  </div>
-                  <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 bg-white/95 rounded-md text-[10px] font-black text-slate-800 shadow-sm border border-slate-100">
-                    <Star className="h-3 w-3 fill-amber-400 text-amber-400" /> 4.8
-                  </div>
+
                 </div>
 
                 <CardContent className="p-6 flex-1 flex flex-col">
                   <div className="flex items-center gap-4 mb-4 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                     <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> 12 soat</div>
+                     <div className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> {(course.lessonCount || 0) * 2} soat</div>
                      <div className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> {course.studentCount || 0} talaba</div>
                   </div>
                   
-                  <h3 className="text-xl font-bold text-slate-900 line-clamp-2 mb-3 leading-snug group-hover:text-[#0056d2] transition-colors tracking-tight">
+                  <h3 className="text-lg font-bold text-slate-900 line-clamp-2 mb-3 leading-snug group-hover:text-[#0056d2] transition-colors tracking-tight">
                     {course.title}
                   </h3>
                   

@@ -165,33 +165,24 @@ const CourseDetail = () => {
           
           <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-10">
             <div className="flex flex-wrap items-center gap-3 mb-4">
-              <Badge className="bg-indigo-600 hover:bg-indigo-600 text-white border-none font-bold px-3 py-1 rounded-lg text-[10px] uppercase tracking-wider">
-                {course.category || "Fan"}
-              </Badge>
+
               <Badge className="bg-white/10 backdrop-blur-md text-white border border-white/20 font-bold px-3 py-1 rounded-lg text-[10px] uppercase tracking-wider">
                 Bepul kurs
               </Badge>
             </div>
             
-            <h1 className="text-2xl md:text-4xl lg:text-5xl font-black text-white mb-4 leading-tight tracking-tight max-w-4xl">
+            <h1 className="text-xl md:text-3xl lg:text-4xl font-black text-white mb-4 leading-tight tracking-tight max-w-4xl">
               {course.title}
             </h1>
 
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-[11px] md:text-xs font-bold text-slate-300 uppercase tracking-widest">
-              <div className="flex items-center gap-2">
-                <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
-                <span className="text-white">4.9</span>
-                <span className="opacity-60">(2.4k sharh)</span>
-              </div>
+
               <div className="flex items-center gap-2">
                 <Users className="h-4 w-4 text-indigo-400" />
                 <span className="text-white">{studentCount.toLocaleString()}</span>
                 <span className="opacity-60">talaba</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Globe className="h-4 w-4 text-emerald-400" />
-                <span className="text-white">O'zbek tili</span>
-              </div>
+
             </div>
           </div>
         </div>
@@ -204,7 +195,7 @@ const CourseDetail = () => {
           
           <Card className="rounded-3xl border-slate-100 shadow-sm bg-white">
             <CardContent className="p-8 space-y-6">
-              <h2 className="text-2xl font-bold text-slate-900">Kurs haqida</h2>
+              <h2 className="text-xl font-bold text-slate-900">Kurs haqida</h2>
               <p className="text-slate-600 leading-relaxed text-lg">
                 {course.description}
               </p>
@@ -235,7 +226,7 @@ const CourseDetail = () => {
           <Card className="rounded-3xl border-slate-100 shadow-sm bg-white">
             <CardContent className="p-8">
               <div className="flex items-center justify-between mb-8">
-                <h2 className="text-2xl font-bold text-slate-900">Dars dasturi</h2>
+                <h2 className="text-xl font-bold text-slate-900">Dars dasturi</h2>
                 <div className="flex items-center gap-4 text-sm font-semibold text-slate-500">
                   <span className="flex items-center gap-1.5"><BookOpen className="h-4 w-4" /> {lessons.length} dars</span>
                   <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> 24 soat</span>
@@ -301,7 +292,7 @@ const CourseDetail = () => {
 
           <Card className="rounded-3xl border-slate-100 shadow-sm bg-white">
             <CardContent className="p-8">
-              <h2 className="text-2xl font-bold text-slate-900 mb-8">O'qituvchi haqida</h2>
+              <h2 className="text-xl font-bold text-slate-900 mb-8">O'qituvchi haqida</h2>
               <div className="flex flex-col md:flex-row gap-6 items-center md:items-start text-center md:text-left">
                 <Avatar className="h-32 w-32 rounded-2xl border-4 border-slate-50 shadow-sm">
                   <AvatarImage src={teacher?.avatar_url || undefined} className="object-cover" />
@@ -309,7 +300,7 @@ const CourseDetail = () => {
                 </Avatar>
                 <div className="space-y-4">
                   <div>
-                    <h3 className="text-xl font-bold text-slate-900">{teacher?.full_name || "O'qituvchi"}</h3>
+                    <h3 className="text-lg font-bold text-slate-900">{teacher?.full_name || "O'qituvchi"}</h3>
                     <p className="text-indigo-600 font-semibold text-sm mt-1">Platforma mualiffi</p>
                   </div>
                   <p className="text-sm text-slate-600 leading-relaxed">
@@ -328,7 +319,7 @@ const CourseDetail = () => {
             <CardContent className="p-8">
               
               <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-100">
-                 <h3 className="text-xl font-bold text-slate-900">Kurs xolati</h3>
+                 <h3 className="text-lg font-bold text-slate-900">Kurs xolati</h3>
                  <Badge className="bg-emerald-50 text-emerald-600 border-none font-bold">Bepul</Badge>
               </div>
 

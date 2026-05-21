@@ -109,6 +109,24 @@ const LessonPage = () => {
 
   const fetchData = useCallback(async () => {
     if (!id || !user) return;
+    
+    // Clear all previous lesson states before fetching new data
+    setAnswers({});
+    setResults({});
+    setSubmitted(false);
+    setReflection1("");
+    setAiReflectionResult("");
+    setPlanningStarted(false);
+    setPlanningStep(1);
+    setIsPlanningModalOpen(true);
+    setPlanGoal("");
+    setPlanLevel("");
+    setPlanTime("");
+    setAiSmartPlan("");
+    setVideoFinished(false);
+    setChatHistory([]);
+    setChatMessage("");
+    
     if (playerRef.current) {
       try { playerRef.current.destroy(); } catch (e) { }
       playerRef.current = null;
@@ -120,8 +138,20 @@ const LessonPage = () => {
       const { data: testsData } = await supabase.from("tests").select("*").eq("lesson_id", id);
       setTests(testsData as Test[] || []);
       const { data: assessments } = await supabase.from("self_assessments").select("*").eq("lesson_id", id).eq("user_id", user.id).maybeSingle();
-      if (assessments) { setSubmitted(true); setReflection1(assessments.reflection || ""); setPlanningStarted(true); setVideoFinished(true); }
-      if (isTeacher) { setPlanningStarted(true); setVideoFinished(true); }
+      
+      if (assessments) { 
+        setSubmitted(true); 
+        setReflection1(assessments.reflection || ""); 
+        setPlanningStarted(true); 
+        setVideoFinished(true); 
+        setIsPlanningModalOpen(false);
+      }
+      
+      if (isTeacher) { 
+        setPlanningStarted(true); 
+        setVideoFinished(true); 
+        setIsPlanningModalOpen(false);
+      }
       
       // Fetch completed lessons for locking logic
       const { data: allAssessments } = await supabase.from('self_assessments').select('lesson_id').eq('user_id', user.id);
@@ -218,6 +248,19 @@ const LessonPage = () => {
       const feedback = await getMetacognitiveFeedback(reflection1, { score: `${correctCount}/${tests.length}` });
       setAiReflectionResult(feedback || "");
       await supabase.from('self_assessments').upsert({ user_id: user.id, lesson_id: id, rating: 5, reflection: reflection1 });
+      
+      // Update completed lessons locally and update enrollment progress
+      if (!completedLessonIds.includes(id)) {
+        const newCompleted = [...completedLessonIds, id];
+        setCompletedLessonIds(newCompleted);
+        
+        if (lesson?.course_id) {
+          const courseCompletedCount = courseLessons.filter(l => newCompleted.includes(l.id)).length;
+          const progress = Math.round((courseCompletedCount / courseLessons.length) * 100);
+          await supabase.from('enrollments').update({ progress }).eq('user_id', user.id).eq('course_id', lesson.course_id);
+        }
+      }
+      
       toast.success("Tahlil yakunlandi!");
     } catch (error) { } finally { setIsAnalyzingReflection(false); }
   };
@@ -317,7 +360,7 @@ const LessonPage = () => {
               <div className="flex items-center justify-between border-b border-slate-100 pb-5">
                  <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center"><ClipboardList className="h-5 w-5" /></div>
-                    <div><h2 className="text-xl font-bold text-slate-900">Testlar Boshqaruvi</h2><p className="text-xs text-slate-400 font-medium">Jami {tests.length} ta savol</p></div>
+                    <div><h2 className="text-xl font-bold text-slate-900">Testlar Boshqaruvi</h2><p className="text-xs text-slate-400 font-medium">Jami {tests.length} ta savoldan biri</p></div>
                  </div>
                  <Button onClick={handleGenerateTests} disabled={isGeneratingTests} className="h-10 px-6 rounded-xl bg-white border border-slate-200 text-slate-900 hover:bg-slate-50 font-bold gap-2 shadow-sm">
                     {isGeneratingTests ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 text-indigo-500" />} AI yordamida yangilash
@@ -451,7 +494,7 @@ const LessonPage = () => {
             <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-6 sm:p-8 space-y-6 relative max-h-[85vh] overflow-y-auto scrollbar-hide">
               <div className="text-center space-y-4 relative z-10">
                  <div className="bg-indigo-50 h-16 w-16 rounded-2xl flex items-center justify-center mx-auto text-indigo-600 mb-2"><BrainCircuit className="h-8 w-8" /></div>
-                 <h2 className="text-2xl font-bold text-slate-900">Neural Planning</h2>
+                 <h2 className="text-2xl font-bold text-slate-900">Intellektual Rejalashtirish</h2>
                  <p className="text-sm text-slate-500">Darsni boshlashdan oldin o'rganish rejangizni tuzib oling</p>
               </div>
               <div className="space-y-10 relative z-10">
@@ -460,28 +503,28 @@ const LessonPage = () => {
                       <motion.div key="step1" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="space-y-6">
                          <div className="space-y-5">
                             <div>
-                              <Label className="text-sm font-semibold text-slate-700 mb-3 block">Bugun nimaga e'tibor qaratmoqchisiz?</Label>
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                 {["Tushunish", "Chuqur o'zlashtirish", "Amaliy qo'llash"].map(v => (
-                                   <button key={v} onClick={() => setPlanGoal(v)} className={`p-3 rounded-xl border text-xs font-semibold transition-all ${planGoal === v ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50'}`}>{v}</button>
-                                 ))}
-                              </div>
+                               <Label className="text-sm font-semibold text-slate-700 mb-3 block">Bugun nimaga e'tibor qaratmoqchisiz?</Label>
+                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                  {["Tushunish", "Chuqur o'zlashtirish", "Amaliy qo'llash"].map(v => (
+                                    <button key={v} onClick={() => setPlanGoal(v)} className={`p-3 rounded-xl border text-xs font-semibold transition-all ${planGoal === v ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50'}`}>{v}</button>
+                                  ))}
+                               </div>
                             </div>
                             <div>
-                              <Label className="text-sm font-semibold text-slate-700 mb-3 block">Bu mavzuni qanchalik bilasiz?</Label>
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                 {["Boshlovchi", "O'rtacha", "Yaxshi"].map(v => (
-                                   <button key={v} onClick={() => setPlanLevel(v)} className={`p-3 rounded-xl border text-xs font-semibold transition-all ${planLevel === v ? 'bg-amber-500 border-amber-500 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-amber-300 hover:bg-amber-50'}`}>{v}</button>
-                                 ))}
-                              </div>
+                               <Label className="text-sm font-semibold text-slate-700 mb-3 block">Bu mavzuni qanchalik bilasiz?</Label>
+                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                  {["Boshlovchi", "O'rtacha", "Yaxshi"].map(v => (
+                                    <button key={v} onClick={() => setPlanLevel(v)} className={`p-3 rounded-xl border text-xs font-semibold transition-all ${planLevel === v ? 'bg-amber-500 border-amber-500 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-amber-300 hover:bg-amber-50'}`}>{v}</button>
+                                  ))}
+                               </div>
                             </div>
                             <div>
-                              <Label className="text-sm font-semibold text-slate-700 mb-3 block">Bu darsga qancha vaqt ajratasiz?</Label>
-                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                 {["10 daqiqa", "20 daqiqa", "30+ daqiqa"].map(v => (
-                                   <button key={v} onClick={() => setPlanTime(v)} className={`p-3 rounded-xl border text-xs font-semibold transition-all ${planTime === v ? 'bg-emerald-500 border-emerald-500 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50'}`}>{v}</button>
-                                 ))}
-                              </div>
+                               <Label className="text-sm font-semibold text-slate-700 mb-3 block">Bu darsga qancha vaqt ajratasiz?</Label>
+                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                  {["10 daqiqa", "20 daqiqa", "30+ daqiqa"].map(v => (
+                                    <button key={v} onClick={() => setPlanTime(v)} className={`p-3 rounded-xl border text-xs font-semibold transition-all ${planTime === v ? 'bg-emerald-500 border-emerald-500 text-white shadow-md' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-emerald-300 hover:bg-emerald-50'}`}>{v}</button>
+                                  ))}
+                               </div>
                             </div>
                          </div>
                          <Button disabled={!planGoal || !planLevel || !planTime || isGeneratingPlan} onClick={handleGeneratePlan} className="h-12 w-full rounded-xl mt-6 bg-slate-900 text-white font-semibold hover:bg-slate-800 transition-all gap-2">
@@ -578,9 +621,25 @@ const LessonPage = () => {
                              </div>
                              <RadioGroup value={answers[test.id]} onValueChange={val => setAnswers(prev => ({...prev, [test.id]: val}))} className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-13">
                                 {test.options.map((opt, i) => (
-                                   <Label key={i} htmlFor={`${test.id}-${i}`} className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${answers[test.id] === opt ? 'bg-indigo-50 border-indigo-600 text-indigo-900 shadow-md shadow-indigo-100' : 'bg-white border-slate-50 text-slate-700 hover:border-slate-200 hover:bg-slate-50'}`}>
+                                   <Label key={i} htmlFor={`${test.id}-${i}`} className={`flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                                     submitted 
+                                       ? opt === test.correct_answer
+                                         ? 'bg-emerald-50 border-emerald-500 text-emerald-900 shadow-sm shadow-emerald-50'
+                                         : answers[test.id] === opt
+                                           ? 'bg-rose-50 border-rose-500 text-rose-900 shadow-sm shadow-rose-50'
+                                           : 'bg-slate-50 border-slate-100 text-slate-400 opacity-60'
+                                       : answers[test.id] === opt 
+                                         ? 'bg-indigo-50 border-indigo-600 text-indigo-900 shadow-md shadow-indigo-100' 
+                                         : 'bg-white border-slate-50 text-slate-700 hover:border-slate-200 hover:bg-slate-50'
+                                   }`}>
                                       <RadioGroupItem value={opt} id={`${test.id}-${i}`} className="sr-only" />
-                                      <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 ${answers[test.id] === opt ? 'border-indigo-600 bg-indigo-600' : 'border-slate-300 bg-white'}`}>{answers[test.id] === opt && <div className="h-2 w-2 bg-white rounded-full" />}</div>
+                                      <div className={`h-5 w-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                                         submitted && opt === test.correct_answer
+                                           ? 'border-emerald-600 bg-emerald-600'
+                                           : answers[test.id] === opt 
+                                             ? (submitted && opt !== test.correct_answer ? 'border-rose-600 bg-rose-600' : 'border-indigo-600 bg-indigo-600') 
+                                             : 'border-slate-300 bg-white'
+                                      }`}>{(answers[test.id] === opt || (submitted && opt === test.correct_answer)) && <div className="h-2 w-2 bg-white rounded-full" />}</div>
                                       <span className="font-bold text-base">{opt}</span>
                                    </Label>
                                 ))}
@@ -588,24 +647,76 @@ const LessonPage = () => {
                           </div>
                        ))}
                        {!submitted ? <Button onClick={handleSubmitTests} className="w-full h-16 rounded-2xl bg-slate-900 text-white font-black text-lg shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all">Testlarni Yakunlash</Button> : (
-                          <div className="mt-12 pt-10 border-t border-slate-100 space-y-8 animate-fade-in">
-                             <div className="flex items-center gap-3 mb-6">
-                                <div className="h-12 w-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm">
-                                   <Brain className="h-7 w-7" />
-                                </div>
-                                <div>
-                                   <h2 className="text-xl font-black text-slate-900 tracking-tight">Metakognitiv Tahlil (Refleksiya)</h2>
-                                   <p className="text-sm text-slate-400 font-medium">AI sizning fikrlaringiz asosida shaxsiy tavsiya beradi</p>
-                                </div>
-                             </div>
-                             <Textarea value={reflection1} onChange={e => setReflection1(e.target.value)} placeholder="Bugun nimalarni o'rgandingiz? Qaysi qismlar qiyin bo'ldi?" className="min-h-[150px] rounded-2xl bg-slate-50 border-none p-6 text-slate-700 font-medium placeholder:text-slate-300 focus:ring-2 focus:ring-indigo-500/20 transition-all" />
-                             {!aiReflectionResult ? <Button onClick={handleAnalyzeReflection} disabled={isAnalyzingReflection} className="w-full h-16 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-lg shadow-indigo-100 hover:bg-indigo-700">{isAnalyzingReflection ? "AI Tahlil qilinmoqda..." : "AI Tahlilni Boshlash"}</Button> : (
-                                <div className="p-8 bg-indigo-50 border border-indigo-100 rounded-[2rem] animate-fade-in relative overflow-hidden">
-                                   <Sparkles className="absolute -top-4 -right-4 h-24 w-24 text-indigo-600/5 rotate-12" />
-                                   <p className="text-slate-700 whitespace-pre-wrap leading-relaxed font-bold relative z-10">{aiReflectionResult}</p>
-                                </div>
-                             )}
-                          </div>
+                           <div className="mt-12 pt-10 border-t border-slate-100 space-y-8 animate-fade-in">
+                              {/* Test Results Summary Banner - Redesigned for Premium Look */}
+                              <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-white to-slate-50/50 border border-slate-100 shadow-xl shadow-indigo-500/10 relative overflow-hidden group">
+                                 <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl -mr-32 -mt-32 opacity-60 group-hover:opacity-100 transition-opacity duration-700" />
+                                 <div className="absolute bottom-0 left-0 w-48 h-48 bg-blue-50 rounded-full blur-3xl -ml-24 -mb-24 opacity-60" />
+                                 
+                                 <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+                                    <div className="flex items-center gap-8">
+                                       <div className="relative">
+                                          <div className="h-28 w-28 rounded-[2rem] bg-white shadow-2xl shadow-indigo-100 flex flex-col items-center justify-center border border-indigo-50 relative z-10">
+                                             <span className="text-4xl font-black text-indigo-600">{Object.values(results).filter(Boolean).length}</span>
+                                             <span className="text-[10px] uppercase font-black text-slate-400 tracking-widest mt-1">To'g'ri</span>
+                                          </div>
+                                          <div className="absolute -inset-2 bg-indigo-100/50 rounded-[2.5rem] blur-xl opacity-50 group-hover:opacity-80 transition-opacity" />
+                                       </div>
+                                       
+                                       <div className="text-center md:text-left">
+                                          <div className="flex items-center gap-2 mb-2 justify-center md:justify-start">
+                                             <Badge className="bg-emerald-50 text-emerald-600 border-none px-2 py-0.5 rounded-lg font-black text-[9px] uppercase tracking-tighter">Test yakunlandi</Badge>
+                                             <div className="h-1 w-1 rounded-full bg-slate-300" />
+                                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{new Date().toLocaleDateString('uz-UZ')}</span>
+                                          </div>
+                                          <h3 className="text-3xl font-black text-slate-900 tracking-tight mb-2">Sizning natijangiz</h3>
+                                          <p className="text-slate-500 font-medium max-w-xs">Jami {tests.length} ta savoldan {Object.values(results).filter(Boolean).length} tasiga to'g'ri javob berdingiz.</p>
+                                       </div>
+                                    </div>
+                                    
+                                    <div className="flex flex-col items-center md:items-end gap-2">
+                                       <div className="relative h-24 w-24 flex items-center justify-center">
+                                          <svg className="absolute inset-0 h-full w-full -rotate-90">
+                                            <circle cx="48" cy="48" r="40" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-slate-100" />
+                                            <circle 
+                                              cx="48" 
+                                              cy="48" 
+                                              r="40" 
+                                              stroke="currentColor" 
+                                              strokeWidth="8" 
+                                              fill="transparent" 
+                                              strokeDasharray={2 * Math.PI * 40} 
+                                              strokeDashoffset={2 * Math.PI * 40 * (1 - (tests.length > 0 ? Object.values(results).filter(Boolean).length / tests.length : 0))} 
+                                              strokeLinecap="round"
+                                              className="text-indigo-600 transition-all duration-1000 ease-out" 
+                                            />
+                                          </svg>
+                                          <div className="text-center">
+                                             <span className="text-2xl font-black text-slate-900">{tests.length > 0 ? Math.round((Object.values(results).filter(Boolean).length / tests.length) * 100) : 0}%</span>
+                                          </div>
+                                       </div>
+                                       <div className="text-[10px] uppercase font-black tracking-widest text-indigo-400">Umumiy ko'rsatkich</div>
+                                    </div>
+                                 </div>
+                              </div>
+
+                              <div className="flex items-center gap-3 mb-6">
+                                 <div className="h-12 w-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-sm">
+                                    <Brain className="h-7 w-7" />
+                                 </div>
+                                 <div>
+                                    <h2 className="text-xl font-black text-slate-900 tracking-tight">Metakognitiv Tahlil (Refleksiya)</h2>
+                                    <p className="text-sm text-slate-400 font-medium">Test natijangizdan kelib chiqib, qaysi qismlar qiyin bo'lgani haqida fikr yozing</p>
+                                 </div>
+                              </div>
+                              <Textarea value={reflection1} onChange={e => setReflection1(e.target.value)} placeholder="Bugun nimalarni o'rgandingiz? Test natijangizni qanday baholaysiz? Qaysi savollarda qiynaldingiz va nima uchun?" className="min-h-[150px] rounded-2xl bg-slate-50 border-none p-6 text-slate-700 font-medium placeholder:text-slate-300 focus:ring-2 focus:ring-indigo-500/20 transition-all" />
+                              {!aiReflectionResult ? <Button onClick={handleAnalyzeReflection} disabled={isAnalyzingReflection} className="w-full h-16 bg-indigo-600 text-white rounded-2xl font-black text-lg shadow-lg shadow-indigo-100 hover:bg-indigo-700">{isAnalyzingReflection ? "AI Tahlil qilinmoqda..." : "AI Tahlilni Boshlash"}</Button> : (
+                                 <div className="p-8 bg-indigo-50 border border-indigo-100 rounded-[2rem] animate-fade-in relative overflow-hidden">
+                                    <Sparkles className="absolute -top-4 -right-4 h-24 w-24 text-indigo-600/5 rotate-12" />
+                                    <p className="text-slate-700 whitespace-pre-wrap leading-relaxed font-bold relative z-10">{aiReflectionResult}</p>
+                                 </div>
+                              )}
+                           </div>
                        )}
                     </div>
                  ) : (
@@ -687,10 +798,15 @@ const LessonPage = () => {
                  <div className="p-5 border-t border-slate-50 bg-slate-50/30 flex-none">
                     <div className="flex justify-between items-center mb-2">
                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">O'zlashtirish progressi</span>
-                       <span className="text-[10px] font-black text-indigo-600 uppercase">{Math.round((courseLessons.findIndex(l => l.id === id) + 1) / courseLessons.length * 100)}%</span>
+                       <span className="text-[10px] font-black text-indigo-600 uppercase">
+                         {courseLessons.length > 0 ? Math.round((courseLessons.filter(l => completedLessonIds.includes(l.id)).length / courseLessons.length) * 100) : 0}%
+                       </span>
                     </div>
                     <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner">
-                       <div className="h-full bg-gradient-to-r from-indigo-500 to-blue-400 rounded-full shadow-lg" style={{width: `${(courseLessons.findIndex(l => l.id === id) + 1) / courseLessons.length * 100}%`}} />
+                       <div 
+                         className="h-full bg-gradient-to-r from-indigo-500 to-blue-400 rounded-full shadow-lg transition-all duration-500" 
+                         style={{width: `${courseLessons.length > 0 ? (courseLessons.filter(l => completedLessonIds.includes(l.id)).length / courseLessons.length) * 100 : 0}%`}} 
+                       />
                     </div>
                  </div>
               </Card>

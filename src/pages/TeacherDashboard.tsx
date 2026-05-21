@@ -166,7 +166,7 @@ const TeacherDashboard = () => {
                   </div>
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900 mb-1">{s.value}</h3>
-                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{s.label}</p>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.1em]">{s.label}</p>
               </CardContent>
             </Card>
           ))}
