@@ -1,16 +1,25 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   Trophy, Target, CheckCircle2, XCircle, 
-  BookOpen, Activity, TrendingUp, SearchIcon, ArrowRight,
-  GraduationCap, ChevronDown, ChevronUp, Sparkles, Zap
+  BookOpen, ChevronDown, ChevronUp, BarChart3,
+  SearchIcon, Filter, GraduationCap, Layout,
+  TrendingUp, ClipboardCheck, Calendar, Info
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Course { id: string; title: string; }
 interface Lesson { id: string; title: string; course_id: string; }
@@ -24,215 +33,219 @@ const StudentResults = () => {
   const { user } = useAuth();
   const [results, setResults] = useState<TestResult[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [expandedCourses, setExpandedCourses] = useState<string[]>([]);
-  const [expandedLessons, setExpandedLessons] = useState<string[]>([]);
-
-  const toggleCourse = (id: string) => setExpandedCourses(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
-  const toggleLesson = (id: string) => setExpandedLessons(prev => prev.includes(id) ? prev.filter(l => l !== id) : [...prev, id]);
+  
+  // Filter States
+  const [selectedCourse, setSelectedCourse] = useState<string>("all");
+  const [selectedLesson, setSelectedLesson] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
 
   const fetchResults = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { data: resultsData, error: resultsError } = await supabase.from("test_results").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
-      if (resultsError) throw resultsError;
-      if (resultsData && resultsData.length > 0) {
-        const testIds = [...new Set(resultsData.map(r => r.test_id))];
-        const { data: testsData } = await supabase.from("tests").select("*").in("id", testIds);
-        const lessonIds = [...new Set(testsData?.map(t => t.lesson_id) || [])];
-        const { data: lessonsData } = await supabase.from("lessons").select("*").in("id", lessonIds);
-        const courseIds = [...new Set(lessonsData?.map(l => l.course_id) || [])];
-        const { data: coursesData } = await supabase.from("courses").select("id, title").in("id", courseIds);
+      const { data, error } = await supabase
+        .from("test_results")
+        .select(`
+          *,
+          tests (
+            id,
+            question,
+            lesson_id,
+            lessons (
+              id,
+              title,
+              course_id,
+              courses (
+                id,
+                title
+              )
+            )
+          )
+        `)
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
-        const mappedResults = resultsData.map(res => {
-          const test = testsData?.find(t => t.id === res.test_id);
-          const lesson = lessonsData?.find(l => l.id === test?.lesson_id);
-          const course = coursesData?.find(c => c.id === lesson?.course_id);
-          return { ...res, tests: { ...test, lessons: { ...lesson, courses: course } } } as TestResult;
-        });
-        setResults(mappedResults);
-      } else setResults([]);
-    } catch (error) { console.error(error); } finally { setLoading(false); }
+      if (error) throw error;
+      setResults(data || []);
+    } catch (error) { 
+      console.error(error); 
+    } finally { 
+      setLoading(false); 
+    }
   }, [user]);
 
   useEffect(() => { fetchResults(); }, [fetchResults]);
 
+  // Extract unique filter options
+  const courses = Array.from(new Set(results.map(r => r.tests?.lessons?.courses?.id).filter(Boolean)))
+    .map(id => ({ id, title: results.find(r => r.tests?.lessons?.courses?.id === id)?.tests?.lessons?.courses?.title }));
+
+  const lessonsGroup = results
+    .filter(r => selectedCourse === "all" || r.tests?.lessons?.course_id === selectedCourse)
+    .map(r => ({ id: r.tests?.lessons?.id, title: r.tests?.lessons?.title }))
+    .filter((v, i, a) => v.id && a.findIndex(t => t.id === v.id) === i);
+
+  // Filtered logic
+  const filteredData = results.filter(r => {
+    const courseMatch = selectedCourse === "all" || r.tests?.lessons?.course_id === selectedCourse;
+    const lessonMatch = selectedLesson === "all" || r.tests?.lessons?.id === selectedLesson;
+    const statusMatch = selectedStatus === "all" || (selectedStatus === "correct" ? r.is_correct : !r.is_correct);
+    return courseMatch && lessonMatch && statusMatch;
+  });
+
   const stats = {
-    total: results.length,
-    correct: results.filter(r => r.is_correct).length,
-    accuracy: results.length ? Math.round((results.filter(r => r.is_correct).length / results.length) * 100) : 0
+    total: filteredData.length,
+    correct: filteredData.filter(r => r.is_correct).length,
+    accuracy: filteredData.length ? Math.round((filteredData.filter(r => r.is_correct).length / filteredData.length) * 100) : 0
   };
 
-  const filteredResults = results.filter(r => r.tests?.question.toLowerCase().includes(searchQuery.toLowerCase()) || r.tests?.lessons?.title.toLowerCase().includes(searchQuery.toLowerCase()));
-
-  const groupedByCourse = filteredResults.reduce((acc, result) => {
-    const courseId = result.tests?.lessons?.course_id || "unknown";
-    const courseTitle = result.tests?.lessons?.courses?.title || "Umumiy Kurs";
-    const lessonId = result.tests?.lesson_id;
-    if (!lessonId) return acc;
-    if (!acc[courseId]) acc[courseId] = { courseId, courseTitle, lessons: {} };
-    if (!acc[courseId].lessons[lessonId]) acc[courseId].lessons[lessonId] = { lessonId, lessonTitle: result.tests?.lessons?.title || "Dars", results: [] };
-    acc[courseId].lessons[lessonId].results.push(result);
-    return acc;
-  }, {} as Record<string, { courseId: string, courseTitle: string, lessons: Record<string, { lessonId: string, lessonTitle: string, results: TestResult[] }> }>);
-
   return (
-    <div className="max-w-[1500px] mx-auto px-6 py-10 space-y-16 animate-fade-in pb-32">
+    <div className="max-w-full mx-auto py-6 px-6 lg:px-8 space-y-6 pb-20 bg-[#fbfcfd]">
       
-      {/* 1. Noyob "Custom" Hero Section */}
-      <div className="relative rounded-[3rem] bg-slate-950 overflow-hidden min-h-[450px] shadow-2xl flex items-center group">
-         {/* Background Decor */}
-         <div className="absolute top-0 right-0 w-[600px] h-full opacity-40 mix-blend-screen pointer-events-none">
-            <img 
-               src="/learning_analytics_3d_1779339577360.png" 
-               alt="Analytics" 
-               className="w-full h-full object-contain translate-x-32 scale-125"
-            />
+      {/* 1. Header & Filters */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm flex flex-col xl:flex-row xl:items-end justify-between gap-6">
+         <div className="space-y-1">
+            <div className="flex items-center gap-2 mb-1">
+               <div className="h-8 w-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <BarChart3 className="h-4 w-4" />
+               </div>
+               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Akademik Monitoring</span>
+            </div>
+            <h1 className="text-xl font-bold text-slate-900">O'zlashtirish Tahlili</h1>
+            <p className="text-slate-500 text-[11px] font-medium max-w-md">Barcha test topshiriqlarining batafsil statistikasi.</p>
          </div>
-         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/30 rounded-full blur-[120px] pointer-events-none" />
-         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-500/20 rounded-full blur-[120px] pointer-events-none" />
-
-         <div className="relative z-10 p-10 md:p-20 flex flex-col md:flex-row items-center gap-16 w-full">
-            <div className="flex-1 space-y-8 text-center md:text-left">
-               <div className="inline-flex items-center gap-2 bg-indigo-500/10 backdrop-blur-md border border-indigo-500/20 rounded-full px-5 py-2">
-                  <Sparkles className="h-4 w-4 text-indigo-400" />
-                  <span className="text-xs font-black text-indigo-300 uppercase tracking-widest">Shaxsiy Yutuqlar</span>
-               </div>
-               <h1 className="text-4xl md:text-6xl font-black text-white tracking-tight leading-[1.1]">Mening<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-blue-300">Natijalarim</span></h1>
-               <p className="text-slate-400 text-lg font-medium max-w-lg">Sizning bilim cho'qqilarini zabt etish yo'lidagi barcha urinishlaringiz va intellektual salohiyatingiz tahlili.</p>
-               
-               <div className="flex flex-wrap gap-4 justify-center md:justify-start">
-                  <div className="relative w-full md:w-80">
-                     <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                     <input 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Natijalardan qidiring..." 
-                        className="w-full h-14 pl-12 pr-4 rounded-2xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 focus:bg-white/10 focus:border-indigo-500/50 outline-none transition-all"
-                     />
-                  </div>
-               </div>
+         
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1.5 min-w-[180px]">
+               <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Kurs</label>
+               <Select value={selectedCourse} onValueChange={(v) => { setSelectedCourse(v); setSelectedLesson("all"); }}>
+                  <SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-[11px] font-bold rounded-xl outline-none">
+                     <SelectValue placeholder="Kurs tanlang" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                     <SelectItem value="all">Barcha kurslar</SelectItem>
+                     {courses.map(c => <SelectItem key={c.id} value={c.id!}>{c.title}</SelectItem>)}
+                  </SelectContent>
+               </Select>
             </div>
 
-            {/* Floating Stats Glassmorphism */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full md:w-[450px]">
-               {[
-                 { label: "Jami Urinish", val: stats.total, icon: Target, col: "text-blue-400" },
-                 { label: "Muvaffaqiyatli", val: stats.correct, icon: CheckCircle2, col: "text-emerald-400" },
-                 { label: "O'rtacha Aniqlik", val: `${stats.accuracy}%`, icon: TrendingUp, col: "text-amber-400" },
-                 { label: "O'zlashtirish", val: "A'lo", icon: Trophy, col: "text-indigo-400" }
-               ].map((s, i) => (
-                  <div key={i} className="group/item relative p-6 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 overflow-hidden hover:bg-white/10 transition-all duration-500">
-                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover/item:opacity-20 transition-all">
-                        <s.icon className={`h-12 w-12 ${s.col}`} />
-                     </div>
-                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{s.label}</p>
-                     <h3 className="text-3xl font-black text-white">{s.val}</h3>
-                  </div>
-               ))}
+            <div className="space-y-1.5 min-w-[180px]">
+               <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Dars</label>
+               <Select value={selectedLesson} onValueChange={setSelectedLesson} disabled={selectedCourse === "all"}>
+                  <SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-[11px] font-bold rounded-xl outline-none">
+                     <SelectValue placeholder="Dars tanlang" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                     <SelectItem value="all">Barcha darslar</SelectItem>
+                     {lessonsGroup.map(l => <SelectItem key={l.id} value={l.id!}>{l.title}</SelectItem>)}
+                  </SelectContent>
+               </Select>
+            </div>
+
+            <div className="space-y-1.5 min-w-[140px]">
+               <label className="text-[9px] font-bold text-slate-400 uppercase ml-1">Holat</label>
+               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                  <SelectTrigger className="h-9 bg-slate-50 border-slate-200 text-[11px] font-bold rounded-xl outline-none">
+                     <SelectValue placeholder="Barchasi" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                     <SelectItem value="all">Barcha testlar</SelectItem>
+                     <SelectItem value="correct">To'g'ri</SelectItem>
+                     <SelectItem value="wrong">Xato</SelectItem>
+                  </SelectContent>
+               </Select>
             </div>
          </div>
       </div>
 
-      {/* 2. Natijalar Ro'yxati - Custom Layout */}
-      <div className="space-y-10">
-         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-            <div className="flex items-center gap-3 text-slate-900">
-               <Activity className="h-6 w-6 text-indigo-600" />
-               <h2 className="text-2xl font-black tracking-tight uppercase tracking-widest text-xs">Barcha Tahlillar</h2>
+      {/* 2. Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+         {[
+           { label: "Jami Urinish", val: stats.total, icon: ClipboardCheck, col: "text-blue-600", bg: "bg-blue-50" },
+           { label: "Muvaffaqiyatli", val: stats.correct, icon: CheckCircle2, col: "text-emerald-600", bg: "bg-emerald-50" },
+           { label: "Aniqlik Darajasi", val: `${stats.accuracy}%`, icon: TrendingUp, col: "text-indigo-600", bg: "bg-indigo-50" }
+         ].map((s, i) => (
+            <div key={i} className="bg-white border border-slate-100 p-4 rounded-2xl flex items-center gap-4 shadow-sm group hover:border-blue-100 transition-all">
+               <div className={`h-9 w-9 rounded-xl ${s.bg} ${s.col} flex items-center justify-center shrink-0`}>
+                  <s.icon className="h-4.5 w-4.5" />
+               </div>
+               <div>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">{s.label}</p>
+                  <p className="text-lg font-bold text-slate-800 leading-none">{s.val}</p>
+               </div>
             </div>
-            <div className="flex items-center gap-2">
-               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Jami:</span>
-               <Badge className="bg-indigo-50 text-indigo-600 border-none font-black">{filteredResults.length}</Badge>
-            </div>
-         </div>
-
-         {loading ? (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-               {[1, 2, 3, 4].map(i => <div key={i} className="h-48 rounded-[2rem] bg-slate-50 animate-pulse" />)}
-            </div>
-         ) : filteredResults.length === 0 ? (
-            <div className="py-20 text-center"><p className="text-slate-400 font-bold">Hech narsa topilmadi</p></div>
-         ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-               {Object.values(groupedByCourse).map((course) => {
-                  const isEx = expandedCourses.includes(course.courseId);
-                  const lessons = Object.values(course.lessons);
-                  const total = lessons.reduce((s, l) => s + l.results.length, 0);
-                  const correct = lessons.reduce((s, l) => s + l.results.filter(r => r.is_correct).length, 0);
-                  const acc = total ? Math.round((correct / total) * 100) : 0;
-
-                  return (
-                     <Card key={course.courseId} className={`group/course rounded-[2.5rem] border-slate-100 transition-all duration-700 overflow-hidden ${isEx ? "shadow-2xl shadow-indigo-100 bg-slate-50" : "shadow-sm hover:shadow-xl bg-white"}`}>
-                        <div onClick={() => toggleCourse(course.courseId)} className="p-8 cursor-pointer flex items-center justify-between gap-6">
-                           <div className="flex items-center gap-6">
-                              <div className="h-16 w-16 rounded-[1.5rem] bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 shadow-sm transition-transform group-hover/course:rotate-3">
-                                 <BookOpen className="h-8 w-8" />
-                              </div>
-                              <div>
-                                 <h3 className="text-xl font-black text-slate-900 mb-1 leading-tight">{course.courseTitle}</h3>
-                                 <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-1.5"><Zap className="h-3.5 w-3.5 text-amber-500" /><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{total} ta urinish</span></div>
-                                    <div className="h-1 w-1 rounded-full bg-slate-200" />
-                                    <div className="flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5 text-emerald-500" /><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{acc}% aniqlik</span></div>
-                                 </div>
-                              </div>
-                           </div>
-                           <div className="h-10 w-10 rounded-full bg-white border border-slate-100 flex items-center justify-center shadow-sm text-slate-400 group-hover/course:text-indigo-600 transition-colors">
-                              {isEx ? <ChevronUp /> : <ChevronDown />}
-                           </div>
-                        </div>
-
-                        <AnimatePresence>
-                        {isEx && (
-                           <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="px-8 pb-8 space-y-4">
-                              {lessons.map(lesson => {
-                                 const isLex = expandedLessons.includes(lesson.lessonId);
-                                 return (
-                                    <div key={lesson.lessonId} className="rounded-3xl border border-slate-200/60 bg-white overflow-hidden shadow-sm">
-                                       <div onClick={() => toggleLesson(lesson.lessonId)} className="p-5 cursor-pointer flex items-center justify-between hover:bg-slate-50 transition-colors">
-                                          <h4 className="text-sm font-black text-slate-800">{lesson.lessonTitle}</h4>
-                                          <div className="flex items-center gap-4">
-                                             <Badge variant="outline" className="text-[9px] font-black border-slate-200 uppercase tracking-tighter">O'rtacha: {Math.round(lesson.results.filter(r => r.is_correct).length / lesson.results.length * 100)}%</Badge>
-                                             {isLex ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
-                                          </div>
-                                       </div>
-                                       {isLex && (
-                                          <div className="p-5 border-t border-slate-100 bg-slate-50/50 space-y-3">
-                                             {lesson.results.map((r, i) => (
-                                                <div key={i} className="flex items-center justify-between gap-4 p-3 bg-white rounded-2xl border border-slate-100 shadow-sm animate-fade-in">
-                                                   <p className="text-xs font-bold text-slate-800 line-clamp-1 flex-1">{r.tests?.question}</p>
-                                                   {r.is_correct ? <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" /> : <XCircle className="h-4 w-4 text-rose-500 shrink-0" />}
-                                                </div>
-                                             ))}
-                                          </div>
-                                       )}
-                                    </div>
-                                 );
-                              })}
-                           </motion.div>
-                        )}
-                        </AnimatePresence>
-                     </Card>
-                  );
-               })}
-            </div>
-         )}
+         ))}
       </div>
 
-      {/* 3. Custom Bottom Banner */}
-      <div className="relative rounded-[3.5rem] bg-indigo-600 p-12 md:p-24 overflow-hidden shadow-3xl shadow-indigo-200/50">
-         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-white/10 to-transparent" />
-         <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
-            <div className="text-center md:text-left space-y-6 max-w-2xl">
-               <h2 className="text-3xl md:text-5xl font-black text-white leading-tight">Yutuqlarni zabt etishda<br />davom eting!</h2>
-               <p className="text-indigo-100/80 text-xl font-medium leading-relaxed">Har bir test va tahlil — bu sizning intellektual rivojlanishingiz yo'lidagi muhim qadamdir.</p>
+      {/* 3. Table Section */}
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+         <div className="bg-slate-50/50 px-6 py-3 border-b border-slate-200 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-slate-600">
+               <Layout className="h-4 w-4 text-slate-400" /> 
+               <span className="text-xs font-bold uppercase tracking-tight">Testlar Ro'yxati</span>
             </div>
-            <Button asChild className="h-16 px-12 rounded-2xl bg-white text-indigo-600 font-black text-lg hover:scale-105 transition-all shadow-xl shadow-indigo-900/20">
-               <Link to="/student/courses">O'qishda davom etish <ArrowRight className="ml-2 h-6 w-6" /></Link>
-            </Button>
+            <Badge variant="outline" className="bg-white border-slate-200 text-slate-400 font-bold text-[9px] h-5">{filteredData.length} ta natija</Badge>
          </div>
+
+         <div className="overflow-x-auto">
+            {loading ? (
+               <div className="p-6 space-y-4">
+                  {[1, 2, 3].map(i => <Skeleton key={i} className="h-10 w-full rounded-lg" />)}
+               </div>
+            ) : filteredData.length === 0 ? (
+               <div className="p-16 text-center">
+                  <div className="h-10 w-10 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                     <Info className="h-5 w-5 text-slate-300" />
+                  </div>
+                  <p className="text-slate-400 font-bold text-xs">Ma'lumot topilmadi.</p>
+               </div>
+            ) : (
+               <table className="w-full text-left border-collapse">
+                  <thead>
+                     <tr>
+                        <th className="px-6 py-3 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-100 bg-slate-50/20">Savol</th>
+                        <th className="px-6 py-3 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-100 bg-slate-50/20">Kurs / Dars</th>
+                        <th className="px-6 py-3 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-100 bg-slate-50/20">Holat</th>
+                        <th className="px-6 py-3 text-[9px] font-bold text-slate-400 uppercase border-b border-slate-100 bg-slate-50/20 text-right">Sana</th>
+                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                     {filteredData.map((r) => (
+                        <tr key={r.id} className="hover:bg-slate-50/70 transition-colors group text-[11px]">
+                           <td className="px-6 py-4">
+                              <p className="font-bold text-slate-700 max-w-xs sm:max-w-md truncate group-hover:text-blue-600 transition-colors uppercase tracking-tight">{r.tests?.question}</p>
+                           </td>
+                           <td className="px-6 py-4">
+                              <div className="flex flex-col">
+                                 <span className="font-bold text-slate-600">{r.tests?.lessons?.courses?.title}</span>
+                                 <span className="font-medium text-slate-400 italic line-clamp-1">{r.tests?.lessons?.title}</span>
+                              </div>
+                           </td>
+                           <td className="px-6 py-4">
+                              <Badge variant={r.is_correct ? "outline" : "destructive"} className={`h-5 text-[8px] font-black border-none px-2 rounded-md ${r.is_correct ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                                 {r.is_correct ? "TO'G'RI" : "XATO"}
+                              </Badge>
+                           </td>
+                           <td className="px-6 py-4 text-right">
+                              <span className="font-bold text-slate-400">{new Date(r.created_at).toLocaleDateString()}</span>
+                           </td>
+                        </tr>
+                     ))}
+                  </tbody>
+               </table>
+            )}
+         </div>
+      </div>
+
+      {/* Support Footer */}
+      <div className="bg-slate-900 rounded-2xl p-6 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
+         <div className="relative z-10 space-y-1">
+            <h3 className="text-white font-bold text-sm tracking-tight">O'zlashtirishni tahlil qiling</h3>
+            <p className="text-slate-400 text-[10px] leading-relaxed max-w-sm">Xatolar ustida ishlash - muvaffaqiyat garovidir.</p>
+         </div>
+         <Button asChild variant="outline" className="h-8 px-4 rounded-lg bg-transparent border-slate-700 text-white font-bold text-[10px] uppercase hover:bg-slate-800 shrink-0 transition-all">
+            <Link to="/student/courses">Kurslar</Link>
+         </Button>
       </div>
     </div>
   );
